@@ -1,106 +1,39 @@
 {
   "schemaVersion": 1,
-  "headline": "GlowberryClient — Cosmetics & Identity Overhaul",
-  "summary": "Cosmetics move onto the game's native renderer with 100+ capes, 256 accessories and 18 animated pets, plus Bedrock Optifine Mode, proximity voice chat and a hardened VIP Mod Menu.",
+  "headline": "GlowberryClient — Crash Fix & Native Mod Restore",
+  "summary": "The startup crash from the preloader's memory allocator is fixed, and every inbuilt mod — Gyro, Zoom, FPS, AutoSprint and the rest — loads and runs again.",
   "sections": [
     {
-      "title": "Cosmetics, Rebuilt Natively",
+      "title": "Crash Fix",
       "items": [
         {
-          "text": "Cosmetics now render through the game's own player-render hook, and the old resource-pack route is gone.",
+          "text": "Fixed a startup crash caused by the preloader replacing malloc/free with an allocator that cannot free memory it did not allocate.",
           "url": ""
         },
         {
-          "text": "The cape is a 16-segment bone chain with real cloth fold driven by movement, jumping and turning.",
-          "url": ""
-        },
-        {
-          "text": "100+ capes, 256 accessories and 18 animated 3D pets, built from authored models.",
-          "url": ""
-        },
-        {
-          "text": "Cape artwork is swapped onto the real skin texture through the engine's own image loader.",
-          "url": ""
-        },
-        {
-          "text": "The preview is sharper: alpha cutout, depth-correct occlusion and 2x supersampling.",
-          "url": ""
-        },
-        {
-          "text": "Share your cape, hat and pet with other GlowberryClient users over LAN, the relay, or a manual peer.",
+          "text": "The process now keeps the system allocator, which is what the Optifine \"Allocator\" toggle requested in the first place.",
           "url": ""
         }
       ]
     },
     {
-      "title": "Bedrock Optifine Mode",
+      "title": "Inbuilt Mods Restored",
       "items": [
         {
-          "text": "A new Settings card with per-item toggles and launch wiring.",
+          "text": "Restored the native hook entry point the bundled inbuilt-mods library imports, so it loads instead of failing silently with no implementation.",
           "url": ""
         },
         {
-          "text": "A classic black Optifine cape with the \"OF\" monogram is applied by default.",
+          "text": "Gyro, Zoom, FPS, AutoSprint and the other inbuilt mods now load and run again.",
           "url": ""
         }
       ]
     },
     {
-      "title": "Proximity Voice Chat",
+      "title": "Updated Preloader",
       "items": [
         {
-          "text": "Voice works on your LAN and over a standalone relay server for internet play.",
-          "url": ""
-        },
-        {
-          "text": "Public and private channels with shareable join codes, a live directory and a pixel mic meter.",
-          "url": ""
-        },
-        {
-          "text": "Opus codec, jitter buffer, token auth and IP/device bans.",
-          "url": ""
-        }
-      ]
-    },
-    {
-      "title": "VIP Mod Menu & Replay",
-      "items": [
-        {
-          "text": "A bind-driven VIP Mod Menu with controller and keyboard layouts, hardened against crashes.",
-          "url": ""
-        },
-        {
-          "text": "Record, review, trim, stitch and share clips without leaving your world.",
-          "url": ""
-        }
-      ]
-    },
-    {
-      "title": "Fixes & Hardening",
-      "items": [
-        {
-          "text": "Fixed the GlossHook linker-init crash that could take down the app.",
-          "url": ""
-        },
-        {
-          "text": "Fixed dead cosmetics JNI exports so native cosmetics actually load.",
-          "url": ""
-        },
-        {
-          "text": "Fixed the Enter-in-chat crash.",
-          "url": ""
-        },
-        {
-          "text": "Fixed preloader load order and missing signature rules.",
-          "url": ""
-        }
-      ]
-    },
-    {
-      "title": "Housekeeping",
-      "items": [
-        {
-          "text": "Removed the news feature and reworked the Launch tab with docked controls and a live hero preview.",
+          "text": "The bundled preloader is updated: no allocator interposition, and the older hook ABI is exported again so prebuilt mod libraries stay loadable.",
           "url": ""
         }
       ]
