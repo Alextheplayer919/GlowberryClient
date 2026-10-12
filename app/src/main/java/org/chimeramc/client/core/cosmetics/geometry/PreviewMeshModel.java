@@ -159,6 +159,15 @@ public final class PreviewMeshModel {
         for (Transform transform : chain) {
             box.rotations.add(transform.rotation);
         }
+        // A cube's own rotation is part of its resolved orientation too. Omitting it from the
+        // shading/cull chain left a tilted cube's faces shaded as if the cube were axis-aligned, so
+        // a rotated accessory or pet cube had faces vanish at some angles — the cull disagreed with
+        // the geometry. Fold the local rotation in first (it applies innermost).
+        float[] localRot = cube.rotation == null ? new float[]{0f, 0f, 0f} : cube.rotation;
+        if (localRot[0] != 0f || localRot[1] != 0f || localRot[2] != 0f) {
+            box.rotations.add(0, localRot);
+        }
+        float[] localPivot = cube.pivot == null ? new float[]{0f, 0f, 0f} : cube.pivot;
         // The bone's pivot is a bone-space point; run it through the ancestor chain (excluding the
         // bone's own rotation, which leaves its pivot fixed) to get the world-space hinge a renderer
         // can swing this cube about.
@@ -172,10 +181,6 @@ public final class PreviewMeshModel {
         box.pivot[0] = pivot[0];
         box.pivot[1] = pivot[1];
         box.pivot[2] = pivot[2];
-
-        // Cube-local rotation (rare) is folded into the corner transform about the cube pivot.
-        float[] localRot = cube.rotation == null ? new float[]{0f, 0f, 0f} : cube.rotation;
-        float[] localPivot = cube.pivot == null ? new float[]{0f, 0f, 0f} : cube.pivot;
 
         for (int ix = 0; ix <= 1; ix++) {
             for (int iy = 0; iy <= 1; iy++) {

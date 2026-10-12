@@ -1,5 +1,6 @@
 package org.chimeramc.client.core.cosmetics;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 
 import org.chimeramc.client.preloader.PreloaderInput;
@@ -45,7 +46,9 @@ public final class NativeCosmeticsBridge {
         long key = keyFor(playerId);
         if (key == 0L) return false;
         if (image == null) {
-            PreloaderInput.setCapeOverride(key, null, 0, 0);
+            // Remove just this player's override. The old clear-all wiped every peer's cape when the
+            // local player unequipped theirs.
+            PreloaderInput.removeCapeOverride(key);
             return true;
         }
         byte[] rgba = toRgba(image);
@@ -59,7 +62,8 @@ public final class NativeCosmeticsBridge {
         long key = keyFor(textureId);
         if (key == 0L) return false;
         if (image == null) {
-            PreloaderInput.setTextureOverride(key, null, 0, 0);
+            // Remove just this id's override, not every texture.
+            PreloaderInput.removeTextureOverride(key);
             return true;
         }
         byte[] rgba = toRgba(image);
@@ -98,6 +102,124 @@ public final class NativeCosmeticsBridge {
     }
 
     /**
+     * Publishes the local player's equipped pieces with their own textures and authored geometry.
+     *
+     * <p>This is the role-keyed path the native renderer actually reads. It differs from
+     * {@link #publishLocal} in two ways that matter for what appears in game:
+     * <ul>
+     *   <li>Each of the cape, hat and pet gets its <em>own</em> texture (authored {@code .png} when
+     *       the piece has one, else the procedural atlas), so a hat is not painted in the cape's
+     *       colours.</li>
+     *   <li>The geometry blob carries the <em>authored</em> {@code .geo.json} mesh when the piece has
+     *       one, instead of the generic procedural boxes.</li>
+     * </ul>
+     * Fail-closed: a missing asset, a null Context or an absent native symbol leaves the previous
+     * registry contents in place.
+     */
+    public static void publishLocal(Context context, CosmeticCatalog.Cape cape,
+                                    CosmeticCatalog.Accessory accessory,
+                                    CosmeticCatalog.Pet pet) {
+        publishCape(cape);
+        publishAccessory(accessory);
+        publishPet(pet);
+        publishGeometry(context, cape, accessory, pet);
+        publishPieceAtlases(context, cape, accessory, pet);
+    }
+
+    // --- Role-keyed per-piece textures -------------------------------------------------------
+
+    /** Piece roles matching the native CosmeticPiece enum. */
+    public static final int PIECE_CAPE = 0;
+    public static final int PIECE_HAT = 1;
+    public static final int PIECE_PET = 2;
+
+    /**
+     * Renders and uploads the cape, hat and pet textures into their dedicated native slots, so the
+     * renderer can bind the right artwork per piece.
+     */
+    public static void publishPieceAtlases(Context context, CosmeticCatalog.Cape cape,
+                                           CosmeticCatalog.Accessory accessory,
+                                           CosmeticCatalog.Pet pet) {
+        try {
+            uploadPieceAtlases(context, cape, accessory, pet);
+        } catch (Throwable ignored) {
+            // A texture problem must never take the process down.
+        }
+    }
+
+    private static void uploadPieceAtlases(Context context, CosmeticCatalog.Cape cape,
+                                           CosmeticCatalog.Accessory accessory,
+                                           CosmeticCatalog.Pet pet) {
+        // Cape.
+        if (cape == null) {
+            PreloaderInput.setPieceAtlas(PIECE_CAPE, null, 0, 0);
+        } else {
+            byte[] png = CapeTexturePainter.paint(cape.color, cape.trimColor, cape.accentColor,
+                    cape.pattern, cape.branded);
+            uploadPiecePng(PIECE_CAPE, png);
+        }
+        // Hat: prefer the authored texture that ships beside the authored mesh.
+        if (accessory == null || accessory.kind == CosmeticCatalog.AccessoryKind.NONE) {
+            PreloaderInput.setPieceAtlas(PIECE_HAT, null, 0, 0);
+        } else {
+            byte[] png = authoredTexture(context, AuthoredHatModels.DIR,
+                    AuthoredHatModels.textureFor(accessory.modelId));
+            if (png == null) {
+                png = AccessoryTexturePainter.paint(accessory.color, accessory.accentColor);
+            }
+            uploadPiecePng(PIECE_HAT, png);
+        }
+        // Pet: likewise.
+        if (pet == null) {
+            PreloaderInput.setPieceAtlas(PIECE_PET, null, 0, 0);
+        } else {
+            String petId = pet.modelId != null ? pet.modelId : pet.id;
+            byte[] png = authoredTexture(context, AuthoredPetModels.DIR,
+                    AuthoredPetModels.textureFor(petId));
+            if (png == null) {
+                png = PaintedAtlas.paint(pet.color, pet.accentColor,
+                        PetGeometry.TEXTURE_WIDTH, PetGeometry.TEXTURE_HEIGHT,
+                        PetGeometry.UV_ACCENT_Y, pet.color ^ (pet.species.ordinal() * 131));
+            }
+            uploadPiecePng(PIECE_PET, png);
+        }
+    }
+
+    /** Decodes a piece PNG and hands the RGBA to the native slot. */
+    private static void uploadPiecePng(int piece, byte[] png) {
+        Bitmap image = decode(png);
+        if (image == null) {
+            PreloaderInput.setPieceAtlas(piece, null, 0, 0);
+            return;
+        }
+        byte[] rgba = toRgba(image);
+        if (rgba == null) {
+            PreloaderInput.setPieceAtlas(piece, null, 0, 0);
+            return;
+        }
+        PreloaderInput.setPieceAtlas(piece, rgba, image.getWidth(), image.getHeight());
+    }
+
+    /** Reads an authored texture asset, or null when the id has no authored texture. */
+    private static byte[] authoredTexture(Context context, String dir, String fileName) {
+        if (context == null || fileName == null) return null;
+        try (java.io.InputStream input = context.getAssets().open(dir + "/" + fileName)) {
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = input.read(buffer)) != -1) out.write(buffer, 0, read);
+            return out.toByteArray();
+        } catch (java.io.IOException | RuntimeException e) {
+            return null;
+        }
+    }
+
+    /** A {@link AuthoredGeometry.AssetOpener} backed by a Context's assets. */
+    private static AuthoredGeometry.AssetOpener assetOpener(Context context) {
+        return path -> context.getAssets().open(path);
+    }
+
+    /**
      * Publishes the equipped pieces' geometry to the native renderer as one blob, so its player
      * render hook can draw the cape chain, the worn hat and the pet directly instead of relying on a
      * resource pack.
@@ -114,13 +236,46 @@ public final class NativeCosmeticsBridge {
     public static void publishGeometry(CosmeticCatalog.Cape cape,
                                        CosmeticCatalog.Accessory accessory,
                                        CosmeticCatalog.Pet pet) {
+        publishGeometry(null, cape, accessory, pet);
+    }
+
+    /**
+     * Publishes the geometry blob, preferring each piece's authored Blockbench mesh.
+     *
+     * <p>When a Context is supplied and the piece has a hand-authored {@code .geo.json}, the blob
+     * carries that real mesh — its bone hierarchy, pivots and per-cube UVs — instead of the generic
+     * procedural boxes. This is what makes an authored hat or pet render as its actual model in game,
+     * not a stand-in. Without a readable asset (or with a null Context) it falls back to the
+     * procedural geometry, so nothing regresses.
+     */
+    public static void publishGeometry(Context context, CosmeticCatalog.Cape cape,
+                                       CosmeticCatalog.Accessory accessory,
+                                       CosmeticCatalog.Pet pet) {
         java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream(4096);
         appendGeometry(out, CapeGeometry.GEOMETRY_ID, CapeGeometry.modelJson(CapeGeometry.GEOMETRY_ID));
-        String hatJson = accessory == null || accessory.kind == CosmeticCatalog.AccessoryKind.NONE
-                ? AccessoryGeometry.emptyGeometryJson()
-                : AccessoryGeometry.geometryJson(accessory.kind);
+
+        String hatJson = AccessoryGeometry.emptyGeometryJson();
+        if (accessory != null && accessory.kind != CosmeticCatalog.AccessoryKind.NONE) {
+            hatJson = null;
+            if (context != null && accessory.modelId != null
+                    && AuthoredHatModels.hasAuthoredModel(accessory.modelId)) {
+                hatJson = AuthoredHatModels.loadFromAssets(assetOpener(context), accessory.modelId);
+            }
+            if (hatJson == null) hatJson = AccessoryGeometry.geometryJson(accessory.kind);
+        }
         appendGeometry(out, AccessoryGeometry.GEOMETRY_ID, hatJson);
-        String petJson = pet == null ? PetGeometry.emptyGeometryJson() : PetGeometry.geometryJson(pet);
+
+        String petJson = PetGeometry.emptyGeometryJson();
+        if (pet != null) {
+            petJson = null;
+            if (context != null) {
+                String petId = pet.modelId != null ? pet.modelId : pet.id;
+                if (AuthoredPetModels.hasAuthoredModel(petId)) {
+                    petJson = AuthoredPetModels.loadFromAssets(assetOpener(context), petId);
+                }
+            }
+            if (petJson == null) petJson = PetGeometry.geometryJson(pet);
+        }
         appendGeometry(out, PetGeometry.GEOMETRY_ID, petJson);
         setRenderGeometry(out.toByteArray());
     }
@@ -146,6 +301,7 @@ public final class NativeCosmeticsBridge {
     public static void publishCape(CosmeticCatalog.Cape cape) {
         if (cape == null) {
             PreloaderInput.clearCapeOverrides();
+            PreloaderInput.setPieceAtlas(PIECE_CAPE, null, 0, 0);
             return;
         }
         byte[] png = CapeTexturePainter.paint(cape.color, cape.trimColor, cape.accentColor,
@@ -157,7 +313,9 @@ public final class NativeCosmeticsBridge {
     /** Uploads an accessory's texture to the native registry keyed by its id. */
     public static void publishAccessory(CosmeticCatalog.Accessory accessory) {
         if (accessory == null) {
-            PreloaderInput.clearTextureOverrides();
+            PreloaderInput.setPieceAtlas(PIECE_HAT, null, 0, 0);
+            // Note: the id-keyed texture map is shared with peers, so it is not cleared here. The
+            // role-keyed piece slot above is what the local render actually reads.
             return;
         }
         byte[] png = AccessoryTexturePainter.paint(accessory.color, accessory.accentColor);
@@ -167,7 +325,10 @@ public final class NativeCosmeticsBridge {
 
     /** Uploads a pet's texture to the native registry keyed by its id. */
     public static void publishPet(CosmeticCatalog.Pet pet) {
-        if (pet == null) return;
+        if (pet == null) {
+            PreloaderInput.setPieceAtlas(PIECE_PET, null, 0, 0);
+            return;
+        }
         byte[] png = PaintedAtlas.paint(pet.color, pet.accentColor,
                 PetGeometry.TEXTURE_WIDTH, PetGeometry.TEXTURE_HEIGHT,
                 PetGeometry.UV_ACCENT_Y, pet.color ^ (pet.species.ordinal() * 131));

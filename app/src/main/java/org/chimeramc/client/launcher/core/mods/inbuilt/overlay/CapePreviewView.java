@@ -15,6 +15,7 @@ import org.chimeramc.client.core.cosmetics.CapePatterns;
 import org.chimeramc.client.core.cosmetics.CapeSimulator;
 import org.chimeramc.client.core.cosmetics.CosmeticCatalog;
 import org.chimeramc.client.core.cosmetics.CosmeticLayering;
+import org.chimeramc.client.core.cosmetics.CosmeticOrientation;
 import org.chimeramc.client.core.cosmetics.HeadLookTransform;
 import org.chimeramc.client.core.cosmetics.AuthoredHatModels;
 import org.chimeramc.client.core.cosmetics.AuthoredGeometry;
@@ -1797,6 +1798,10 @@ public class CapePreviewView extends View {
                 if (headLooked) {
                     HeadLookTransform.applyVector(headPitchDeg, headYawDeg, normal);
                 }
+                // Convert the Bedrock-authored normal into player space (Bedrock cosmetics face -Z,
+                // the player faces +Z). Without this the cull is off by a half-turn and a tilted
+                // mesh loses the wrong faces.
+                CosmeticOrientation.normalToPlayerSpace(normal);
                 if (!camera.faceVisibleNormal(normal[0], normal[1], normal[2])) continue;
                 int[] indices = PreviewMeshModel.faceCornerIndices(face);
                 MeshQuad quad = new MeshQuad();
@@ -1806,14 +1811,18 @@ public class CapePreviewView extends View {
                     if (boneRot != null) {
                         corner = rotateAboutPivot(corner, box.pivot, boneRot);
                     }
+                    float[] playerCorner = {corner[0], corner[1], corner[2]};
+                    // Bedrock cosmetic space (-Z front) -> player space (+Z front).
+                    CosmeticOrientation.toPlayerSpace(playerCorner);
                     if (headLooked) {
-                        applyHeadLook(corner[0], corner[1], corner[2], headPointScratch);
+                        applyHeadLook(playerCorner[0], playerCorner[1], playerCorner[2],
+                                headPointScratch);
                         projectPoint(headPointScratch[0] + offsetX,
                                 headPointScratch[1] + offsetY,
                                 headPointScratch[2] + offsetZ, scale, originX, originY);
                     } else {
-                        projectPoint(corner[0] + offsetX, corner[1] + offsetY, corner[2] + offsetZ,
-                                scale, originX, originY);
+                        projectPoint(playerCorner[0] + offsetX, playerCorner[1] + offsetY,
+                                playerCorner[2] + offsetZ, scale, originX, originY);
                     }
                     quad.verts[i * 2] = projected[0];
                     quad.verts[i * 2 + 1] = projected[1];
@@ -1849,6 +1858,14 @@ public class CapePreviewView extends View {
         pixelPaint.setDither(true);
         paint.setShader(null);
         for (MeshQuad quad : meshDrawList) {
+            // Record this face into the shared depth buffer so a nearer cosmetic occludes a farther
+            // one, and the body (recorded in drawModel) occludes cosmetics behind it.
+            depthBuffer.accept(quad.verts, quad.depth);
+            // Reused across both branches so a hidden face is skipped before any bitmap work.
+            Path visibleBand = visibleBand(quad.verts, quad.depth);
+            if (visibleBand == null) continue; // fully occluded by the body
+            int save = canvas.save();
+            canvas.clipPath(visibleBand);
             if (textured && quad.uv != null && quad.uv[2] > 0.5f && quad.uv[3] > 0.5f) {
                 drawMeshQuadTextured(canvas, atlas, quad);
             } else {
@@ -1857,7 +1874,56 @@ public class CapePreviewView extends View {
                 paint.setAlpha(255);
                 drawQuad(canvas, quad.verts);
             }
+            canvas.restoreToCount(save);
         }
+    }
+
+    /**
+     * The part of a projected quad that is visible against the depth buffer, or null when it is
+     * fully occluded.
+     *
+     * <p>The preview has no hardware depth test, so occlusion is resolved by clipping. Testing at
+     * each scanline against the per-pixel depth buffer (the body, and any nearer cosmetic already
+     * recorded) gives a vertical band of visible pixels instead of a whole-quad in/out choice, so a
+     * cape that is nearer at the top than the body and farther at the bottom draws exactly the
+     * visible part rather than the whole quad or none of it. The band is one {@link Path}, so the
+     * textured pass still issues a single bitmap draw.
+     */
+    private Path visibleBand(float[] v, float depth) {
+        if (depthBuffer.isEmpty()) return fullQuadPath(v);
+        float minY = Math.min(Math.min(v[1], v[3]), Math.min(v[5], v[7]));
+        float maxY = Math.max(Math.max(v[1], v[3]), Math.max(v[5], v[7]));
+        float minX = Math.min(Math.min(v[0], v[2]), Math.min(v[4], v[6]));
+        float maxX = Math.max(Math.max(v[0], v[2]), Math.max(v[4], v[6]));
+        if (maxY - minY < 1f) {
+            return depthBuffer.test((minX + maxX) * 0.5f, (minY + maxY) * 0.5f, depth)
+                    ? fullQuadPath(v) : null;
+        }
+        visibleBandPath.reset();
+        boolean any = false;
+        int y0 = (int) Math.floor(minY);
+        int y1 = (int) Math.ceil(maxY);
+        float centreX = (minX + maxX) * 0.5f;
+        for (int y = y0; y < y1; y++) {
+            if (depthBuffer.test(centreX, y + 0.5f, depth)) {
+                visibleBandPath.addRect(minX, y, maxX, y + 1f, Path.Direction.CW);
+                any = true;
+            }
+        }
+        return any ? visibleBandPath : null;
+    }
+
+    private final Path visibleBandPath = new Path();
+    private final Path fullQuadPathScratch = new Path();
+
+    private Path fullQuadPath(float[] v) {
+        fullQuadPathScratch.reset();
+        fullQuadPathScratch.moveTo(v[0], v[1]);
+        fullQuadPathScratch.lineTo(v[2], v[3]);
+        fullQuadPathScratch.lineTo(v[6], v[7]);
+        fullQuadPathScratch.lineTo(v[4], v[5]);
+        fullQuadPathScratch.close();
+        return fullQuadPathScratch;
     }
 
     /** Paints one authored-mesh face from the atlas, honouring the face's mirror flags. */
@@ -2010,6 +2076,7 @@ public class CapePreviewView extends View {
                 continue;
             }
             float[][] c = box.faceCorners(face);
+            float depthSum = 0f;
             for (int i = 0; i < 4; i++) {
                 if (head) {
                     applyHeadLook(c[i][0], c[i][1], c[i][2], headPointScratch);
@@ -2020,7 +2087,12 @@ public class CapePreviewView extends View {
                 }
                 corners[i * 2] = projected[0];
                 corners[i * 2 + 1] = projected[1];
+                depthSum += projected[2];
             }
+            // Record this face into the shared depth buffer so a cosmetic in front of the body is
+            // clipped against it and a cosmetic behind it is hidden — the same per-pixel rule the
+            // character uses, rather than a whole-pass over/under choice.
+            depthBuffer.accept(corners, depthSum / 4f);
             paint.setColor(PreviewLighting.shadeColor(base, face, persp));
             drawQuad(canvas, corners);
         }
@@ -2060,8 +2132,11 @@ public class CapePreviewView extends View {
             overlayFaceCrops[b] = new Bitmap[faces];
             for (SkinModel.Face face : SkinModel.Face.values()) {
                 int f = face.ordinal();
-                baseFaceCrops[b][f] = crop(atlas, box.baseUv(face));
-                overlayFaceCrops[b][f] = crop(atlas, box.overlayUv(face));
+                // The base skin layer is opaque by definition: a player's base texture is drawn as
+                // a solid surface, and forcing its alpha to 255 stops a semi-transparent texel in an
+                // HD skin (or a stray alpha channel) from making the body read as see-through.
+                baseFaceCrops[b][f] = crop(atlas, box.baseUv(face), true);
+                overlayFaceCrops[b][f] = crop(atlas, box.overlayUv(face), false);
             }
         }
     }
@@ -2079,7 +2154,7 @@ public class CapePreviewView extends View {
      * <p>An entirely transparent region (a classic skin's unused overlay) is dropped, so the overlay
      * pass does not draw invisible quads over every limb.
      */
-    private static Bitmap crop(Bitmap atlas, SkinModel.Uv uv) {
+    private static Bitmap crop(Bitmap atlas, SkinModel.Uv uv, boolean forceOpaque) {
         if (uv == null || !SkinModel.uvWithinAtlas(uv)) return null;
         if (uv.u + uv.w > atlas.getWidth() || uv.v + uv.h > atlas.getHeight()) return null;
         int w = uv.w;
@@ -2088,7 +2163,12 @@ public class CapePreviewView extends View {
         atlas.getPixels(pixels, 0, w, uv.u, uv.v, w, h);
         boolean anyOpaque = false;
         for (int i = 0; i < pixels.length; i++) {
-            if (SkinAlphaFilter.isOpaque(pixels[i])) {
+            if (forceOpaque) {
+                // Base layer: keep every texel, forced fully opaque. An HD skin's semi-transparent
+                // texels (or a stray zero-alpha pixel) must not punch holes in the body.
+                pixels[i] = pixels[i] | 0xFF000000;
+                anyOpaque = true;
+            } else if (SkinAlphaFilter.isOpaque(pixels[i])) {
                 anyOpaque = true;
                 // Quantise the surviving texel to full alpha so the bilinear sample at a shape's
                 // edge cannot blend the transparent background back in.
@@ -2097,7 +2177,7 @@ public class CapePreviewView extends View {
                 pixels[i] = 0x00000000;
             }
         }
-        // Nothing survives the test: drop the region entirely.
+        // Nothing survives the overlay's alpha test: drop the region entirely.
         if (!anyOpaque) return null;
         // Always a standalone copy so {@link #release} can recycle it without touching the shared
         // atlas.

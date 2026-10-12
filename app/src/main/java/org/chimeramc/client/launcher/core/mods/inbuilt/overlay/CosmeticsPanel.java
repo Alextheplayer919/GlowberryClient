@@ -568,7 +568,9 @@ final class CosmeticsPanel {
     private void refreshGameStatus() {
         if (gameStatus == null) return;
         try {
-            gameStatus.setText(NativeCosmeticsFeed.isNativeRenderLive()
+            boolean rendererActive = NativeCosmeticsFeed.isNativeRenderLive()
+                    && NativeCosmeticsFeed.isRendererDrawable();
+            gameStatus.setText(rendererActive
                     ? R.string.cosmetics_native_active
                     : R.string.cosmetics_native_inactive);
         } catch (Throwable t) {

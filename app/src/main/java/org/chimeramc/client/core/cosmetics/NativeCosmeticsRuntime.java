@@ -34,7 +34,21 @@ public final class NativeCosmeticsRuntime {
         if (store == null) store = new CosmeticStore(context);
         // Install the render sink even if a previous init ran: the sync module clears nothing here,
         // and re-installing is cheap.
-        CosmeticSyncModule.setAdvertListener(NativeCosmeticsRuntime::renderPeerAdvert);
+        CosmeticSyncModule.setAdvertListener(new CosmeticSyncModule.AdvertListener() {
+            @Override
+            public void onAdvert(CosmeticSyncProtocol.Advert advert) {
+                renderPeerAdvert(advert);
+            }
+
+            @Override
+            public void onPeerLeft(String peerId) {
+                // Drop a departed peer's cape/hat/pet so their cosmetics do not linger on our client.
+                try {
+                    NativeCosmeticsBridge.publishPeer(peerId, null, null, null);
+                } catch (Throwable ignored) {
+                }
+            }
+        });
         if (initialized) return;
         initialized = true;
         syncEquipped(context);
@@ -49,8 +63,10 @@ public final class NativeCosmeticsRuntime {
             CosmeticStore s = store != null ? store : (context == null ? null
                     : (store = new CosmeticStore(context)));
             if (s == null) return;
-            NativeCosmeticsBridge.publishLocal(
-                    s.getEquippedCapeForDisplay(), s.getEquippedAccessory(), s.getEquippedPet());
+            // The Context-aware publish carries each piece's authored geometry and its own texture,
+            // which is what the native renderer actually reads to draw the cape, hat and pet.
+            NativeCosmeticsBridge.publishLocal(context, s.getEquippedCapeForDisplay(),
+                    s.getEquippedAccessory(), s.getEquippedPet());
         } catch (Throwable ignored) {
             // A cosmetic must never take the process down; the preview still shows the selection.
         }

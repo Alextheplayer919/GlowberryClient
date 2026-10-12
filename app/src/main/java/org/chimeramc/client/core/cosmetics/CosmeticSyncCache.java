@@ -68,6 +68,12 @@ public final class CosmeticSyncCache {
         prefs.edit().clear().apply();
     }
 
+    /** Removes one peer's cached advertisement when that peer leaves. */
+    public void remove(String peerId) {
+        if (peerId == null || peerId.isEmpty()) return;
+        prefs.edit().remove(KEY_PREFIX + peerId).apply();
+    }
+
     /** Drops one other peer's entry when the store is full, keeping the cap honest. */
     private void pruneOne(SharedPreferences.Editor editor, String justAdded) {
         for (String key : prefs.getAll().keySet()) {

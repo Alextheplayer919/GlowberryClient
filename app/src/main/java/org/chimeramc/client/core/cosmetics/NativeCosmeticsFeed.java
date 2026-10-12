@@ -90,6 +90,22 @@ public final class NativeCosmeticsFeed {
     }
 
     /**
+     * Whether the native renderer can actually rasterise cosmetics this session.
+     *
+     * <p>Distinct from {@link #isNativeRenderLive()}: the hook firing only proves the render seam is
+     * installed, not that a GLES draw surface exists. A Vulkan-only RenderDragon build fires the
+     * hook and cannot draw, so the status must not report "drawn" on the hook alone.
+     */
+    public static boolean isRendererDrawable() {
+        return PreloaderInput.isRendererDrawable();
+    }
+
+    /** The number of native mesh draw attempts so far this session. */
+    public static int drawCount() {
+        return PreloaderInput.cosmeticDrawCount();
+    }
+
+    /**
      * A short human-readable line for the cosmetics status screen.
      *
      * <p>Never contains a number that reads as a performance claim; the render tick is a count,
@@ -107,6 +123,22 @@ public final class NativeCosmeticsFeed {
         }
         return "Native renderer: active (" + status.renderTick + " ticks) — cape and pet motion "
                 + "is driven by the game's own render tick.";
+    }
+
+    /**
+     * A status line that also distinguishes "the hook fired" from "a mesh can actually be drawn".
+     *
+     * <p>The hook firing proves only that the render seam is installed; a Vulkan-only RenderDragon
+     * build fires it and cannot rasterise. This is the line the UI should show, so a player on such
+     * a build is told the cosmetics are preview-only instead of being told the renderer is active.
+     */
+    public static String describeWithDrawability(Status status) {
+        if (status != null && status.isNative() && !isRendererDrawable()) {
+            return "Native renderer: hook live (" + status.renderTick + " ticks) but the draw "
+                    + "surface is unavailable on this build, so meshes cannot be rasterised — "
+                    + "cosmetics show in this preview only.";
+        }
+        return describe(status);
     }
 
     /**

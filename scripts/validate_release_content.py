@@ -59,42 +59,12 @@ def parse_date(value, field):
         fail(f"{field} must be an ISO-8601 timestamp such as 2026-08-26T18:00:00Z")
 
 
-def validate_news(path):
-    data = load(path)
-    if data.get("schemaVersion") != 1:
-        fail(f"{path}: schemaVersion must be 1")
-    items = data.get("items")
-    if not isinstance(items, list):
-        fail(f"{path}: items must be an array")
-    seen = set()
-    dates = []
-    for index, item in enumerate(items):
-        prefix = f"{path}: items[{index}]"
-        text(item.get("id"), f"{prefix}.id")
-        if item["id"] in seen:
-            fail(f"{prefix}.id duplicates {item['id']}")
-        seen.add(item["id"])
-        text(item.get("title"), f"{prefix}.title")
-        text(item.get("summary"), f"{prefix}.summary")
-        text(item.get("category"), f"{prefix}.category")
-        dates.append(parse_date(item.get("publishedAt"), f"{prefix}.publishedAt"))
-        url = item.get("url", "")
-        if url:
-            parsed = urlparse(url)
-            if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-                fail(f"{prefix}.url must be an http or https URL")
-        if "important" in item and not isinstance(item["important"], bool):
-            fail(f"{prefix}.important must be true or false")
-        if "notify" in item and not isinstance(item["notify"], bool):
-            fail(f"{prefix}.notify must be true or false")
-    if dates != sorted(dates, reverse=True):
-        fail(f"{path}: news items must be ordered newest first")
-
-
 def main():
     root = Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
     validate_changelog(root / "resources/launcher/changelog.json")
-    validate_news(root / "resources/launcher/news.json")
+    # The news feature (and resources/launcher/news.json) was removed with the news feed; validating
+    # a file that no longer exists made this script fail on every run, which failed the Android CI
+    # before it built anything. Only the changelog is validated now.
     print("Release content is valid.")
 
 

@@ -54,6 +54,13 @@ public final class CosmeticSyncModule {
     /** How often the advertisement is re-sent. Slow: this is for convergence, not streaming. */
     static final long ANNOUNCE_INTERVAL_MS = 3000;
 
+    /**
+     * How long a peer may go unheard before it is treated as gone and its overrides are dropped.
+     * Generous next to {@link #ANNOUNCE_INTERVAL_MS} so a few lost datagrams do not evict a player
+     * who is still in the world.
+     */
+    static final long PEER_TTL_MS = 30000;
+
     /** Relay keepalive period, matching the voice relay's own default. */
     private static final int RELAY_KEEPALIVE_MS = 3000;
 
@@ -129,6 +136,13 @@ public final class CosmeticSyncModule {
      */
     public interface AdvertListener {
         void onAdvert(CosmeticSyncProtocol.Advert advert);
+
+        /**
+         * A peer has left (not heard for {@link #PEER_TTL_MS}); its native overrides should be
+         * dropped. Default no-op so an existing listener need not implement it.
+         */
+        default void onPeerLeft(String peerId) {
+        }
     }
 
     private static volatile AdvertListener advertListener;
@@ -321,11 +335,33 @@ public final class CosmeticSyncModule {
 
     /** Reads the equipped set and sends one advertisement; runs on the broadcaster thread. */
     private void broadcastNow() {
+        // On the same timer that re-announces us, drop peers we have not heard from in a while and
+        // tell the listener so it can remove their native overrides. Without this a peer who left
+        // the world kept their cape on our client forever.
+        pruneDepartedPeers();
         byte[] data = CosmeticSyncProtocol.encode(peerId, displayName,
                 store.getEquippedCapeId(), store.getEquippedAccessoryId(),
                 store.getEquippedPetId());
         if (data.length == 0) return;
         broadcast(data);
+    }
+
+    /** Drops peers not heard within {@link #PEER_TTL_MS} and notifies the listener. */
+    private void pruneDepartedPeers() {
+        java.util.List<String> gone = registry.pruneOlderThan(System.currentTimeMillis(),
+                PEER_TTL_MS);
+        if (gone.isEmpty()) return;
+        AdvertListener listener = advertListener;
+        for (String peer : gone) {
+            if (cache != null) cache.remove(peer);
+            if (listener != null) {
+                try {
+                    listener.onPeerLeft(peer);
+                } catch (Throwable t) {
+                    Log.w(TAG, "Peer-left listener failed", t);
+                }
+            }
+        }
     }
 
     /** Sends a datagram on every configured route. A lost one is recovered by the next tick. */

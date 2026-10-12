@@ -106,4 +106,38 @@ public class CosmeticSyncTest {
                 "p2", "B", real.id, null, null)));
         assertSame(real, registry.capeFor("p2"));
     }
+
+    /** A peer not heard within the TTL is pruned and reported so its overrides can be dropped. */
+    @Test
+    public void aDepartedPeerIsPrunedAfterTheTtl() {
+        CosmeticSyncRegistry registry = new CosmeticSyncRegistry();
+        registry.put(CosmeticSyncProtocol.decode(CosmeticSyncProtocol.encode(
+                "p1", "A", "cape_chimera", null, null)), 1000L);
+        registry.put(CosmeticSyncProtocol.decode(CosmeticSyncProtocol.encode(
+                "p2", "B", "cape_ember", null, null)), 5000L);
+
+        // At t=6000 with a 30s TTL, neither is gone.
+        assertTrue(registry.pruneOlderThan(6000L, 30000L).isEmpty());
+        assertEquals(2, registry.peerCount());
+
+        // At t=32000, p1 (heard at 1000) is gone; p2 (heard at 5000) is not (32000-5000=27000).
+        java.util.List<String> gone = registry.pruneOlderThan(32000L, 30000L);
+        assertEquals(1, gone.size());
+        assertEquals("p1", gone.get(0));
+        assertNull(registry.get("p1"));
+        assertNotNull(registry.get("p2"));
+    }
+
+    /** A repeated advertisement refreshes the last-seen time and keeps the peer alive. */
+    @Test
+    public void aRefreshKeepsAPeerAlivePastTheTtl() {
+        CosmeticSyncRegistry registry = new CosmeticSyncRegistry();
+        registry.put(CosmeticSyncProtocol.decode(CosmeticSyncProtocol.encode(
+                "p1", "A", "cape_chimera", null, null)), 1000L);
+        // Heard again at 25000 (within 30s of 1000), so a prune at 40000 (25000+15000) keeps it.
+        registry.put(CosmeticSyncProtocol.decode(CosmeticSyncProtocol.encode(
+                "p1", "A", "cape_chimera", null, null)), 25000L);
+        assertTrue(registry.pruneOlderThan(40000L, 30000L).isEmpty());
+        assertEquals(1, registry.peerCount());
+    }
 }

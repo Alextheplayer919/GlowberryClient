@@ -105,6 +105,9 @@ public class PreloaderInput {
     /** Clears every cape override. */
     public static native void nativeClearCapeOverrides();
 
+    /** Removes one cape override by player key, leaving other players' capes intact. */
+    public static native void nativeRemoveCapeOverride(long playerKey);
+
     /** Number of cape overrides currently registered. */
     public static native int nativeCapeOverrideCount();
 
@@ -113,6 +116,9 @@ public class PreloaderInput {
 
     /** Clears every texture override. */
     public static native void nativeClearTextureOverrides();
+
+    /** Removes one texture override by id, leaving other entries intact. */
+    public static native void nativeRemoveTextureOverride(long textureId);
 
     /** Number of texture overrides currently registered. */
     public static native int nativeTextureOverrideCount();
@@ -144,6 +150,25 @@ public class PreloaderInput {
 
     /** True once the native cosmetics skin/cape or texture hook has fired this session. */
     public static native boolean nativeIsCosmeticsHookLive();
+
+    /**
+     * True only when the native renderer can actually rasterise: the player-render hook is live
+     * <em>and</em> the GLES draw surface resolved. Distinct from the hook merely firing — a
+     * Vulkan-only build fires the hook but cannot draw.
+     */
+    public static native boolean nativeIsRendererDrawable();
+
+    /** The number of native mesh draw attempts so far this session (0 when unavailable). */
+    public static native int nativeCosmeticDrawCount();
+
+    /**
+     * Sets one local cosmetic piece's texture: 0 cape, 1 hat, 2 pet. A null array clears the slot.
+     * Keyed by role, not catalogue id, so the hat and pet do not share the cape's artwork.
+     */
+    public static native void nativeSetPieceAtlas(int piece, byte[] rgba, int width, int height);
+
+    /** Clears all three per-piece local textures. */
+    public static native void nativeClearPieceAtlases();
 
     /** Reads {skinCapeCalls (-1 when unavailable), textureCalls, capeOverrides, textureOverrides}. */
     public static native int[] nativeReadCosmeticsStats();
@@ -396,6 +421,15 @@ public class PreloaderInput {
         }
     }
 
+    /** Removes one player's cape override; falls back to clearing all on an older native library. */
+    public static void removeCapeOverride(long playerKey) {
+        try {
+            nativeRemoveCapeOverride(playerKey);
+        } catch (UnsatisfiedLinkError e) {
+            clearCapeOverrides();
+        }
+    }
+
     public static int capeOverrideCount() {
         try {
             return nativeCapeOverrideCount();
@@ -415,6 +449,15 @@ public class PreloaderInput {
         try {
             nativeClearTextureOverrides();
         } catch (UnsatisfiedLinkError e) {
+        }
+    }
+
+    /** Removes one texture override; falls back to clearing all on an older native library. */
+    public static void removeTextureOverride(long textureId) {
+        try {
+            nativeRemoveTextureOverride(textureId);
+        } catch (UnsatisfiedLinkError e) {
+            clearTextureOverrides();
         }
     }
 
@@ -470,6 +513,46 @@ public class PreloaderInput {
             return nativeIsCosmeticsHookLive();
         } catch (UnsatisfiedLinkError e) {
             return false;
+        }
+    }
+
+    /**
+     * True only when the native renderer can actually rasterise cosmetics.
+     *
+     * <p>An older preloader library predates this symbol; the {@link UnsatisfiedLinkError} catch
+     * falls back to {@link #isCosmeticsHookLive()} so the status line still reports the hook, not a
+     * false "cannot draw".
+     */
+    public static boolean isRendererDrawable() {
+        try {
+            return nativeIsRendererDrawable();
+        } catch (UnsatisfiedLinkError e) {
+            return isCosmeticsHookLive();
+        }
+    }
+
+    /** Native mesh draw count, or 0 when the symbol is absent. */
+    public static int cosmeticDrawCount() {
+        try {
+            return nativeCosmeticDrawCount();
+        } catch (UnsatisfiedLinkError e) {
+            return 0;
+        }
+    }
+
+    /** Sets one local piece's texture (0 cape, 1 hat, 2 pet); no-op on a build without the symbol. */
+    public static void setPieceAtlas(int piece, byte[] rgba, int width, int height) {
+        try {
+            nativeSetPieceAtlas(piece, rgba, width, height);
+        } catch (UnsatisfiedLinkError ignored) {
+        }
+    }
+
+    /** Clears all three per-piece local textures; no-op on a build without the symbol. */
+    public static void clearPieceAtlases() {
+        try {
+            nativeClearPieceAtlases();
+        } catch (UnsatisfiedLinkError ignored) {
         }
     }
 
