@@ -645,6 +645,18 @@ final class CosmeticsPanel {
         if (preview != null) preview.stopPreview();
     }
 
+    /**
+     * Re-resolves the player's skin and restarts the preview. Called when the Closet is shown, so a
+     * skin change made since it was last open (an import, an applied pack, or the game's own skin
+     * once a provider is installed) appears without reopening the menu.
+     */
+    void onShown() {
+        if (preview != null) {
+            preview.refreshSkin();
+            preview.startPreview();
+        }
+    }
+
     private int getAccent() {
         return UiTokens.resolveAccent(activity);
     }

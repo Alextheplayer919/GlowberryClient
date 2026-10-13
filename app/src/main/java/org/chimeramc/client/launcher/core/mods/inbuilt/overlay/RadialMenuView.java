@@ -217,12 +217,28 @@ public class RadialMenuView extends View {
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
+        // Re-resolve the skin so a change made since the wheel was last shown (a new import, an
+        // applied pack, or the game's own skin once a provider is installed) appears immediately.
+        refreshSkin();
         if (headScene != null) {
             headLastMs = 0L;
             headHandler.removeCallbacks(headTick);
             headHandler.post(headTick);
         }
         playOpen();
+    }
+
+    /**
+     * Re-resolves the player's skin and rebuilds the hub head.
+     *
+     * <p>Called when the wheel is shown and when a skin change is detected, so the head in the
+     * centre tracks the player's real skin without recreating the view. It reads through
+     * {@link PlayerSkinProvider}, which prefers the game's live skin when a
+     * {@link org.chimeramc.client.core.cosmetics.GameSkinSource} provider is installed.
+     */
+    public void refreshSkin() {
+        resolveSkinHead();
+        invalidate();
     }
 
     @Override

@@ -1620,6 +1620,9 @@ import okhttp3.OkHttpClient;
             launchPreview.setCape(store.getEquippedCapeForDisplay());
             launchPreview.setAccessory(store.getEquippedAccessory());
             launchPreview.setPet(store.getEquippedPet());
+            // Re-resolve the skin so the hero shows the player's real Minecraft skin (read from the
+            // game through the engine hook when available) rather than a stale or generic one.
+            launchPreview.refreshSkin();
         } catch (Throwable ignored) {
             // A preview must never block the Launch tab; the placeholder skin is fine.
         }

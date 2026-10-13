@@ -1106,6 +1106,8 @@ public class ModMenuOverlay {
                                 ViewGroup.LayoutParams.MATCH_PARENT));
             }
             cosmeticsContainer.setVisibility(View.VISIBLE);
+            // Re-resolve the skin so a change made since the Closet was last open appears now.
+            cosmeticsPanel.onShown();
             crossfade(cosmeticsContainer);
         }
 

@@ -10,6 +10,7 @@ import android.view.MotionEvent;
 import android.view.View;
 
 import org.chimeramc.client.core.cosmetics.CapeSimulator;
+import org.chimeramc.client.core.cosmetics.GameSkinSource;
 import org.chimeramc.client.core.cosmetics.CosmeticCatalog;
 import org.chimeramc.client.core.cosmetics.HeadLookTransform;
 import org.chimeramc.client.core.cosmetics.AccessoryGeometry;
@@ -100,7 +101,14 @@ public class CapePreviewView extends View {
     private Bitmap[][] baseFaceCrops;
     private Bitmap[][] overlayFaceCrops;
 
-    private final PlayerSkinProvider.SkinBitmap skin;
+    /**
+     * The player's skin, resolved once and refreshed on demand.
+     *
+     * <p>Not final: {@link #refreshSkin()} re-resolves it so a skin change (a different account
+     * skin read from the game, a new import, or a switch in the dressing room) is picked up without
+     * recreating the view — the "instant wardrobe update" the radial hub and this preview promise.
+     */
+    private PlayerSkinProvider.SkinBitmap skin;
     private CosmeticCatalog.Cape cape;
     private CosmeticCatalog.Accessory accessory;
     private CosmeticCatalog.Pet pet;
@@ -401,6 +409,30 @@ public class CapePreviewView extends View {
      */
     public void startPreview() {
         syncAnimation();
+    }
+
+    /**
+     * Re-resolves the player's skin and rebuilds the character.
+     *
+     * <p>Called when the game skin becomes available (a session started), when the player changes
+     * their skin, or when the panel is shown. It picks up the game's live skin through
+     * {@link org.chimeramc.client.core.cosmetics.GameSkinSource} if a provider is installed,
+     * otherwise the imported/applied/Steve chain — so a skin change is reflected without recreating
+     * the view.
+     */
+    public void refreshSkin() {
+        PlayerSkinProvider.SkinBitmap resolved = PlayerSkinProvider.resolve(getContext());
+        if (resolved == null || resolved.bitmap == null) return;
+        this.skin = resolved;
+        rebuildFaceCrops();
+        rebuildCharacterScene();
+        invalidate();
+    }
+
+    /** True when the displayed skin came from the game (the player's real account skin). */
+    public boolean isShowingGameSkin() {
+        return skin != null && GameSkinSource.hasProvider() && !skin.isDefaultSteve
+                && !skin.isFallback;
     }
 
     /**
