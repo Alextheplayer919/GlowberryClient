@@ -85,6 +85,7 @@ final class CosmeticsPanel {
     private TextView gameStatus;
     private TextView syncStatus;
     private TextView syncToggle;
+    private TextView vfxToggle;
     private LinearLayout peersContainer;
     private LinearLayout manualPeerRow;
     private EditText manualPeerInput;
@@ -204,6 +205,15 @@ final class CosmeticsPanel {
         });
         column.addView(syncToggle);
 
+        // The particle/aura VFX toggle. Off by default (a flourish, not chrome); when on, the
+        // equipped set emits an aura in game.
+        vfxToggle = gameButton(R.string.cosmetics_vfx_toggle_on, false, v -> {
+            InbuiltModManager manager = InbuiltModManager.getInstance(activity);
+            manager.setCosmeticVfxEnabled(!manager.isCosmeticVfxEnabled());
+            refreshVfxToggle();
+        });
+        column.addView(vfxToggle);
+
         // The peers we can see. Every entry is another GlowberryClient user (only this client
         // speaks the sync protocol), shown with the Glowberry mark and what they are wearing, so
         // "who can see my cosmetics, and whose can I see" is answered directly rather than as a
@@ -241,6 +251,7 @@ final class CosmeticsPanel {
         // native path is live this session. A fallback build still shows the equipped preview.
         refreshGameStatus();
         refreshSyncStatus();
+        refreshVfxToggle();
     }
 
     /**
@@ -299,6 +310,15 @@ final class CosmeticsPanel {
         syncStatus.setText(activity.getString(R.string.cosmetics_sync_seen,
                 module.registry().size(), route));
         renderPeers(module);
+    }
+
+    /** Updates the particle/aura VFX toggle label from the stored preference. */
+    private void refreshVfxToggle() {
+        if (vfxToggle == null) return;
+        InbuiltModManager manager = InbuiltModManager.getInstance(activity);
+        vfxToggle.setText(manager.isCosmeticVfxEnabled()
+                ? R.string.cosmetics_vfx_toggle_off
+                : R.string.cosmetics_vfx_toggle_on);
     }
 
     /**

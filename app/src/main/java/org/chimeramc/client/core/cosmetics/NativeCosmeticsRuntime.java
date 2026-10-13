@@ -20,6 +20,8 @@ public final class NativeCosmeticsRuntime {
 
     private static volatile boolean initialized;
     private static CosmeticStore store;
+    /** The application context, kept so the per-frame VFX preference read has a context. */
+    private static volatile Context appContext;
 
     private NativeCosmeticsRuntime() {
     }
@@ -31,6 +33,7 @@ public final class NativeCosmeticsRuntime {
      */
     public static void init(Context context) {
         if (context == null) return;
+        appContext = context.getApplicationContext();
         if (store == null) store = new CosmeticStore(context);
         // Install the render sink even if a previous init ran: the sync module clears nothing here,
         // and re-installing is cheap.
@@ -110,6 +113,23 @@ public final class NativeCosmeticsRuntime {
     }
 
     /**
+     * Whether the particle/aura VFX is enabled, read from the inbuilt-mod preferences.
+     *
+     * <p>Fail-closed: an unreadable preference or a null context reads as off, so the VFX is opt-in
+     * and never spawns unless the player turned it on.
+     */
+    private static boolean isVfxEnabled() {
+        try {
+            android.content.Context context = appContext;
+            if (context == null) return false;
+            return org.chimeramc.client.core.mods.inbuilt.manager.InbuiltModManager
+                    .getInstance(context).isCosmeticVfxEnabled();
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    /**
      * Computes and pushes one frame of cosmetic transforms, called from the game's own frame tick.
      *
      * <p>This is where the launcher's animation state ({@link PetPose}, {@link CapeAnimationCurve})
@@ -171,7 +191,7 @@ public final class NativeCosmeticsRuntime {
 
             CosmeticFrame frame = CosmeticFrame.build(cape, accessory, pet, pose,
                     moveSpeed, jumping, verticalSpeed, frameDistanceMoved, 0.0, yaw,
-                    0f, 0f, CapeGeometry.SEGMENT_COUNT);
+                    0f, 0f, CapeGeometry.SEGMENT_COUNT, isVfxEnabled());
             PreloaderInput.pushCosmeticFrame(frame.toBytes());
         } catch (Throwable ignored) {
             // A cosmetic frame must never take the game down; the next tick retries.

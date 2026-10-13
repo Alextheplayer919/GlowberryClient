@@ -107,6 +107,7 @@ public class InbuiltModManager {
     private static final String KEY_VOICE_DEVICE_ID = "voice_device_id";
     /** Whether the equipped cape/accessory/pet is advertised to other Chimera users in the world. */
     private static final String KEY_COSMETIC_SYNC_ENABLED = "cosmetic_sync_enabled";
+    private static final String KEY_COSMETIC_VFX_ENABLED = "cosmetic_vfx_enabled";
     private static final String KEY_COSMETIC_MANUAL_PEER = "cosmetic_sync_manual_peer";
     private static final String KEY_COSMETIC_CLOUD_TOPIC = "cosmetic_sync_cloud_topic";
     private static final int DEFAULT_AIM_SMOOTHING = 40;
@@ -940,6 +941,20 @@ public class InbuiltModManager {
 
     public void setCosmeticSyncEnabled(boolean enabled) {
         prefs.edit().putBoolean(KEY_COSMETIC_SYNC_ENABLED, enabled).apply();
+    }
+
+    /**
+     * Whether the equipped cosmetics emit the particle/aura VFX in game.
+     *
+     * <p>Off by default: it is a flourish on top of the cosmetic itself, so it is opt-in and the
+     * native renderer only spawns particles when this is on (it sets {@code FLAG_VFX} in the frame).
+     */
+    public boolean isCosmeticVfxEnabled() {
+        return prefs.getBoolean(KEY_COSMETIC_VFX_ENABLED, false);
+    }
+
+    public void setCosmeticVfxEnabled(boolean enabled) {
+        prefs.edit().putBoolean(KEY_COSMETIC_VFX_ENABLED, enabled).apply();
     }
 
     /**

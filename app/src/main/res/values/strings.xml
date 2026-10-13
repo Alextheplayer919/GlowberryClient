@@ -901,6 +901,8 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="cosmetics_sync_seen">Cosmetic sync is on (%2$s) — %1$d other Chimera user(s) in this world can see your cosmetics.</string>
     <string name="cosmetics_sync_toggle_on">Turn on cosmetic sync</string>
     <string name="cosmetics_sync_toggle_off">Turn off cosmetic sync</string>
+    <string name="cosmetics_vfx_toggle_on">Turn on cosmetic VFX</string>
+    <string name="cosmetics_vfx_toggle_off">Turn off cosmetic VFX</string>
     <string name="cosmetics_sync_manual_hint">Peer address (host:port)</string>
     <string name="cosmetics_sync_manual_save">Save peer</string>
     <string name="cosmetics_sync_manual_saved">Manual peer saved — cosmetics are sent to it while no relay is set.</string>

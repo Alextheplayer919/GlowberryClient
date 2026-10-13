@@ -72,6 +72,13 @@ public class CapePreviewView extends View {
     private static final float IDLE_SPIN_DEG_PER_SEC = 14f;
 
     /**
+     * The height, in model pixels, an authored pet mesh is normalised to. Chosen to match the
+     * procedural body plan (which is roughly this tall with legs, body and head), so an authored pet
+     * and a procedural one read as the same size companion.
+     */
+    private static final float AUTHORED_PET_HEIGHT_PX = 14f;
+
+    /**
      * The preview's own head look, in degrees, animated so a worn hat visibly tracks the head — the
      * preview counterpart of the pack's {@code animation.chimera_hat_tilt}. The head box and the
      * accessory are rotated by the same angles about the same neck pivot, so they cannot detach.
@@ -327,6 +334,10 @@ public class CapePreviewView extends View {
         if (geometry == null) return;
         List<PreviewMeshModel.Box> boxes = PreviewMeshModel.build(geometry);
         if (boxes.isEmpty()) return;
+        // Authored exports are in their own model units; rescale to the procedural body-plan scale so
+        // an authored pet is the same size as the rest (an un-normalised dragon rendered several
+        // times too large and off-screen).
+        PreviewMeshModel.normalizeToHeight(boxes, AUTHORED_PET_HEIGHT_PX);
 
         petMesh = boxes;
         petMeshTextureFile = AuthoredPetModels.textureFor(petId);

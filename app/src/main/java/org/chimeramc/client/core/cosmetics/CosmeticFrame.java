@@ -37,6 +37,11 @@ public final class CosmeticFrame {
     public static final int FLAG_CAPE = 1;
     public static final int FLAG_ACCESSORY = 1 << 1;
     public static final int FLAG_PET = 1 << 2;
+    /**
+     * Bit 3: the equipped set emits the particle/aura VFX. Set when the player has enabled cosmetic
+     * VFX, so the native renderer spawns and draws the aura without a second flag channel.
+     */
+    public static final int FLAG_VFX = 1 << 3;
 
     /** One pet bone's rotation, in degrees, about its own pivot. */
     public static final class BoneRotation {
@@ -107,6 +112,23 @@ public final class CosmeticFrame {
                                       double moveSpeed, boolean jumping, double verticalSpeed,
                                       double distanceMoved, double capeFlap, double bodyYawDegrees,
                                       float headPitchDeg, float headYawDeg, int capeSegments) {
+        return build(cape, accessory, pet, petPose, moveSpeed, jumping, verticalSpeed,
+                distanceMoved, capeFlap, bodyYawDegrees, headPitchDeg, headYawDeg, capeSegments,
+                false);
+    }
+
+    /**
+     * Builds a frame, optionally requesting the particle/aura VFX.
+     *
+     * @param vfx whether the equipped set should emit the particle aura in game (sets
+     *            {@link #FLAG_VFX}); the native renderer only spawns particles when it is set
+     */
+    public static CosmeticFrame build(CosmeticCatalog.Cape cape, CosmeticCatalog.Accessory accessory,
+                                      CosmeticCatalog.Pet pet, PetPose petPose,
+                                      double moveSpeed, boolean jumping, double verticalSpeed,
+                                      double distanceMoved, double capeFlap, double bodyYawDegrees,
+                                      float headPitchDeg, float headYawDeg, int capeSegments,
+                                      boolean vfx) {
         int flags = 0;
         float[] leanSway = new float[0];
         if (cape != null && capeSegments > 0) {
@@ -143,6 +165,10 @@ public final class CosmeticFrame {
             bob = petPose.bodyBob;
             crouch = petPose.crouchDrop;
             leanX = petPose.leanX;
+        }
+        if (vfx && flags != 0) {
+            // Only emit the aura when something is actually equipped.
+            flags |= FLAG_VFX;
         }
         return new CosmeticFrame(flags, leanSway, accessoryKind, headPitchDeg, headYawDeg, bones,
                 offX, offY, offZ, bob, crouch, leanX);

@@ -289,6 +289,55 @@ public final class PreviewMeshModel {
         return indices;
     }
 
+    /**
+     * Uniformly rescales a resolved mesh so its height matches {@code targetHeight}, and centres it
+     * on the origin in X/Z with its feet at y=0.
+     *
+     * <p>Authored Blockbench exports are stated in their own model units — a dragon can be 40 units
+     * wide and 23 tall — while the procedural pet body plan is on the ~10-unit model-pixel scale the
+     * preview draws at. Drawing an authored mesh at the procedural scale made it several times too
+     * large and pushed it off-screen, which is why some authored pets "did not appear". Normalising
+     * the mesh to the body plan's height (and grounding it) makes both paths the same size without
+     * touching the authored proportions.
+     *
+     * @param boxes        the resolved cubes to rescale (mutated in place)
+     * @param targetHeight the height, in the same units the procedural model uses, to scale to
+     */
+    public static void normalizeToHeight(List<Box> boxes, float targetHeight) {
+        if (boxes == null || boxes.isEmpty() || targetHeight <= 0f) return;
+        float minY = Float.MAX_VALUE;
+        float maxY = -Float.MAX_VALUE;
+        float minX = Float.MAX_VALUE;
+        float maxX = -Float.MAX_VALUE;
+        float minZ = Float.MAX_VALUE;
+        float maxZ = -Float.MAX_VALUE;
+        for (Box box : boxes) {
+            for (float[] corner : box.corners) {
+                minY = Math.min(minY, corner[1]);
+                maxY = Math.max(maxY, corner[1]);
+                minX = Math.min(minX, corner[0]);
+                maxX = Math.max(maxX, corner[0]);
+                minZ = Math.min(minZ, corner[2]);
+                maxZ = Math.max(maxZ, corner[2]);
+            }
+        }
+        float height = maxY - minY;
+        if (height <= 0.0001f) return;
+        float k = targetHeight / height;
+        float cx = (minX + maxX) * 0.5f;
+        float cz = (minZ + maxZ) * 0.5f;
+        for (Box box : boxes) {
+            for (float[] corner : box.corners) {
+                corner[0] = (corner[0] - cx) * k;
+                corner[1] = (corner[1] - minY) * k;
+                corner[2] = (corner[2] - cz) * k;
+            }
+            box.pivot[0] = (box.pivot[0] - cx) * k;
+            box.pivot[1] = (box.pivot[1] - minY) * k;
+            box.pivot[2] = (box.pivot[2] - cz) * k;
+        }
+    }
+
     /** Rotates a normal by every rotation in a chain, in order, for per-face shading. */
     public static float[] rotateNormal(float[] normal, List<float[]> chain) {
         float[] n = {normal[0], normal[1], normal[2]};
