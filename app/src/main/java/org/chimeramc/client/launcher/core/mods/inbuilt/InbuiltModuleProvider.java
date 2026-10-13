@@ -185,6 +185,41 @@ public final class InbuiltModuleProvider {
                 R.string.inbuilt_mod_voice_chat, R.string.inbuilt_mod_voice_chat_desc,
                 activity.getString(R.string.mod_menu_group_voice)));
 
+        // Visual / HUD / utility modules. The ones that need a native frame or entity feed are
+        // badged and refused by ModAvailability; the ones that work through an existing route
+        // (Fullbright, Crosshair, List Players) stay usable.
+        mods.add(create(activity, manager, overlayManager, ModIds.FULLBRIGHT,
+                R.string.inbuilt_mod_fullbright, R.string.inbuilt_mod_fullbright_desc, groupName));
+        mods.add(create(activity, manager, overlayManager, ModIds.TIME_CHANGER,
+                R.string.inbuilt_mod_time_changer, R.string.inbuilt_mod_time_changer_desc, groupName));
+        mods.add(create(activity, manager, overlayManager, ModIds.LOW_FIRE,
+                R.string.inbuilt_mod_low_fire, R.string.inbuilt_mod_low_fire_desc, groupName));
+        mods.add(create(activity, manager, overlayManager, ModIds.BLOCK_OUTLINE,
+                R.string.inbuilt_mod_block_outline, R.string.inbuilt_mod_block_outline_desc, groupName));
+        mods.add(create(activity, manager, overlayManager, ModIds.MOTION_BLUR,
+                R.string.inbuilt_mod_motion_blur, R.string.inbuilt_mod_motion_blur_desc, groupName));
+        mods.add(create(activity, manager, overlayManager, ModIds.SATURATION,
+                R.string.inbuilt_mod_saturation, R.string.inbuilt_mod_saturation_desc, groupName));
+        mods.add(create(activity, manager, overlayManager, ModIds.CROSSHAIR,
+                R.string.inbuilt_mod_crosshair, R.string.inbuilt_mod_crosshair_desc, groupName));
+        mods.add(create(activity, manager, overlayManager, ModIds.ARMOR_VIEW_BENDING,
+                R.string.inbuilt_mod_armor_view_bending,
+                R.string.inbuilt_mod_armor_view_bending_desc, groupName));
+        mods.add(create(activity, manager, overlayManager, ModIds.PROJECTILE_SCALER,
+                R.string.inbuilt_mod_projectile_scaler,
+                R.string.inbuilt_mod_projectile_scaler_desc, groupName));
+        mods.add(create(activity, manager, overlayManager, ModIds.FREECAM,
+                R.string.inbuilt_mod_freecam, R.string.inbuilt_mod_freecam_desc, groupName));
+        mods.add(create(activity, manager, overlayManager, ModIds.TNT,
+                R.string.inbuilt_mod_tnt, R.string.inbuilt_mod_tnt_desc, groupName));
+        mods.add(create(activity, manager, overlayManager, ModIds.LIST_PLAYERS,
+                R.string.inbuilt_mod_list_players, R.string.inbuilt_mod_list_players_desc, groupName));
+        mods.add(create(activity, manager, overlayManager, ModIds.DEBUG_MENU,
+                R.string.inbuilt_mod_debug_menu, R.string.inbuilt_mod_debug_menu_desc, groupName));
+        mods.add(create(activity, manager, overlayManager, ModIds.THIRD_PERSON_NAMETAG,
+                R.string.inbuilt_mod_third_person_nametag,
+                R.string.inbuilt_mod_third_person_nametag_desc, groupName));
+
         return groupPvpLast(mods);
     }
 
@@ -216,7 +251,8 @@ public final class InbuiltModuleProvider {
                 || ModIds.HITBOX.equals(id) || ModIds.VOICE_CHAT.equals(id)
                 || ModIds.REACH_INDICATOR.equals(id) || ModIds.TRAJECTORY_PREDICTION.equals(id)
                 || ModIds.HIT_PREDICTION.equals(id) || ModIds.KILL_EFFECTS.equals(id)
-                || ModIds.OFFHAND.equals(id);
+                || ModIds.OFFHAND.equals(id)
+                || ModIds.CROSSHAIR.equals(id);
         // Combat modules get their own PvP section so the tab is a real destination, not just a
         // filter over the inbuilt list. They remain inbuilt modules, so the Inbuilt filter and
         // the "Inbuilt" grouping still find them.

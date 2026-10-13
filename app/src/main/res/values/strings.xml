@@ -814,6 +814,37 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="mod_menu_no_matches">No matching mods</string>
     <string name="mod_menu_group_inbuilt">Inbuilt Features</string>
     <string name="mod_menu_group_voice">Voice</string>
+
+    <!-- New visual / HUD / utility modules (mod-panel list). -->
+    <string name="inbuilt_mod_fullbright">Fullbright</string>
+    <string name="inbuilt_mod_fullbright_desc">Brightens the world so caves and the night are visible without a torch.</string>
+    <string name="inbuilt_mod_time_changer">Time Changer</string>
+    <string name="inbuilt_mod_time_changer_desc">Cycles the world time locally, so the sky changes on your screen only.</string>
+    <string name="inbuilt_mod_low_fire">Low Fire</string>
+    <string name="inbuilt_mod_low_fire_desc">Lowers the fire overlay so it does not block your view when burning.</string>
+    <string name="inbuilt_mod_block_outline">Block Outline</string>
+    <string name="inbuilt_mod_block_outline_desc">Draws a crisp outline around the block you are looking at.</string>
+    <string name="inbuilt_mod_motion_blur">Motion Blur</string>
+    <string name="inbuilt_mod_motion_blur_desc">Adds a subtle screen blur while you move, for a smoother look.</string>
+    <string name="inbuilt_mod_saturation">Saturation</string>
+    <string name="inbuilt_mod_saturation_desc">Raises the colour saturation of the rendered frame.</string>
+    <string name="inbuilt_mod_crosshair">Crosshair</string>
+    <string name="inbuilt_mod_crosshair_desc">A client-drawn crosshair with a choice of style and colour.</string>
+    <string name="inbuilt_mod_armor_view_bending">Armor View Bending</string>
+    <string name="inbuilt_mod_armor_view_bending_desc">Flattens the armor-bar bending so the HUD reads cleanly.</string>
+    <string name="inbuilt_mod_projectile_scaler">Projectile Scaler</string>
+    <string name="inbuilt_mod_projectile_scaler_desc">Scales thrown projectiles up so they are easier to track.</string>
+    <string name="inbuilt_mod_freecam">Freecam</string>
+    <string name="inbuilt_mod_freecam_desc">Detaches the camera from your player so you can look around freely.</string>
+    <string name="inbuilt_mod_tnt">Tnt</string>
+    <string name="inbuilt_mod_tnt_desc">A thin block-selection outline tuned for placing TNT.</string>
+    <string name="inbuilt_mod_list_players">List Players</string>
+    <string name="inbuilt_mod_list_players_desc">Lists the players you can see, with their distance.</string>
+    <string name="inbuilt_mod_debug_menu">Debug Menu</string>
+    <string name="inbuilt_mod_debug_menu_desc">A client-side readout of position, chunk, frame rate and loaded entities.</string>
+    <string name="inbuilt_mod_third_person_nametag">Third Person Nametag</string>
+    <string name="inbuilt_mod_third_person_nametag_desc">Shows your own nametag in third person, which vanilla hides.</string>
+
     <string name="mod_menu_group_external_ungrouped">Ungrouped External Mods</string>
     <string name="mod_menu_module_count">%1$d / %2$d</string>
     <string name="mod_menu_general_settings">General Settings</string>

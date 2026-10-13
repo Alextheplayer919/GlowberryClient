@@ -36,6 +36,43 @@ public final class ModIds {
     public static final String HIT_PREDICTION = "hit_prediction";
     public static final String KILL_EFFECTS = "kill_effects";
 
+    // --- Visual / HUD / Misc modules (the mod-panel list) ------------------------------------
+
+    /** Brightens the world by removing the dark overlay, a full-bright visual. */
+    public static final String FULLBRIGHT = "fullbright";
+    /** Cycles the world time locally (client-side, no server command). */
+    public static final String TIME_CHANGER = "time_changer";
+    /** Lowers the fire overlay so it does not block the view. */
+    public static final String LOW_FIRE = "low_fire";
+    /** Draws the block the crosshair is on with an outline. */
+    public static final String BLOCK_OUTLINE = "block_outline";
+    /** A subtle screen motion blur when moving. */
+    public static final String MOTION_BLUR = "motion_blur";
+    /** Raises colour saturation of the rendered frame. */
+    public static final String SATURATION = "saturation";
+    /** A customisable crosshair, drawn by the client. */
+    public static final String CROSSHAIR = "crosshair";
+    /** Softens the armor-bar bending so the HUD reads flatter. */
+    public static final String ARMOR_VIEW_BENDING = "armor_view_bending";
+    /** Scales thrown-projectile models up so they are easier to see. */
+    public static final String PROJECTILE_SCALER = "projectile_scaler";
+    /** A detached free camera, separate from the player's view. */
+    public static final String FREECAM = "freecam";
+    /** A thin-outline block selection for TNT placement, a build aid. */
+    public static final String TNT = "tnt";
+
+    // --- Utility / information modules --------------------------------------------------------
+
+    /** Lists players in the world with their distance, a client-side overlay. */
+    public static final String LIST_PLAYERS = "list_players";
+    /** A client-side debug readout (position, chunk, fps, entities). */
+    public static final String DEBUG_MENU = "debug_menu";
+    /** Draws a nametag on the player in third person, which vanilla omits. */
+    public static final String THIRD_PERSON_NAMETAG = "third_person_nametag";
+
+    /** The module id for the in-game Mod Menu itself. */
+    public static final String MOD_MENU_ID = MOD_MENU;
+
     /**
      * Combat-oriented modules the Mod Menu files under its PvP tab. Kept here rather than
      * derived from the group string at the call site so the filter and the provider cannot
@@ -75,7 +112,22 @@ public final class ModIds {
      */
     public static boolean requiresGameData(String modId) {
         return ARMOR_HUD.equals(modId) || CRYSTAL_OPTIMIZER.equals(modId)
-                || TRAJECTORY_PREDICTION.equals(modId) || KILL_EFFECTS.equals(modId);
+                || TRAJECTORY_PREDICTION.equals(modId) || KILL_EFFECTS.equals(modId)
+                // These visual modules act on the game's rendered frame or its entity list, which
+                // this build exposes to no mod yet (the prebuilt libinbuiltmods.so supports only
+                // AutoSprint/Fps/Gyro/HotbarSlot/MoreButtons/PojavControls/Snaplook/Zoom), so with
+                // no native provider they cannot produce anything. Listing them as if they worked
+                // would be the defect. Fullbright, Crosshair and List Players are NOT here: they
+                // reach a result through routes this build already has (a brightness setting, an
+                // overlay, and the proximity-voice peer feed).
+                || TIME_CHANGER.equals(modId) || LOW_FIRE.equals(modId)
+                || BLOCK_OUTLINE.equals(modId) || MOTION_BLUR.equals(modId)
+                || SATURATION.equals(modId) || ARMOR_VIEW_BENDING.equals(modId)
+                || PROJECTILE_SCALER.equals(modId) || FREECAM.equals(modId)
+                || TNT.equals(modId) || DEBUG_MENU.equals(modId)
+                // Third-person nametags need the drawn actor's world position, which needs the
+                // native entity feed.
+                || THIRD_PERSON_NAMETAG.equals(modId);
     }
 
     /**
