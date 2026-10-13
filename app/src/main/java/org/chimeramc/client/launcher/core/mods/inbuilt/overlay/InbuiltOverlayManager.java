@@ -38,6 +38,8 @@ public class InbuiltOverlayManager {
     private GyroOverlay gyroOverlay;
     private FpsDisplayOverlay fpsDisplayOverlay;
     private CpsDisplayOverlay cpsDisplayOverlay;
+    private ListPlayersOverlay listPlayersOverlay;
+    private DebugMenuOverlay debugMenuOverlay;
     private AimSettingsOverlay aimSettingsOverlay;
     private ArmorHudOverlay armorHudOverlay;
     private CrystalOptimizerOverlay crystalOptimizerOverlay;
@@ -273,6 +275,18 @@ public class InbuiltOverlayManager {
                 if (fpsDisplayOverlay == null) {
                     fpsDisplayOverlay = new FpsDisplayOverlay(activity);
                     fpsDisplayOverlay.show(savedX, savedY);
+                }
+                break;
+            case ModIds.LIST_PLAYERS:
+                if (listPlayersOverlay == null) {
+                    listPlayersOverlay = new ListPlayersOverlay(activity);
+                    listPlayersOverlay.show(savedX, savedY);
+                }
+                break;
+            case ModIds.DEBUG_MENU:
+                if (debugMenuOverlay == null) {
+                    debugMenuOverlay = new DebugMenuOverlay(activity);
+                    debugMenuOverlay.show(savedX, savedY);
                 }
                 break;
             case ModIds.CPS_DISPLAY:
@@ -553,6 +567,22 @@ public class InbuiltOverlayManager {
             if (cpsDisplayOverlay != null) {
                 cpsDisplayOverlay.hide();
                 cpsDisplayOverlay = null;
+            }
+            return;
+        }
+
+        if (modId.equals(ModIds.LIST_PLAYERS)) {
+            if (listPlayersOverlay != null) {
+                listPlayersOverlay.hide();
+                listPlayersOverlay = null;
+            }
+            return;
+        }
+
+        if (modId.equals(ModIds.DEBUG_MENU)) {
+            if (debugMenuOverlay != null) {
+                debugMenuOverlay.hide();
+                debugMenuOverlay = null;
             }
             return;
         }
@@ -846,6 +876,14 @@ public class InbuiltOverlayManager {
         if (cpsDisplayOverlay != null) {
             cpsDisplayOverlay.hide();
             cpsDisplayOverlay = null;
+        }
+        if (listPlayersOverlay != null) {
+            listPlayersOverlay.hide();
+            listPlayersOverlay = null;
+        }
+        if (debugMenuOverlay != null) {
+            debugMenuOverlay.hide();
+            debugMenuOverlay = null;
         }
         if (snaplookOverlay != null) {
             snaplookOverlay.hide();
@@ -1650,6 +1688,20 @@ public class InbuiltOverlayManager {
                         ? android.view.View.VISIBLE
                         : android.view.View.GONE;
                 cpsDisplayOverlay.setVisibility(visibility);
+            }
+
+            if (listPlayersOverlay != null) {
+                int visibility = inbuiltVisible || manager.isOverlayShowEverywhere(ModIds.LIST_PLAYERS)
+                        ? android.view.View.VISIBLE
+                        : android.view.View.GONE;
+                listPlayersOverlay.setVisibility(visibility);
+            }
+
+            if (debugMenuOverlay != null) {
+                int visibility = inbuiltVisible || manager.isOverlayShowEverywhere(ModIds.DEBUG_MENU)
+                        ? android.view.View.VISIBLE
+                        : android.view.View.GONE;
+                debugMenuOverlay.setVisibility(visibility);
             }
 
             if (armorHudOverlay != null) {

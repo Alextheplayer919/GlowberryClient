@@ -57,15 +57,18 @@ public class NewModulesTest {
 
     @Test
     public void theRoutelessModulesRequireGameDataAndTheReachableOnesDoNot() {
-        // These reach a result through a route this build already has.
+        // These reach a result through a route this build already has: Fullbright via the options
+        // file, Crosshair via an overlay, List Players and Debug Menu via the local-player feed and
+        // the proximity-voice peer list.
         assertFalse(ModIds.requiresGameData(ModIds.FULLBRIGHT));
         assertFalse(ModIds.requiresGameData(ModIds.CROSSHAIR));
         assertFalse(ModIds.requiresGameData(ModIds.LIST_PLAYERS));
+        assertFalse(ModIds.requiresGameData(ModIds.DEBUG_MENU));
 
         // These need a native frame or entity feed that no mod can read in this build.
         for (String id : new String[]{ModIds.TIME_CHANGER, ModIds.LOW_FIRE, ModIds.BLOCK_OUTLINE,
                 ModIds.MOTION_BLUR, ModIds.SATURATION, ModIds.ARMOR_VIEW_BENDING,
-                ModIds.PROJECTILE_SCALER, ModIds.FREECAM, ModIds.TNT, ModIds.DEBUG_MENU,
+                ModIds.PROJECTILE_SCALER, ModIds.FREECAM, ModIds.TNT,
                 ModIds.THIRD_PERSON_NAMETAG}) {
             assertTrue("module should need game data: " + id, ModIds.requiresGameData(id));
         }

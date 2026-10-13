@@ -1042,6 +1042,14 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="mod_unavailable_reason">Needs a game data feed this build cannot provide yet. It is disabled until then.</string>
     <string name="mod_notification_enabled">%s enabled</string>
     <string name="mod_overlay_fps_unknown">FPS: --</string>
+    <string name="mod_overlay_data_unavailable">Waiting for game data…</string>
+    <string name="mod_overlay_no_peers">No players nearby</string>
+    <string name="mod_overlay_players_title">Players (%1$d)</string>
+    <string name="mod_overlay_debug_title">Debug</string>
+    <string name="mod_overlay_pos">XYZ: %1$s</string>
+    <string name="mod_overlay_chunk">Chunk: %1$d, %1$d</string>
+    <string name="mod_overlay_yaw">Yaw/Pitch: %1$s</string>
+    <string name="mod_overlay_health">Health: %1$s</string>
     <string name="mod_overlay_fps_value">FPS: %1$d</string>
     <string name="mod_overlay_cps_value">CPS: %1$d</string>
     <string name="mod_config_overlay_button_size_dp">Overlay Button Size (dp)</string>

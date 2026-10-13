@@ -117,14 +117,15 @@ public final class ModIds {
                 // this build exposes to no mod yet (the prebuilt libinbuiltmods.so supports only
                 // AutoSprint/Fps/Gyro/HotbarSlot/MoreButtons/PojavControls/Snaplook/Zoom), so with
                 // no native provider they cannot produce anything. Listing them as if they worked
-                // would be the defect. Fullbright, Crosshair and List Players are NOT here: they
-                // reach a result through routes this build already has (a brightness setting, an
-                // overlay, and the proximity-voice peer feed).
+                // would be the defect. Not listed here, because they reach a result through a route
+                // this build already has: Fullbright (a brightness option), Crosshair (an overlay),
+                // and List Players / Debug Menu (the local-player feed and the proximity-voice peer
+                // list).
                 || TIME_CHANGER.equals(modId) || LOW_FIRE.equals(modId)
                 || BLOCK_OUTLINE.equals(modId) || MOTION_BLUR.equals(modId)
                 || SATURATION.equals(modId) || ARMOR_VIEW_BENDING.equals(modId)
                 || PROJECTILE_SCALER.equals(modId) || FREECAM.equals(modId)
-                || TNT.equals(modId) || DEBUG_MENU.equals(modId)
+                || TNT.equals(modId)
                 // Third-person nametags need the drawn actor's world position, which needs the
                 // native entity feed.
                 || THIRD_PERSON_NAMETAG.equals(modId);
