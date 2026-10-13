@@ -165,6 +165,15 @@
             tools:ignore="DiscouragedApi"
             android:label="@string/settings_title" />
 
+        <!-- Hidden UI gallery: reached by tapping the version 7 times in Settings > Updates. -->
+        <activity
+            android:name="org.chimeramc.client.launcher.ui.activities.UiGalleryActivity"
+            android:exported="false"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="fontScale|density|smallestScreenSize|screenSize|uiMode|screenLayout|orientation|navigation|keyboardHidden|keyboard|touchscreen|locale|mnc|mcc"
+            tools:ignore="DiscouragedApi"
+            android:label="UI gallery" />
+
         <activity
             android:name="org.chimeramc.client.ui.activities.CustomizeActivity"
             android:exported="false"
