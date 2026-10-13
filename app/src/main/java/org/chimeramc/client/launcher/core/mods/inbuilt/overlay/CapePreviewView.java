@@ -148,6 +148,13 @@ public class CapePreviewView extends View {
     private boolean accessoryAtlasLoaded;
     /** The authored mesh's identifier, used to pick the atlas file. */
     private String accessoryMeshTextureFile;
+    /**
+     * The atlas size the accessory's geometry declares ({@code texture_width}/{@code texture_height}).
+     * UVs are normalised against this, while the rasteriser samples the decoded bitmap's real size;
+     * the two differ for many shipped PNGs (a 32x32 hat, a 64x48 hat, ...).
+     */
+    private int accessoryGeoTexW = 64;
+    private int accessoryGeoTexH = 64;
 
     /**
      * The authored Blockbench mesh for the equipped pet, resolved once per selection.
@@ -161,6 +168,9 @@ public class CapePreviewView extends View {
     private Bitmap petAtlas;
     private boolean petAtlasLoaded;
     private String petMeshTextureFile;
+    /** The pet geometry's declared atlas size; UVs normalise against this (see accessory note). */
+    private int petGeoTexW = 64;
+    private int petGeoTexH = 64;
 
     private float yawDeg = 28f;
     private float pitchDeg = DEFAULT_PITCH;
@@ -249,6 +259,8 @@ public class CapePreviewView extends View {
     private void rebuildAccessoryMesh() {
         accessoryMesh = null;
         accessoryMeshTextureFile = null;
+        accessoryGeoTexW = 64;
+        accessoryGeoTexH = 64;
         if (accessory == null || accessory.modelId == null) return;
         if (!AuthoredHatModels.hasAuthoredModel(accessory.modelId)) return;
 
@@ -261,6 +273,14 @@ public class CapePreviewView extends View {
 
         accessoryMesh = boxes;
         accessoryMeshTextureFile = AuthoredHatModels.textureFor(accessory.modelId);
+        // The atlas the geometry's UVs are written against. This is what UVs normalise by, and it can
+        // differ from the decoded PNG's real size — using a constant here is what made a 32x32 hat
+        // crash the app.
+        if (!geometry.models.isEmpty()) {
+            BedrockGeometry.Description desc = geometry.models.get(0).description;
+            if (desc.textureWidth > 0) accessoryGeoTexW = desc.textureWidth;
+            if (desc.textureHeight > 0) accessoryGeoTexH = desc.textureHeight;
+        }
         // A new accessory means a new atlas; drop the cached decode so the next frame reloads it.
         if (accessoryAtlas != null && !accessoryAtlas.isRecycled()) accessoryAtlas.recycle();
         accessoryAtlas = null;
@@ -290,6 +310,8 @@ public class CapePreviewView extends View {
     private void rebuildPetMesh() {
         petMesh = null;
         petMeshTextureFile = null;
+        petGeoTexW = 64;
+        petGeoTexH = 64;
         if (pet == null) return;
         String petId = pet.modelId != null ? pet.modelId : pet.id;
         if (!AuthoredPetModels.hasAuthoredModel(petId)) return;
@@ -307,6 +329,11 @@ public class CapePreviewView extends View {
 
         petMesh = boxes;
         petMeshTextureFile = AuthoredPetModels.textureFor(petId);
+        if (!geometry.models.isEmpty()) {
+            BedrockGeometry.Description desc = geometry.models.get(0).description;
+            if (desc.textureWidth > 0) petGeoTexW = desc.textureWidth;
+            if (desc.textureHeight > 0) petGeoTexH = desc.textureHeight;
+        }
         if (petAtlas != null && !petAtlas.isRecycled()) petAtlas.recycle();
         petAtlas = null;
         petAtlasLoaded = false;
@@ -553,23 +580,47 @@ public class CapePreviewView extends View {
         int h = getHeight();
         if (w <= 0 || h <= 0) return;
 
-        // Phase D: the whole scene — character, pet, cape, accessories, authored meshes — is
-        // rasterised by the pure software renderer, so it needs no Canvas layers and the depth
-        // buffer resolves every piece against every other.
-        int internalW = Math.min(w * RASTER_SUPERSAMPLE, RASTER_MAX_EDGE);
-        int internalH = Math.min(h * RASTER_SUPERSAMPLE, RASTER_MAX_EDGE);
-        Bitmap target = ensureFrame(internalW, internalH);
-        if (target == null) {
-            // No offscreen target could be allocated: draw nothing rather than a broken half-frame.
-            return;
+        // Defence in depth: a draw bug must not kill the app. This is NOT a fallback renderer — it
+        // draws a small notice and records the exception for the diagnostics report, then returns.
+        try {
+            // Phase D: the whole scene — character, pet, cape, accessories, authored meshes — is
+            // rasterised by the pure software renderer, so it needs no Canvas layers and the depth
+            // buffer resolves every piece against every other.
+            int internalW = Math.min(w * RASTER_SUPERSAMPLE, RASTER_MAX_EDGE);
+            int internalH = Math.min(h * RASTER_SUPERSAMPLE, RASTER_MAX_EDGE);
+            Bitmap target = ensureFrame(internalW, internalH);
+            if (target == null) {
+                // No offscreen target could be allocated: draw nothing rather than a broken half-frame.
+                return;
+            }
+            // Background: transparent, so the glass panel behind the preview shows through.
+            raster.prepare(internalW, internalH, 0x00000000);
+            camera = new SkinModel.Camera(yawDeg, pitchDeg, SkinModel.CAMERA_DISTANCE, 0f, 18f, 0f);
+            renderScene(camera, internalW, internalH);
+            target.setPixels(raster.pixels(), 0, internalW, 0, 0, internalW, internalH);
+            canvas.drawBitmap(target, new android.graphics.Rect(0, 0, internalW, internalH),
+                    new android.graphics.Rect(0, 0, w, h), pixelPaint);
+        } catch (Throwable t) {
+            lastRenderError = t;
+            drawPreviewError(canvas, w, h);
         }
-        // Background: transparent, so the glass panel behind the preview shows through.
-        raster.prepare(internalW, internalH, 0x00000000);
-        camera = new SkinModel.Camera(yawDeg, pitchDeg, SkinModel.CAMERA_DISTANCE, 0f, 18f, 0f);
-        renderScene(camera, internalW, internalH);
-        target.setPixels(raster.pixels(), 0, internalW, 0, 0, internalW, internalH);
-        canvas.drawBitmap(target, new android.graphics.Rect(0, 0, internalW, internalH),
-                new android.graphics.Rect(0, 0, w, h), pixelPaint);
+    }
+
+    /** The last exception the render path threw, surfaced in the diagnostics report; null if none. */
+    private volatile Throwable lastRenderError;
+
+    /** The most recent render exception, or null. Used by the cosmetics diagnostics dialog. */
+    public Throwable getLastRenderError() {
+        return lastRenderError;
+    }
+
+    /** Paints a small "preview error" notice instead of a broken half-frame. */
+    private void drawPreviewError(Canvas canvas, int w, int h) {
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        p.setColor(0xFFFF5C5C);
+        p.setTextAlign(Paint.Align.CENTER);
+        p.setTextSize(Math.max(11f, Math.min(w, h) * 0.07f));
+        canvas.drawText("preview error", w / 2f, h / 2f, p);
     }
 
     /**
@@ -647,10 +698,16 @@ public class CapePreviewView extends View {
         }
         petScene = new PreviewScene();
         if (petMesh != null && !petMesh.isEmpty()) {
-            int[] atlas = atlasPixels(ensurePetAtlas());
+            Bitmap atlasBitmap = ensurePetAtlas();
+            int[] atlas = atlasPixels(atlasBitmap);
             if (atlas != null) {
-                PreviewAuthoredScene.addPet(petScene, petMesh, atlas,
-                        PetGeometry.TEXTURE_WIDTH, PetGeometry.TEXTURE_HEIGHT,
+                // Sample with the bitmap's REAL size; normalise UVs against the geometry's declared
+                // size. These differ for several shipped pets, so using one constant for both is
+                // exactly the crash this fixes.
+                int aw = atlasBitmap.getWidth();
+                int ah = atlasBitmap.getHeight();
+                PreviewAuthoredScene.addPet(petScene, petMesh, atlas, aw, ah,
+                        petGeoTexW, petGeoTexH,
                         PreviewPetScene.OFFSET_X, petPose.bodyBob - petPose.crouchDrop, 0f, petPose);
             }
         } else {
@@ -681,10 +738,13 @@ public class CapePreviewView extends View {
         }
         accessoryScene = new PreviewScene();
         if (accessoryMesh != null) {
-            int[] atlas = atlasPixels(ensureAccessoryAtlas());
+            Bitmap atlasBitmap = ensureAccessoryAtlas();
+            int[] atlas = atlasPixels(atlasBitmap);
             if (atlas != null) {
-                PreviewAuthoredScene.addAccessory(accessoryScene, accessoryMesh, atlas,
-                        AccessoryGeometry.TEXTURE_WIDTH, AccessoryGeometry.TEXTURE_HEIGHT,
+                int aw = atlasBitmap.getWidth();
+                int ah = atlasBitmap.getHeight();
+                PreviewAuthoredScene.addAccessory(accessoryScene, accessoryMesh, atlas, aw, ah,
+                        accessoryGeoTexW, accessoryGeoTexH,
                         headPitchDeg, headYawDeg, accessory.kind.followsHead());
             }
         } else {

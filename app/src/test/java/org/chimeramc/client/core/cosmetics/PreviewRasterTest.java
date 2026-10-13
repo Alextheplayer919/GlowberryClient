@@ -55,11 +55,111 @@ public class PreviewRasterTest {
     public void theDepthBufferHoldsTheNearestValue() {
         PreviewRaster r = raster(16, 16);
         r.triangleFlat(0, 0, 5, 16, 0, 5, 4, 4, 5, 0xFFFFFFFF, false);
-        assertTrue("depth recorded", r.depthAt(2, 2) > 0);
-        // z is floored to an int, so a depth of 5 records as 5.
-        assertEquals(5, r.depthAt(2, 2));
+        assertTrue("depth recorded", r.depthAt(2, 2) < Float.POSITIVE_INFINITY);
+        // The buffer is float now, so a fractional depth is stored exactly rather than floored.
+        assertEquals(5f, r.depthAt(2, 2), 1e-3f);
         assertFalse(r.depthTest(2, 2, 50));
         assertTrue(r.depthTest(2, 2, 4));
+    }
+
+    @Test
+    public void aFractionalDepthIsNotFloored() {
+        // The overlay layer is nudged by 0.5 model pixels over its base face. With the old int
+        // (floored) buffer both landed in the same bucket about half the time and the overlay showed
+        // in stripes; a float buffer keeps them distinct.
+        PreviewRaster r = raster(16, 16);
+        r.triangleFlat(0, 0, 46.0f, 16, 0, 46.0f, 16, 16, 46.0f, 0xFF0000FF, false);
+        r.triangleFlat(0, 0, 46.0f, 16, 16, 46.0f, 0, 16, 46.0f, 0xFF0000FF, false);
+        assertEquals(46.0f, r.depthAt(8, 8), 1e-3f);
+        // A surface 0.5 nearer (the overlay bias) must win.
+        assertTrue(r.depthTest(8, 8, 45.5f));
+        // A surface 0.5 farther must not.
+        assertFalse(r.depthTest(8, 8, 46.5f));
+    }
+
+    @Test
+    public void anOverlayBiasAlwaysWinsOverItsBaseFace() {
+        // For 1000 random fractional base depths, a face 0.5 nearer must always pass the depth test.
+        java.util.Random rnd = new java.util.Random(1234);
+        for (int i = 0; i < 1000; i++) {
+            float base = 46f + rnd.nextFloat() * 18f;
+            PreviewRaster r = raster(4, 4);
+            r.triangleFlat(0, 0, base, 4, 0, base, 4, 4, base, 0xFF0000FF, false);
+            r.triangleFlat(0, 0, base, 4, 4, base, 0, 4, base, 0xFF0000FF, false);
+            assertTrue("overlay bias must win at base=" + base,
+                    r.depthTest(2, 2, base - 0.5f));
+        }
+    }
+
+    @Test
+    public void aSolidQuadIsFullyCovered() {
+        // A quad split into two triangles must cover its whole area with no wedge missing. The old
+        // (0,1,2)+(0,2,3) split left a triangular notch on the right of every face.
+        int w = 64, h = 64;
+        PreviewRaster r = raster(w, h);
+        // A 16x16 solid quad in the middle, drawn as the two correct triangles.
+        float x0 = 24, y0 = 24, x1 = 40, y1 = 40;
+        int[] atlas = new int[]{0xFFFF0000};
+        r.triangle(x0, y0, 1, x1, y0, 1, x1, y1, 1, 0f, 0f, 1f, 0f, 1f, 1f,
+                atlas, 1, 1, false, false, 1f);
+        r.triangle(x0, y0, 1, x1, y1, 1, x0, y1, 1, 0f, 0f, 1f, 1f, 0f, 1f,
+                atlas, 1, 1, false, false, 1f);
+        int painted = 0;
+        for (int y = (int) y0; y < (int) y1; y++) {
+            for (int x = (int) x0; x < (int) x1; x++) {
+                if (r.pixels()[y * w + x] == 0xFFFF0000) painted++;
+            }
+        }
+        assertEquals("every interior pixel of a solid quad must be painted",
+                (int) (x1 - x0) * (int) (y1 - y0), painted);
+    }
+
+    @Test
+    public void noPixelOnTheSharedDiagonalIsMissing() {
+        // The two triangles share the TL-BR diagonal; a fill-rule gap would drop pixels along it.
+        int w = 64, h = 64;
+        PreviewRaster r = raster(w, h);
+        int[] atlas = new int[]{0xFFFF0000};
+        r.triangle(0, 0, 1, 32, 0, 1, 32, 32, 1, 0f, 0f, 1f, 0f, 1f, 1f,
+                atlas, 1, 1, false, false, 1f);
+        r.triangle(0, 0, 1, 32, 32, 1, 0, 32, 1, 0f, 0f, 1f, 1f, 0f, 1f,
+                atlas, 1, 1, false, false, 1f);
+        // Walk the diagonal band; every pixel within a pixel of it must be painted.
+        for (int i = 0; i < 32; i++) {
+            for (int d = -1; d <= 1; d++) {
+                int x = i + d;
+                if (x < 0 || x >= 32) continue;
+                assertEquals("diagonal pixel (" + x + "," + i + ") missing",
+                        0xFFFF0000, r.pixels()[i * w + x]);
+            }
+        }
+    }
+
+    @Test
+    public void aTooSmallAtlasIsRefusedRatherThanCrashing() {
+        PreviewRaster r = raster(16, 16);
+        int[] tooSmall = new int[4];  // declares 8x8 but only 4 pixels
+        r.triangle(0, 0, 1, 16, 0, 1, 16, 16, 1, 0f, 0f, 1f, 0f, 1f, 1f,
+                tooSmall, 8, 8, true, true, 1f);
+        assertEquals("a too-small atlas must draw nothing", BG, r.pixels()[8 * 16 + 8]);
+    }
+
+    @Test
+    public void randomAtlasSizesAndUvsNeverThrow() {
+        java.util.Random rnd = new java.util.Random(99);
+        for (int i = 0; i < 2000; i++) {
+            int tw = 1 + rnd.nextInt(64);
+            int th = 1 + rnd.nextInt(64);
+            int[] atlas = new int[tw * th];
+            java.util.Arrays.fill(atlas, 0xFF00FF00);
+            PreviewRaster r = raster(32, 32);
+            float u0 = rnd.nextFloat() * 2f - 0.5f;
+            float v0 = rnd.nextFloat() * 2f - 0.5f;
+            float u1 = rnd.nextFloat() * 2f - 0.5f;
+            float v1 = rnd.nextFloat() * 2f - 0.5f;
+            r.triangle(0, 0, 1, 32, 0, 1, 16, 32, 1,
+                    u0, v0, u1, v0, u1, v1, atlas, tw, th, true, true, 1f);
+        }
     }
 
     @Test
@@ -74,16 +174,16 @@ public class PreviewRasterTest {
     @Test
     public void aTransparentTexelIsDiscardedByCutout() {
         PreviewRaster r = raster(4, 4);
-        int[] atlas = new int[]{0x00000000};  // fully transparent
+        int[] atlas = new int[]{0x00000000, 0x00000000};  // fully transparent (2x1, matches texW/H)
         fullTexturedQuad(r, 1, atlas, true, true);
         assertEquals("a discarded texel writes nothing", BG, r.pixels()[2 * 4 + 2]);
-        assertEquals("and records no depth", 0, r.depthAt(2, 2));
+        assertEquals("and records no depth", Float.POSITIVE_INFINITY, r.depthAt(2, 2), 0f);
     }
 
     @Test
     public void theBaseSkinPathIsForcedOpaque() {
         PreviewRaster r = raster(4, 4);
-        int[] atlas = new int[]{0x00000000};  // transparent texel, but alphaTest=false
+        int[] atlas = new int[]{0x00000000, 0x00000000};  // transparent, but alphaTest=false
         fullTexturedQuad(r, 1, atlas, false, false);
         assertEquals("base layer ignores atlas alpha and writes opaque",
                 0xFF000000, r.pixels()[2 * 4 + 2]);
@@ -92,7 +192,7 @@ public class PreviewRasterTest {
     @Test
     public void aTranslucentTexelBlendsWhenBlendIsOn() {
         PreviewRaster r = raster(4, 4);
-        int[] atlas = new int[]{0x80FFFFFF};
+        int[] atlas = new int[]{0x80FFFFFF, 0x80FFFFFF};
         fullTexturedQuad(r, 1, atlas, true, true);
         int mid = r.pixels()[2 * 4 + 2];
         int grey = mid & 0xFF;

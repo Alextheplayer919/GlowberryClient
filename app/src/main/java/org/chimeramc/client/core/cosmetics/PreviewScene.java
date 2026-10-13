@@ -52,6 +52,11 @@ public final class PreviewScene {
          * instead of z-fighting at an equal depth.
          */
         public float depthBias = 0f;
+        /**
+         * An optional label for diagnostics — the cosmetic id or "skin"/"cape" — so a skipped face
+         * can be attributed to the piece that produced it.
+         */
+        public String tag;
 
         void set(float x0, float y0, float z0, float x1, float y1, float z1,
                  float x2, float y2, float z2, float x3, float y3, float z3) {
@@ -139,6 +144,15 @@ public final class PreviewScene {
         float[] p = new float[12];
         for (Face f : faces) {
             if (f.atlas == null && f.flatColor == 0) continue;
+            // Defence in depth: never hand the rasteriser an atlas smaller than the dimensions the
+            // face was built with, or it would index past the end of the pixel array. A face whose
+            // atlas is the wrong size is skipped (and recorded for the diagnostics report) rather
+            // than crashing the frame.
+            if (f.atlas != null && f.atlas.length < f.atlasW * f.atlasH) {
+                PreviewSceneDiagnostics.record(f.tag, "atlas smaller than declared size",
+                        f.atlasW, f.atlasH, f.atlas.length);
+                continue;
+            }
             if (!f.doubleSided && !camera.faceVisibleNormal(f.nx, f.ny, f.nz)) continue;
             for (int i = 0; i < 4; i++) {
                 float[] c = f.corners[i];
@@ -147,20 +161,25 @@ public final class PreviewScene {
                 p[i * 3 + 1] = tmpProject[1];
                 p[i * 3 + 2] = tmpProject[2] - f.depthBias;
             }
+            // The corner order is row-major [TL, TR, BL, BR] (indices 0,1,2,3). Splitting on the
+            // TL-BR diagonal therefore gives (TL,TR,BR) = (0,1,3) and (TL,BR,BL) = (0,3,2). The
+            // earlier (0,1,2)+(0,2,3) pair both covered the left half and left the right-hand
+            // triangle (TR..BR) unpainted, so every face lost a triangular notch. The comment has
+            // always said the right split; the indices now match it.
             if (f.atlas == null) {
                 // A flat-coloured face (the procedural pet): two triangles filled with one colour.
-                raster.triangleFlat(p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8],
+                raster.triangleFlat(p[0], p[1], p[2], p[3], p[4], p[5], p[9], p[10], p[11],
                         f.flatColor, f.blend);
-                raster.triangleFlat(p[0], p[1], p[2], p[6], p[7], p[8], p[9], p[10], p[11],
+                raster.triangleFlat(p[0], p[1], p[2], p[9], p[10], p[11], p[6], p[7], p[8],
                         f.flatColor, f.blend);
                 continue;
             }
             // Two triangles: (TL,TR,BR) and (TL,BR,BL).
-            raster.triangle(p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8],
-                    f.uv[0], f.uv[1], f.uv[2], f.uv[3], f.uv[4], f.uv[5],
+            raster.triangle(p[0], p[1], p[2], p[3], p[4], p[5], p[9], p[10], p[11],
+                    f.uv[0], f.uv[1], f.uv[2], f.uv[3], f.uv[6], f.uv[7],
                     f.atlas, f.atlasW, f.atlasH, f.alphaTest, f.blend, f.shade);
-            raster.triangle(p[0], p[1], p[2], p[6], p[7], p[8], p[9], p[10], p[11],
-                    f.uv[0], f.uv[1], f.uv[4], f.uv[5], f.uv[6], f.uv[7],
+            raster.triangle(p[0], p[1], p[2], p[9], p[10], p[11], p[6], p[7], p[8],
+                    f.uv[0], f.uv[1], f.uv[6], f.uv[7], f.uv[4], f.uv[5],
                     f.atlas, f.atlasW, f.atlasH, f.alphaTest, f.blend, f.shade);
         }
     }
@@ -182,6 +201,12 @@ public final class PreviewScene {
     public Face addBoxFace(SkinModel.Box box, SkinModel.Face face, SkinModel.Uv uv,
                            int[] atlas, int atlasW, int atlasH) {
         if (uv == null) return null;
+        if (atlas == null || atlasW <= 0 || atlasH <= 0 || atlas.length < atlasW * atlasH) {
+            PreviewSceneDiagnostics.record(box == null ? null : box.id,
+                    "atlas missing or smaller than declared size", atlasW, atlasH,
+                    atlas == null ? 0 : atlas.length);
+            return null;
+        }
         float[][] c = box.faceCorners(face);
         Face f = new Face();
         f.set(c[0][0], c[0][1], c[0][2], c[1][0], c[1][1], c[1][2],
@@ -206,6 +231,11 @@ public final class PreviewScene {
      */
     public Face addQuad(float[][] corners, float[] uv, int[] atlas, int atlasW, int atlasH) {
         if (corners == null || corners.length != 4 || uv == null || uv.length < 8) return null;
+        if (atlas == null || atlasW <= 0 || atlasH <= 0 || atlas.length < atlasW * atlasH) {
+            PreviewSceneDiagnostics.record(null, "atlas missing or smaller than declared size",
+                    atlasW, atlasH, atlas == null ? 0 : atlas.length);
+            return null;
+        }
         Face f = new Face();
         f.set(corners[0][0], corners[0][1], corners[0][2],
                 corners[1][0], corners[1][1], corners[1][2],
