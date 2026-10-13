@@ -34,9 +34,22 @@ public final class PreviewCharacterScene {
     public static void addCharacter(PreviewScene scene, int[] atlas, int atlasSize,
                                     float headPitch, float headYaw) {
         if (scene == null || atlas == null || atlasSize <= 0) return;
+        addCharacter(scene, atlas, atlasSize, headPitch, headYaw, null);
+    }
+
+    /**
+     * Adds the character to {@code scene} from a skin atlas, optionally only the head box.
+     *
+     * @param onlyHead when non-null, only the box with this id is added (used by the radial wheel's
+     *                 hub, which shows just the 3D head). Null adds the whole model.
+     */
+    public static void addCharacter(PreviewScene scene, int[] atlas, int atlasSize,
+                                    float headPitch, float headYaw, String onlyHead) {
+        if (scene == null || atlas == null || atlasSize <= 0) return;
         float[] p = new float[3];
         float[] n = new float[3];
         for (SkinModel.Box box : SkinModel.boxes()) {
+            if (onlyHead != null && !onlyHead.equals(box.id)) continue;
             boolean head = "head".equals(box.id);
             for (SkinModel.Face face : SkinModel.Face.values()) {
                 SkinModel.Uv baseUv = box.baseUv(face);

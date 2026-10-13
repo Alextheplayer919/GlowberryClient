@@ -15,6 +15,10 @@ import android.view.View;
 
 import org.chimeramc.client.R;
 import org.chimeramc.client.core.cosmetics.PlayerSkinProvider;
+import org.chimeramc.client.core.cosmetics.PreviewCharacterScene;
+import org.chimeramc.client.core.cosmetics.PreviewRaster;
+import org.chimeramc.client.core.cosmetics.PreviewScene;
+import org.chimeramc.client.core.cosmetics.SkinModel;
 import org.chimeramc.client.core.mods.inbuilt.overlay.RadialWheelLayout.Sector;
 
 import java.util.ArrayList;
@@ -80,6 +84,26 @@ public class RadialMenuView extends View {
     private Sector highlighted = Sector.NONE;
 
     private Bitmap skinHead;
+
+    // The 3D head hub: a small software-rendered turntable of the player's real skin head.
+    private final PreviewRaster headRaster = new PreviewRaster();
+    private PreviewScene headScene;
+    private int[] headAtlas;
+    private Bitmap headBitmap;
+    private float headYawDeg;
+    private long headLastMs;
+    private final android.os.Handler headHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable headTick = new Runnable() {
+        @Override
+        public void run() {
+            long now = android.os.SystemClock.uptimeMillis();
+            float dt = headLastMs == 0L ? 0f : (now - headLastMs) / 1000f;
+            headLastMs = now;
+            headYawDeg = (headYawDeg + 22f * Math.min(dt, 0.1f)) % 360f;
+            invalidate();
+            if (isAttachedToWindow()) headHandler.postDelayed(this, 40L);
+        }
+    };
 
     // Palette (matches the app's violet/magenta brand).
     private static final int ACCENT = 0xFF6236E8;
@@ -148,10 +172,36 @@ public class RadialMenuView extends View {
                 // The head's front face is the standard 8x8 region at (8,8) in a 64x64 atlas.
                 srcHead.set(8, 8, 16, 16);
                 skinHead = skin.bitmap;
+                if (skin.bitmap.getWidth() == SkinModel.ATLAS_SIZE
+                        && skin.bitmap.getHeight() == SkinModel.ATLAS_SIZE) {
+                    headAtlas = new int[SkinModel.ATLAS_SIZE * SkinModel.ATLAS_SIZE];
+                    skin.bitmap.getPixels(headAtlas, 0, SkinModel.ATLAS_SIZE, 0, 0,
+                            SkinModel.ATLAS_SIZE, SkinModel.ATLAS_SIZE);
+                    headScene = new PreviewScene();
+                    PreviewCharacterScene.addCharacter(headScene, headAtlas, SkinModel.ATLAS_SIZE,
+                            0f, 0f, "head");
+                }
             }
         } catch (Throwable ignored) {
             skinHead = null;
+            headScene = null;
         }
+    }
+
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        if (headScene != null) {
+            headLastMs = 0L;
+            headHandler.removeCallbacks(headTick);
+            headHandler.post(headTick);
+        }
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        headHandler.removeCallbacks(headTick);
     }
 
     // --- Geometry helpers (shared by draw and touch) ----------------------------------------
@@ -215,8 +265,13 @@ public class RadialMenuView extends View {
     }
 
     private void drawHead(Canvas canvas, float cx, float cy, float radius) {
+        // Prefer the real 3D head: rasterise the player's skin head box as a turning turntable and
+        // blit it into the hub. Fall back to the flat front-face crop, then to a glyph, so the hub
+        // is never blank.
+        if (headScene != null && headAtlas != null) {
+            if (drawHead3D(canvas, cx, cy, radius)) return;
+        }
         if (skinHead == null || skinHead.isRecycled()) {
-            // No skin available: a neutral head glyph rather than a blank hub.
             iconPaint.setTextSize(radius * 0.9f);
             canvas.drawText("\uD83D\uDC64", cx, cy + radius * 0.32f, iconPaint);
             return;
@@ -230,10 +285,41 @@ public class RadialMenuView extends View {
         headPaint.setFilterBitmap(false);
         canvas.drawBitmap(skinHead, srcHead, dstHead, headPaint);
         canvas.restoreToCount(save);
-        // A thin ring around the head so it reads as seated in the hub.
         arcStroke.setColor(ACCENT_LIGHT);
         arcStroke.setStrokeWidth(Math.max(2f, radius * 0.06f));
         canvas.drawCircle(cx, cy, radius * 0.9f, arcStroke);
+    }
+
+    /** Renders the 3D head turntable into the hub; false when it cannot allocate a bitmap. */
+    private boolean drawHead3D(Canvas canvas, float cx, float cy, float radius) {
+        int size = Math.max(24, (int) (radius * 1.7f));
+        if (headBitmap == null || headBitmap.getWidth() != size) {
+            try {
+                headBitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+            } catch (Throwable t) {
+                headBitmap = null;
+                return false;
+            }
+        }
+        headRaster.prepare(size, size, 0x00000000);
+        SkinModel.Camera cam = new SkinModel.Camera(headYawDeg, 8f, SkinModel.CAMERA_DISTANCE,
+                0f, 28f, 0f);
+        PreviewScene.Fit fit = headScene.fit(cam, size, size, 0.06f);
+        headScene.render(headRaster, cam, fit);
+        headBitmap.setPixels(headRaster.pixels(), 0, size, 0, 0, size, size);
+        headClip.reset();
+        headClip.addCircle(cx, cy, radius * 0.9f, Path.Direction.CW);
+        int save = canvas.save();
+        canvas.clipPath(headClip);
+        headPaint.setFilterBitmap(true);
+        dstHead.set(cx - radius * 0.86f, cy - radius * 0.86f,
+                cx + radius * 0.86f, cy + radius * 0.86f);
+        canvas.drawBitmap(headBitmap, null, dstHead, headPaint);
+        canvas.restoreToCount(save);
+        arcStroke.setColor(ACCENT_LIGHT);
+        arcStroke.setStrokeWidth(Math.max(2f, radius * 0.06f));
+        canvas.drawCircle(cx, cy, radius * 0.9f, arcStroke);
+        return true;
     }
 
     private void drawChips(Canvas canvas, int w, int h) {

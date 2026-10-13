@@ -1445,6 +1445,9 @@ import okhttp3.OkHttpClient;
         // Setup Launch-tab quick toggles (AntEgg / Voice / Replays)
         setupLaunchToggles();
 
+        // The player's real skin head above the Play button.
+        bindDockSkinHead();
+
         // Setup the docked launch controls' shimmer feedback
         setupDockFeedback();
 
@@ -1829,6 +1832,37 @@ import okhttp3.OkHttpClient;
     private void openModsFullscreen() {
         Intent intent = new Intent(this, ModsFullscreenActivity.class);
         startActivity(intent);
+    }
+
+    /**
+     * Draws the player's real Minecraft skin head into the launch dock, above the Play button.
+     *
+     * <p>Uses the same {@link PlayerSkinProvider} the cosmetics preview uses, so the head is the
+     * player's actual skin (the head's front 8x8 region) rather than a generic icon. Falls back to
+     * the brand mark when no skin can be resolved, so the dock never shows a broken image.
+     */
+    private void bindDockSkinHead() {
+        try {
+            android.widget.ImageView head = findViewById(R.id.dock_skin_head);
+            if (head == null) return;
+            org.chimeramc.client.core.cosmetics.PlayerSkinProvider.SkinBitmap skin =
+                    org.chimeramc.client.core.cosmetics.PlayerSkinProvider.resolve(this);
+            if (skin == null || skin.bitmap == null) {
+                head.setImageResource(R.drawable.ic_glowberry_logo);
+                return;
+            }
+            android.graphics.Bitmap atlas = skin.bitmap;
+            int size = Math.min(atlas.getWidth() / 8, atlas.getHeight() / 8);
+            if (size <= 0) size = 8;
+            // The head's front face is the 8x8 region at (8,8) in the atlas.
+            int sx = Math.min(8 * (atlas.getWidth() / 64), atlas.getWidth() - size);
+            int sy = Math.min(8 * (atlas.getHeight() / 64), atlas.getHeight() - size);
+            android.graphics.Bitmap crop = android.graphics.Bitmap.createBitmap(
+                    atlas, sx, sy, size, size);
+            head.setImageBitmap(crop);
+        } catch (Throwable ignored) {
+            // A skin problem must never stop the launch tab drawing; the brand mark stays.
+        }
     }
 
     /**

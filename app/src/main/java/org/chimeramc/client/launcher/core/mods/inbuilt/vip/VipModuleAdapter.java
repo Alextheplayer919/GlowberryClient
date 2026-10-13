@@ -156,6 +156,36 @@ public class VipModuleAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
         notifyDataSetChanged();
     }
 
+    /**
+     * Updates the enabled state the grid draws, then re-binds that row.
+     *
+     * <p>The toggle path must call this, not just {@link #refreshStates()}: the grid's state lives in
+     * the {@code enabled} map taken at {@link #submit}, and re-binding from a stale map is exactly
+     * why a module toggled with a controller stayed showing "Off" while it was actually on. The
+     * caller is the source of truth it just wrote through {@link UnifiedMod#applyEnabled}.
+     */
+    public void setEnabledState(String stableKey, boolean enabled) {
+        if (stableKey == null) return;
+        this.enabled.put(stableKey, enabled);
+        for (int i = 0; i < items.size(); i++) {
+            Item item = items.get(i);
+            if (!item.isGroup() && item.mod != null && stableKey.equals(item.mod.getStableKey())) {
+                notifyItemChanged(i);
+                break;
+            }
+        }
+    }
+
+    /** Re-reads every module's own enabled flag into the grid, then re-binds. */
+    public void syncEnabledFromMods() {
+        for (Item item : items) {
+            if (!item.isGroup() && item.mod != null) {
+                enabled.put(item.mod.getStableKey(), item.mod.isEnabled());
+            }
+        }
+        notifyDataSetChanged();
+    }
+
     public int getFocus() {
         return focus;
     }
@@ -208,7 +238,11 @@ public class VipModuleAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
 
     /** Activates the focused card: module toggles, gear opens settings. */
     public boolean select() {
-        if (focus < 0 || focus >= items.size()) return false;
+        if (focus < 0 || focus >= items.size()) {
+            // Nothing focused yet: focus the first card rather than swallowing the press, so a
+            // controller user's first A lands on a module instead of doing nothing.
+            return focusFirst();
+        }
         Item item = items.get(focus);
         if (item.isGroup() || item.mod == null) return false;
         if (!ModAvailability.isInteractive(item.mod.getId())) return true;
@@ -218,9 +252,28 @@ public class VipModuleAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
         return true;
     }
 
+    /** Focuses the first selectable card, returning true when one exists. */
+    public boolean focusFirst() {
+        boolean[] selectable = selectableFlags();
+        for (int i = 0; i < selectable.length; i++) {
+            if (selectable[i]) {
+                int previous = focus;
+                focus = i;
+                if (previous >= 0) notifyItemChanged(previous);
+                notifyItemChanged(i);
+                if (recycler != null) recycler.smoothScrollToPosition(i);
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Opens the focused card's settings; true when it has a settings surface. */
     public boolean openConfig() {
-        if (focus < 0 || focus >= items.size()) return false;
+        if (focus < 0 || focus >= items.size()) {
+            focusFirst();
+            return true;
+        }
         Item item = items.get(focus);
         if (item.isGroup() || item.mod == null || !item.mod.hasConfig()) return false;
         if (listener != null) listener.onConfig(item.mod);

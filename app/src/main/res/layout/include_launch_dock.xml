@@ -23,6 +23,17 @@
         android:background="@drawable/bg_launch_dock"
         android:orientation="vertical">
 
+        <!-- The player's real Minecraft skin head, above the launch control. -->
+        <ImageView
+            android:id="@+id/dock_skin_head"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="12dp"
+            android:contentDescription="@string/dock_skin_head_desc"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_glowberry_logo" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

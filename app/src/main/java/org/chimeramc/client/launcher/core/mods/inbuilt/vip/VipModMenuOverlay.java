@@ -37,6 +37,7 @@ import org.chimeramc.client.core.mods.inbuilt.InbuiltModuleProvider;
 import org.chimeramc.client.core.mods.inbuilt.UnifiedMod;
 import org.chimeramc.client.core.mods.inbuilt.manager.InbuiltModManager;
 import org.chimeramc.client.core.mods.inbuilt.model.ModAvailability;
+import org.chimeramc.client.core.mods.inbuilt.overlay.ControllerProfileEditor;
 import org.chimeramc.client.core.mods.inbuilt.overlay.InbuiltOverlayManager;
 import org.chimeramc.client.core.mods.inbuilt.overlay.ModConfigView;
 import org.chimeramc.client.core.mods.inbuilt.overlay.ModMenuNavigation;
@@ -126,6 +127,9 @@ public class VipModMenuOverlay {
     private TextView controllerStatusText;
     private LinearLayout controllerProfiles;
     private LinearLayout controllerSliders;
+    /** The shared full-profile editor, opened from the controller section. */
+    private ControllerProfileEditor profileEditor;
+    private TextView fullEditorButton;
     private View controllerEmpty;
     private KeyboardIllustrationView keyboardIllustration;
     private LinearLayout keyboardKeys;
@@ -371,7 +375,12 @@ public class VipModMenuOverlay {
                     if (manager != null) manager.applyConfigurationChanges(mod.getId());
                 } catch (Throwable ignored) {
                 }
-                adapter.refreshStates();
+                // Update the grid's own state from the model, so the pill reflects what actually
+                // happened. Calling only refreshStates() re-bound the stale snapshot and left a
+                // controller-toggled module showing "Off" while it was on.
+                if (adapter != null) {
+                    adapter.setEnabledState(mod.getStableKey(), mod.isEnabled());
+                }
                 updateCounts();
             }
 
@@ -805,6 +814,10 @@ public class VipModMenuOverlay {
         controllerProfiles = view.findViewById(R.id.vip_controller_profiles);
         controllerSliders = view.findViewById(R.id.vip_controller_sliders);
         controllerEmpty = view.findViewById(R.id.vip_controller_empty);
+        // The overlay tree is re-inflated on every show, so any view built against the previous
+        // tree must be dropped or the "Full settings" button would be added twice.
+        fullEditorButton = null;
+        profileEditor = null;
         if (controllerIllustration != null) {
             controllerIllustration.setAccentColor(theme.accent());
         }
@@ -844,6 +857,37 @@ public class VipModMenuOverlay {
 
         rebuildProfileChips(type, profiles, activeSlot);
         rebuildStickSliders(type, profiles, activeSlot);
+        ensureFullEditorButton(type);
+    }
+
+    /**
+     * Adds the "Full settings" button that opens the shared controller editor — the same editor the
+     * launcher's Controller tab uses, so the in-game screen is no longer limited to the two quick
+     * sliders. Idempotent: it only adds the button once per section build.
+     */
+    private void ensureFullEditorButton(final ControllerType type) {
+        if (controllerSliders == null || fullEditorButton != null) return;
+        TextView button = new TextView(activity);
+        button.setText(R.string.controller_edit);
+        button.setTextSize(13);
+        button.setTextColor(0xFF160F2A);
+        int pad = (int) (16 * density());
+        button.setPadding(pad, pad / 2, pad, pad / 2);
+        button.setGravity(android.view.Gravity.CENTER);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setShape(GradientDrawable.RECTANGLE);
+        bg.setCornerRadius(12 * density());
+        bg.setColor(theme.accent());
+        button.setBackground(bg);
+        DynamicAnim.applyPressScale(button);
+        button.setOnClickListener(v -> {
+            if (profileEditor == null) {
+                profileEditor = new ControllerProfileEditor(activity, profileManager);
+            }
+            profileEditor.show(type, saved -> refreshControllerSection());
+        });
+        controllerSliders.addView(button);
+        fullEditorButton = button;
     }
 
     private void rebuildProfileChips(final ControllerType type, List<ControllerProfile> profiles,
@@ -1096,6 +1140,12 @@ public class VipModMenuOverlay {
         if (!isShowing || !down) return false;
         if (MenuBindRelay.isCapturing()) {
             return MenuBindRelay.deliver(keyCode);
+        }
+        // A layer-modifier capture in the full controller editor takes the next press first, so the
+        // captured button is the one the player meant rather than a tab switch.
+        if (profileEditor != null && profileEditor.isCapturingModifier()
+                && profileEditor.handleHardwareKey(keyCode)) {
+            return true;
         }
         if (controllerIllustration != null) {
             controllerIllustration.handleKeyEvent(keyCode, true);
