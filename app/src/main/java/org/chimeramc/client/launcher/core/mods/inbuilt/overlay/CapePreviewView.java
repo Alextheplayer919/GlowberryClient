@@ -23,6 +23,7 @@ import org.chimeramc.client.core.cosmetics.AuthoredPetModels;
 import org.chimeramc.client.core.cosmetics.PetModel;
 import org.chimeramc.client.core.cosmetics.PetPose;
 import org.chimeramc.client.core.cosmetics.PlayerSkinProvider;
+import org.chimeramc.client.core.cosmetics.PreviewAccessoryScene;
 import org.chimeramc.client.core.cosmetics.PreviewCapeScene;
 import org.chimeramc.client.core.cosmetics.PreviewCharacterScene;
 import org.chimeramc.client.core.cosmetics.PreviewDepthBuffer;
@@ -138,6 +139,8 @@ public class CapePreviewView extends View {
     private PreviewScene petScene;
     /** The cape cloth scene, rebuilt when the cloth steps; rendered into the same buffer. */
     private PreviewScene capeScene;
+    /** The procedural accessory scene; rendered into the same buffer as the body. */
+    private PreviewScene accessoryScene;
     private int[] skinAtlasPixels;
     /** The rasteriser's ARGB buffer copied into a Bitmap the Canvas can blit. */
     private Bitmap rasterBitmap;
@@ -295,6 +298,7 @@ public class CapePreviewView extends View {
     public void setAccessory(CosmeticCatalog.Accessory accessory) {
         this.accessory = accessory;
         rebuildAccessoryMesh();
+        rebuildAccessoryScene();
         syncAnimation();
         invalidate();
     }
@@ -555,6 +559,8 @@ public class CapePreviewView extends View {
             headPitchDeg = look[0];
             headYawDeg = look[1];
             rebuildCharacterScene();
+            // A head-worn accessory tracks the head, so its scene is rebuilt with the head look.
+            rebuildAccessoryScene();
         }
     }
 
@@ -670,6 +676,7 @@ public class CapePreviewView extends View {
         scene.render(raster, cam, fit);
         if (petScene != null) petScene.render(raster, cam, fit);
         if (capeScene != null) capeScene.render(raster, cam, fit);
+        if (accessoryScene != null) accessoryScene.render(raster, cam, fit);
     }
 
     /** Builds the character scene from the current skin, once per skin. */
@@ -719,18 +726,34 @@ public class CapePreviewView extends View {
     }
 
     /**
-     * Draws the Canvas layers that the software rasteriser does not own yet (accessories)
-     * over the rasterised scene. Called with the canvas scaled to the rasteriser's internal size,
-     * and with the same camera/scale/origin the raster pass used, so the layers line up.
+     * Rebuilds the procedural accessory scene. Called when the accessory changes or the head look
+     * moves; an authored accessory mesh is still a Canvas layer, so it leaves this null.
+     */
+    private void rebuildAccessoryScene() {
+        if (accessory == null || accessory.kind == CosmeticCatalog.AccessoryKind.NONE
+                || accessoryMesh != null) {
+            accessoryScene = null;
+            return;
+        }
+        accessoryScene = new PreviewScene();
+        PreviewAccessoryScene.addAccessoryBehind(accessoryScene, accessory);
+        PreviewAccessoryScene.addAccessoryFront(accessoryScene, accessory,
+                headPitchDeg, headYawDeg);
+    }
+
+    /**
+     * Draws the Canvas layers that the software rasteriser does not own yet (authored accessory and
+     * authored pet meshes) over the rasterised scene.
      */
     private void drawCanvasOverlays(Canvas canvas, float scale, float originX, float originY) {
-        if (accessory != null) drawAccessoryFront(canvas, originX, originY, scale);
+        if (accessory != null && accessoryMesh != null) {
+            drawAuthoredMesh(canvas, originX, originY, scale);
+        }
         // A procedural pet is part of the rasterised scene; an authored pet is still a Canvas layer
         // until its own stage lands.
         if (pet != null && petMesh != null && !petMesh.isEmpty()) {
             drawAuthoredPet(canvas, originX, originY, scale);
         }
-        drawAccessoryBehind(canvas, originX, originY, scale);
     }
 
     /** The offscreen supersample target, or null when it cannot be allocated. */

@@ -78,14 +78,13 @@ public class PreviewSceneGoldenTest {
         return scene;
     }
 
-    /** A hat with a visible front: a box on the head, double-sided so it never vanishes. */
+    /** A hat with a visible front: the real procedural accessory builder (a tophat). */
     private static void addHat(PreviewScene scene, int[] atlas) {
-        SkinModel.Box hat = SkinModel.Box.of("hat", 0, 31, 0, 9, 6, 9);
-        for (SkinModel.Face face : SkinModel.Face.values()) {
-            PreviewScene.Face f = scene.addBoxFace(hat, face, new SkinModel.Uv(0, 0, 32, 32),
-                    atlas, 32, 32);
-            if (f != null) { f.doubleSided = true; }
+        CosmeticCatalog.Accessory hat = null;
+        for (CosmeticCatalog.Accessory a : CosmeticCatalog.accessories()) {
+            if (a.kind == CosmeticCatalog.AccessoryKind.TOPHAT) { hat = a; break; }
         }
+        if (hat != null) PreviewAccessoryScene.addAccessoryFront(scene, hat, 0f, 0f);
     }
 
     /** A rotated-cube hat: the same box but with its four top corners tilted 20 degrees about Z. */
