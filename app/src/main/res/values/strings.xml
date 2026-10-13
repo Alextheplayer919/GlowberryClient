@@ -895,6 +895,7 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="accessory_style_note">Each style is a real, different mesh — a cap, a beanie, a crown, horns, a halo and so on are separate geometry. Every palette then tints those meshes, so "Prism Crown" and "Ember Circlet" share a shape in different colours while "Prism Crown" and "Geode Beret" are different shapes. Names are individual to each piece, not one palette word repeated down the list.</string>
     <string name="cosmetics_in_game">On your character in-game</string>
     <string name="cosmetics_native_active">Native renderer active — your equipped cape, accessory and pet are drawn on your character in game.</string>
+    <string name="cosmetics_native_hook_only">Render hook active on this build, but no cosmetic has been drawn yet this session. This may be a Vulkan-only renderer, a build whose slot has not been confirmed, or a cosmetic that has not equipped yet.</string>
     <string name="cosmetics_native_inactive">Native renderer is not active this session, so cosmetics show in this preview only. They appear in game once the renderer hook is available on your build.</string>
     <string name="cosmetics_sync_off">Cosmetic sync is off — other Chimera users cannot see your cosmetics.</string>
     <string name="cosmetics_sync_with_game">Cosmetic sync starts with the game, so other Chimera users in the same world can see your equipped cape, accessory and pet — and you can see theirs.</string>
@@ -913,6 +914,18 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="cosmetics_skin_note">Only the base layer and the head overlay of a skin are drawn. Skins that depend on full second-layer geometry may look simplified.</string>
     <string name="cosmetics_rotate_hint">Drag to rotate your character</string>
     <string name="cosmetics_second_layer_limited">Base layer + head overlay only</string>
+
+    <!-- Cosmetics diagnostics (in-app, no adb): reads the native render-path state directly. -->
+    <string name="cosmetics_diagnostics">Cosmetics diagnostics</string>
+    <string name="cosmetics_diagnostics_open">Diagnostics</string>
+    <string name="cosmetics_diagnostics_title">Cosmetics diagnostics</string>
+    <string name="cosmetics_diagnostics_copy">Copy report</string>
+    <string name="cosmetics_diagnostics_share">Share report</string>
+    <string name="cosmetics_diagnostics_copied">Diagnostics report copied.</string>
+    <string name="cosmetics_diagnostics_share_title">Share cosmetics diagnostics</string>
+    <string name="cosmetics_diagnostics_debug_cube">Draw test cube above local player</string>
+    <string name="cosmetics_diagnostics_debug_cube_note">Draws one bright cube above your character in game, to prove the draw path. Whether it appears is unverified on device — screenshot it and report back.</string>
+    <string name="cosmetics_diagnostics_note">This report describes the state of the native render path only. Whether cosmetics actually appear in game can only be confirmed by a device test.</string>
     <string name="mod_menu_version">v1.0</string>
     <string name="mod_menu_enabled">Mod Menu enabled</string>
     <string name="mod_menu_disabled">Mod Menu disabled</string>

@@ -106,6 +106,37 @@ public final class NativeCosmeticsFeed {
     }
 
     /**
+     * The three honest states of the native render path, so the UI can say which one applies.
+     *
+     * <p>Distinguishing {@link #HOOK_ONLY} from {@link #ACTIVE} is the point: a live hook with a
+     * drawable surface proves only that the seam is installed, not that any cosmetic reached the
+     * screen. Saying "drawn on your character in game" on the hook alone is the over-claim this
+     * fixes — the status must require at least one successful draw this session.
+     */
+    public enum RenderState {
+        /** No native library, no hook, or no drawable surface. */
+        INACTIVE,
+        /** Hook live and drawable, but no cosmetic mesh has been drawn yet this session. */
+        HOOK_ONLY,
+        /** Hook live, drawable, and at least one mesh drawn this session. */
+        ACTIVE,
+    }
+
+    /** Classifies the current state from the native feed. */
+    public static RenderState renderState() {
+        if (!isNativeRenderLive() || !isRendererDrawable()) return RenderState.INACTIVE;
+        return drawCount() > 0 ? RenderState.ACTIVE : RenderState.HOOK_ONLY;
+    }
+
+    /**
+     * True only when cosmetics can honestly be described as drawn in game this session: the hook is
+     * live, the surface is drawable, and at least one mesh was actually drawn.
+     */
+    public static boolean isCosmeticsActiveThisSession() {
+        return renderState() == RenderState.ACTIVE;
+    }
+
+    /**
      * A short human-readable line for the cosmetics status screen.
      *
      * <p>Never contains a number that reads as a performance claim; the render tick is a count,

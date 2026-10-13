@@ -189,6 +189,11 @@ final class CosmeticsPanel {
         gameStatus.setTextColor(0xFF8F979F);
         column.addView(gameStatus);
 
+        // The in-app diagnostics screen: reads the native render-path state directly, so a device
+        // problem can be reported without adb. Also carries the debug-cube toggle.
+        column.addView(gameButton(R.string.cosmetics_diagnostics_open, false,
+                v -> CosmeticsDiagnosticsDialog.show(activity)));
+
         // Cosmetic sync: whether the equipped set is being advertised to other Chimera users in the
         // world, and how many have been heard. This is the cross-player half of "cosmetic sync",
         // distinct from the native renderer status above.
@@ -588,11 +593,19 @@ final class CosmeticsPanel {
     private void refreshGameStatus() {
         if (gameStatus == null) return;
         try {
-            boolean rendererActive = NativeCosmeticsFeed.isNativeRenderLive()
-                    && NativeCosmeticsFeed.isRendererDrawable();
-            gameStatus.setText(rendererActive
-                    ? R.string.cosmetics_native_active
-                    : R.string.cosmetics_native_inactive);
+            // Three honest states: active only when a mesh was actually drawn this session; a live
+            // hook with no draw is its own message; everything else is inactive.
+            switch (NativeCosmeticsFeed.renderState()) {
+                case ACTIVE:
+                    gameStatus.setText(R.string.cosmetics_native_active);
+                    break;
+                case HOOK_ONLY:
+                    gameStatus.setText(R.string.cosmetics_native_hook_only);
+                    break;
+                default:
+                    gameStatus.setText(R.string.cosmetics_native_inactive);
+                    break;
+            }
         } catch (Throwable t) {
             gameStatus.setText(R.string.cosmetics_native_inactive);
         }

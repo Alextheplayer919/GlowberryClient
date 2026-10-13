@@ -20,7 +20,29 @@ import org.chimeramc.client.preloader.PreloaderInput;
  */
 public final class NativeCosmeticsBridge {
 
+    /**
+     * The fixed registry id every local-player override is keyed under.
+     *
+     * <p>One key scheme for everyone: the local player is always {@value}, a peer is always their
+     * sync id. Keying the local cape by its catalogue id (as an earlier version did) meant the native
+     * "first cape override" fallback could hand the local player a peer's cape, and it left no single
+     * place to clear only the local entries. The native renderer reads the role-keyed piece atlases
+     * for the local player, so this key is the identity the diagnostics report and the one a future
+     * per-actor lookup will match.
+     *
+     * <p><b>TODO(device):</b> {@value} is a per-install identity, not the player's xuid. A real
+     * per-actor lookup needs a native identity read (the game's own unique id for the drawn actor),
+     * which cannot be derived without device data. Until then the native renderer draws only the
+     * local player (see AGENTS.md) and no xuid or gamertag is transmitted anywhere.
+     */
+    public static final String LOCAL_PLAYER_ID = "local";
+
     private NativeCosmeticsBridge() {
+    }
+
+    /** The local player's registry key ({@link #LOCAL_PLAYER_ID} hashed). */
+    public static long localKey() {
+        return keyFor(LOCAL_PLAYER_ID);
     }
 
     /**
@@ -297,43 +319,45 @@ public final class NativeCosmeticsBridge {
         out.write(value & 0xFF);
     }
 
-    /** Uploads a cape's texture to the native registry (or clears it) keyed by its id. */
+    /** Uploads a cape's texture to the native registry (or clears it) keyed by the local player id. */
     public static void publishCape(CosmeticCatalog.Cape cape) {
         if (cape == null) {
-            PreloaderInput.clearCapeOverrides();
+            // Remove only the local player's cape entry. The old clear-all wiped every peer's cape
+            // whenever the local player unequipped theirs.
+            setCapeFor(LOCAL_PLAYER_ID, null);
             PreloaderInput.setPieceAtlas(PIECE_CAPE, null, 0, 0);
             return;
         }
         byte[] png = CapeTexturePainter.paint(cape.color, cape.trimColor, cape.accentColor,
                 cape.pattern, cape.branded);
         Bitmap image = decode(png);
-        if (image != null) setCapeFor(cape.id, image);
+        if (image != null) setCapeFor(LOCAL_PLAYER_ID, image);
     }
 
-    /** Uploads an accessory's texture to the native registry keyed by its id. */
+    /** Uploads an accessory's texture to the native registry keyed by the local player id. */
     public static void publishAccessory(CosmeticCatalog.Accessory accessory) {
         if (accessory == null) {
             PreloaderInput.setPieceAtlas(PIECE_HAT, null, 0, 0);
-            // Note: the id-keyed texture map is shared with peers, so it is not cleared here. The
-            // role-keyed piece slot above is what the local render actually reads.
+            setTextureFor(LOCAL_PLAYER_ID + "/hat", null);
             return;
         }
         byte[] png = AccessoryTexturePainter.paint(accessory.color, accessory.accentColor);
         Bitmap image = decode(png);
-        if (image != null) setTextureFor(accessory.id, image);
+        if (image != null) setTextureFor(LOCAL_PLAYER_ID + "/hat", image);
     }
 
-    /** Uploads a pet's texture to the native registry keyed by its id. */
+    /** Uploads a pet's texture to the native registry keyed by the local player id. */
     public static void publishPet(CosmeticCatalog.Pet pet) {
         if (pet == null) {
             PreloaderInput.setPieceAtlas(PIECE_PET, null, 0, 0);
+            setTextureFor(LOCAL_PLAYER_ID + "/pet", null);
             return;
         }
         byte[] png = PaintedAtlas.paint(pet.color, pet.accentColor,
                 PetGeometry.TEXTURE_WIDTH, PetGeometry.TEXTURE_HEIGHT,
                 PetGeometry.UV_ACCENT_Y, pet.color ^ (pet.species.ordinal() * 131));
         Bitmap image = decode(png);
-        if (image != null) setTextureFor(pet.id, image);
+        if (image != null) setTextureFor(LOCAL_PLAYER_ID + "/pet", image);
     }
 
     /**
@@ -449,10 +473,33 @@ public final class NativeCosmeticsBridge {
         return swapCapeImage(skinRefAddress, image);
     }
 
-    /** Clears every native override. Called when cosmetics are unequipped or a session ends. */
+    /**
+     * Removes only the local player's overrides (cape, hat and pet), leaving every peer's intact.
+     *
+     * <p>This is the correct clear for an unequip or a local reset: the earlier path called
+     * {@link #clear()}, which wiped peers' capes and textures as a side effect of the local player
+     * changing their own cosmetic.
+     */
+    public static void clearLocal() {
+        setCapeFor(LOCAL_PLAYER_ID, null);
+        setTextureFor(LOCAL_PLAYER_ID + "/hat", null);
+        setTextureFor(LOCAL_PLAYER_ID + "/pet", null);
+        PreloaderInput.setPieceAtlas(PIECE_CAPE, null, 0, 0);
+        PreloaderInput.setPieceAtlas(PIECE_HAT, null, 0, 0);
+        PreloaderInput.setPieceAtlas(PIECE_PET, null, 0, 0);
+    }
+
+    /**
+     * Clears every native override, for the local player and every peer.
+     *
+     * <p>This is the deliberate whole-registry reset (a session teardown), not an unequip path —
+     * unequipping one piece must use {@link #publishCape} / {@link #clearLocal} so it never removes
+     * another player's entries.
+     */
     public static void clear() {
         PreloaderInput.clearCapeOverrides();
         PreloaderInput.clearTextureOverrides();
+        PreloaderInput.clearPieceAtlases();
     }
 
     /** True once the native cosmetics hook has fired this session. */

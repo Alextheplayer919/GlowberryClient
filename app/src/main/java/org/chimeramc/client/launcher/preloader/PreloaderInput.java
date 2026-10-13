@@ -174,6 +174,26 @@ public class PreloaderInput {
     public static native int[] nativeReadCosmeticsStats();
 
     /**
+     * A one-shot native render-path diagnostic, readable inside the app (logcat is not available to
+     * the app without READ_LOGS, so the diagnostics screen reads this instead).
+     *
+     * <p>Layout: {renderSlot, resolvedBy, glBackend, eglContextCurrent, hookInstalled, framesSeen,
+     * lastError, geometryBytes, pieceAtlasMask}. All entries are -1 when the native library is
+     * absent. Never fabricates a reading: an unresolved slot or a missing GLES surface is reported as
+     * such.
+     */
+    public static native int[] nativeReadRenderDiagnostics();
+
+    /**
+     * Arms the debug draw: the native renderer draws one bright cube above the local player's head
+     * every frame. For proving the draw path on a device; unverified on device.
+     */
+    public static native void nativeSetCosmeticDebugCube(boolean enabled);
+
+    /** True when the debug cube is armed. */
+    public static native boolean nativeIsDebugCubeEnabled();
+
+    /**
      * Samples the native cape chain: {@code {lean1, sway1, lean2, sway2, ...}} in degrees for
      * {@code segments} segments, or empty when unavailable. Lets the preview and the native render
      * share one motion curve instead of each carrying its own amplitudes.
@@ -562,6 +582,33 @@ public class PreloaderInput {
             return value != null && value.length >= 4 ? value : null;
         } catch (UnsatisfiedLinkError e) {
             return null;
+        }
+    }
+
+    /** The native render-path diagnostic, or null when the native library is absent. */
+    public static int[] readRenderDiagnostics() {
+        try {
+            int[] value = nativeReadRenderDiagnostics();
+            return value != null && value.length >= 9 ? value : null;
+        } catch (UnsatisfiedLinkError e) {
+            return null;
+        }
+    }
+
+    /** Arms/disarms the debug draw cube; a no-op on a build without the symbol. */
+    public static void setCosmeticDebugCube(boolean enabled) {
+        try {
+            nativeSetCosmeticDebugCube(enabled);
+        } catch (UnsatisfiedLinkError ignored) {
+        }
+    }
+
+    /** True when the debug cube is armed; false on a build without the symbol. */
+    public static boolean isDebugCubeEnabled() {
+        try {
+            return nativeIsDebugCubeEnabled();
+        } catch (UnsatisfiedLinkError e) {
+            return false;
         }
     }
 
