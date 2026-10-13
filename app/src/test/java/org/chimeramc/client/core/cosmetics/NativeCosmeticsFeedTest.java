@@ -20,17 +20,19 @@ public class NativeCosmeticsFeedTest {
         NativeCosmeticsFeed.Status status = NativeCosmeticsFeed.read();
         assertNotNull(status);
         // No libpreloader in a unit test, so the honest reading is "native path unavailable".
-        assertEquals(NativeCosmeticsFeed.Mode.PACK_FALLBACK, status.mode);
+        assertEquals(NativeCosmeticsFeed.Mode.UNAVAILABLE, status.mode);
         assertFalse(status.isNative());
         assertFalse(NativeCosmeticsFeed.isNativeRenderLive());
     }
 
     @Test
-    public void unavailableStatusDescribesThePackRoute() {
+    public void aUnavailableStatusSaysPreviewOnlyAndNeverClaimsAPack() {
         NativeCosmeticsFeed.Status status = NativeCosmeticsFeed.read();
         String text = NativeCosmeticsFeed.describe(status).toLowerCase();
-        assertTrue(text.contains("resource-pack"));
         assertTrue(text.contains("not active"));
+        assertTrue(text.contains("preview only"));
+        // The resource-pack route was deleted; the status must not claim one.
+        assertFalse(text.contains("resource-pack"));
     }
 
     @Test
@@ -55,7 +57,7 @@ public class NativeCosmeticsFeedTest {
     @Test
     public void packFallbackNeverReportsNative() {
         NativeCosmeticsFeed.Status status =
-                newStatus(NativeCosmeticsFeed.Mode.PACK_FALLBACK, 0, 0, -1);
+                newStatus(NativeCosmeticsFeed.Mode.UNAVAILABLE, 0, 0, -1);
         assertFalse(status.isNative());
         assertFalse(status.coversOtherPlayers());
         assertTrue(NativeCosmeticsFeed.describe(status).toLowerCase().contains("not active"));

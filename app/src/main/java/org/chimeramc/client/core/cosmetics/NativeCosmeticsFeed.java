@@ -5,15 +5,15 @@ import org.chimeramc.client.preloader.PreloaderInput;
 /**
  * Reports whether the native player-render path is available this session.
  *
- * <p>The cosmetics architecture is moving from "a resource pack the game samples when a world
- * loads" to "a hook on the game's own player renderer". The two have different capabilities and
- * different failure modes, so the UI has to be able to say which one is actually in effect rather
- * than implying the native path always works. This class is that one probe: it reads the
- * preloader's render feed and classifies the result.
+ * <p>The cosmetics architecture is native-only: there is no resource pack. A cosmetic reaches the
+ * game only through a hook on the game's own player renderer, and that hook has several failure
+ * modes (an unresolved render slot, a build whose renderer never ran, a Vulkan-only surface), so the
+ * UI has to say which state is actually in effect rather than implying the path always works. This
+ * class is that one probe: it reads the preloader's render feed and classifies the result.
  *
  * <p><b>Fail-closed.</b> A missing native library, an unresolved render slot, or a build whose
- * renderer never ran all read as {@link Mode#PACK_FALLBACK}. The launcher never claims a native
- * path it does not have, and the pack path keeps working as before — the native path is additive.
+ * renderer never ran all read as {@link Mode#UNAVAILABLE}. The launcher never claims a native path it
+ * does not have; when it is unavailable cosmetics show in the preview only.
  *
  * <p>Android-free apart from the {@link PreloaderInput} call itself, which is safe to call from a
  * plain JVM test because it catches {@link UnsatisfiedLinkError} and returns "unavailable".
@@ -28,10 +28,10 @@ public final class NativeCosmeticsFeed {
          */
         NATIVE_RENDER,
         /**
-         * No live render hook (unresolved slot, absent library, or the renderer has not run), so
-         * cosmetics render through the resource pack and apply on the next world load.
+         * No live render hook this session (an unresolved slot, an absent library, or a renderer
+         * that has not run), so nothing reaches the game.
          */
-        PACK_FALLBACK,
+        UNAVAILABLE,
     }
 
     /** A one-shot reading of the native feed. */
@@ -59,8 +59,7 @@ public final class NativeCosmeticsFeed {
          * Whether the hook has been seen covering more than the local player.
          *
          * <p>The renderer runs once per rendered player, so a frame with two or more calls means
-         * the hook fires for other players' models as well — the property the pack route cannot
-         * provide without every player installing the same pack.
+         * the hook fires for other players' models as well.
          */
         public boolean coversOtherPlayers() {
             return callsThisFrame > 1;
@@ -73,14 +72,14 @@ public final class NativeCosmeticsFeed {
     /**
      * Reads the native render feed and classifies it.
      *
-     * @return a status that is never null; an unavailable feed reads as {@link Mode#PACK_FALLBACK}.
+     * @return a status that is never null; an unavailable feed reads as {@link Mode#UNAVAILABLE}.
      */
     public static Status read() {
         int[] stats = PreloaderInput.readPlayerRenderStats();
         if (stats == null) {
-            return new Status(Mode.PACK_FALLBACK, 0, 0, -1);
+            return new Status(Mode.UNAVAILABLE, 0, 0, -1);
         }
-        Mode mode = PreloaderInput.isPlayerRenderHookLive() ? Mode.NATIVE_RENDER : Mode.PACK_FALLBACK;
+        Mode mode = PreloaderInput.isPlayerRenderHookLive() ? Mode.NATIVE_RENDER : Mode.UNAVAILABLE;
         return new Status(mode, stats[0], stats[1], stats[3]);
     }
 
@@ -144,8 +143,7 @@ public final class NativeCosmeticsFeed {
      */
     public static String describe(Status status) {
         if (status == null || !status.isNative()) {
-            return "Native renderer: not active this session — cosmetics use the resource-pack "
-                    + "route and apply when the world loads.";
+            return "Native renderer: not active this session — cosmetics show in this preview only.";
         }
         if (status.coversOtherPlayers()) {
             return "Native renderer: active (" + status.renderTick + " ticks, "
@@ -178,9 +176,8 @@ public final class NativeCosmeticsFeed {
      *
      * <p>This is the seam that replaces a loaded cape texture with the engine's own loader, so a
      * substitution is live only when the init probe verified the loader address AND the pipeline
-     * hook has run this session. It is additive to the pack path, so "not active" is information,
-     * not a failure. Never fabricates a claim: without the verified loader, the report says the
-     * pipeline is not installed.
+     * hook has run this session. "Not active" is information, not a failure. Never fabricates a
+     * claim: without the verified loader, the report says the pipeline is not installed.
      */
     public static String describeImagePipeline() {
         if (!NativeCosmeticsBridge.isImagePathVerified()) {
