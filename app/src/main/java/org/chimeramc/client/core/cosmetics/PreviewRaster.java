@@ -106,6 +106,7 @@ public final class PreviewRaster {
      *                             base-skin path, forced opaque)
      * @param blend                when true a translucent texel is alpha-blended (deferred
      *                             blending); when false every surviving texel writes opaque
+     * @param shade                a 0..1 brightness multiplier from the face normal (1 = unshaded)
      */
     @SuppressWarnings("checkstyle:ParameterNumber")
     public void triangle(float x0, float y0, float z0,
@@ -113,7 +114,7 @@ public final class PreviewRaster {
                          float x2, float y2, float z2,
                          float u0, float v0, float u1, float v1, float u2, float v2,
                          int[] argb, int texW, int texH,
-                         boolean alphaTest, boolean blend) {
+                         boolean alphaTest, boolean blend, float shade) {
         if (color == null || argb == null || texW <= 0 || texH <= 0) return;
 
         // Bounding box.
@@ -130,6 +131,7 @@ public final class PreviewRaster {
         float area = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
         if (area == 0f) return;
         float invArea = 1f / area;
+        final boolean shadeOn = shade < 0.999f;
 
         for (int py = minY; py <= maxY; py++) {
             float fy = py + 0.5f;
@@ -147,7 +149,7 @@ public final class PreviewRaster {
                 int zi = Math.max(1, (int) Math.floor(z));
                 if (stored != NO_DEPTH && zi >= stored) continue;
 
-                // Nearest-neighbour sample: truncate, and mirror any face that ran past the edge.
+                // Nearest-neighbour sample: truncate, and clamp any rounding past the edge.
                 float fu = w0 * u0 + w1 * u1 + w2 * u2;
                 float fv = w0 * v0 + w1 * v1 + w2 * v2;
                 int tx = (int) (fu * texW);
@@ -160,18 +162,30 @@ public final class PreviewRaster {
                 if (alphaTest) {
                     int a = (texel >>> 24) & 0xFF;
                     if (a >= SkinAlphaFilter.ALPHA_THRESHOLD) {
+                        if (shadeOn) texel = shade(texel, shade);
                         out = blend ? blendOver(color[row + px], texel) : texel;
                     } else {
                         continue;  // discarded: no depth written, so a nearer layer can still win
                     }
                 } else {
                     // Base-skin path: forced opaque, ignore the atlas alpha entirely.
-                    out = (texel & 0x00FFFFFF) | 0xFF000000;
+                    texel = (texel & 0x00FFFFFF) | 0xFF000000;
+                    if (shadeOn) texel = shade(texel, shade);
+                    out = texel;
                 }
                 color[row + px] = out;
                 depth[row + px] = zi;
             }
         }
+    }
+
+    /** Each colour channel of an opaque texel multiplied by {@code shade} (0..1). */
+    static int shade(int argb, float shade) {
+        int s = Math.max(0, Math.min(255, (int) (shade * 255f + 0.5f)));
+        int r = ((argb >>> 16) & 0xFF) * s / 255;
+        int g = ((argb >>> 8) & 0xFF) * s / 255;
+        int b = (argb & 0xFF) * s / 255;
+        return (argb & 0xFF000000) | (r << 16) | (g << 8) | b;
     }
 
     /**

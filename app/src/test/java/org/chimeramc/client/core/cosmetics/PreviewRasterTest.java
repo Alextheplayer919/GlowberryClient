@@ -30,8 +30,8 @@ public class PreviewRasterTest {
     private static void fullTexturedQuad(PreviewRaster r, float z, int[] atlas,
                                          boolean alphaTest, boolean blend) {
         // v0=(0,0) uv(0,0)  v1=(16,0) uv(1,0)  v2=(16,16) uv(1,1)  v3=(0,16) uv(0,1)
-        r.triangle(0, 0, z, 16, 0, z, 16, 16, z, 0f, 0f, 1f, 0f, 1f, 1f, atlas, 2, 1, alphaTest, blend);
-        r.triangle(0, 0, z, 16, 16, z, 0, 16, z, 0f, 0f, 1f, 1f, 0f, 1f, atlas, 2, 1, alphaTest, blend);
+        r.triangle(0, 0, z, 16, 0, z, 16, 16, z, 0f, 0f, 1f, 0f, 1f, 1f, atlas, 2, 1, alphaTest, blend, 1f);
+        r.triangle(0, 0, z, 16, 16, z, 0, 16, z, 0f, 0f, 1f, 1f, 0f, 1f, atlas, 2, 1, alphaTest, blend, 1f);
     }
 
     @Test
