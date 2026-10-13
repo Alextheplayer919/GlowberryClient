@@ -1814,6 +1814,10 @@ import okhttp3.OkHttpClient;
     private void initMiscellaneousSection() {
         binding.miscCurseforgeRow.setOnClickListener(v -> startActivity(new Intent(this, CurseForgeActivity.class)));
         binding.miscModHubRow.setOnClickListener(v -> startActivity(new Intent(this, ModHubActivity.class)));
+        if (binding.miscDiscordRow != null) {
+            binding.miscDiscordRow.setOnClickListener(v -> openDiscordInvite());
+            DynamicAnim.applyPressScale(binding.miscDiscordRow);
+        }
         binding.miscAccountsRow.setOnClickListener(v -> startActivity(new Intent(this, AccountsActivity.class)));
         binding.miscQuickLaunchRow.setOnClickListener(v -> startActivity(new Intent(this, QuickLaunchActivity.class)));
         DynamicAnim.applyPressScale(binding.miscCurseforgeRow);
@@ -1825,6 +1829,21 @@ import okhttp3.OkHttpClient;
     private void openModsFullscreen() {
         Intent intent = new Intent(this, ModsFullscreenActivity.class);
         startActivity(intent);
+    }
+
+    /**
+     * Opens the community Discord invite. The URL is a plain https link (a string resource), so any
+     * installed Discord app or a browser can handle it; a failure to resolve is reported rather than
+     * crashing.
+     */
+    private void openDiscordInvite() {
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW,
+                    android.net.Uri.parse(getString(R.string.discord_join_url)));
+            startActivity(intent);
+        } catch (Throwable t) {
+            Toast.makeText(this, R.string.discord_join_failed, Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void launchGame() {

@@ -1454,6 +1454,9 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="youtube">YouTube</string>
     <string name="github">GitHub</string>
     <string name="discord">Discord</string>
+    <string name="discord_join">Join our Discord</string>
+    <string name="discord_join_url" translatable="false">https://discord.gg/r8d7ckEG53</string>
+    <string name="discord_join_failed">No app can open that link.</string>
     <string name="screenshot_date_format">Date: %1$s</string>
     <string name="pagination_page_of">Page %1$d of %2$s</string>
     <string name="pagination_page_one">Page 1</string>
