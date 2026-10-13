@@ -176,7 +176,7 @@ public class AimSettingsOverlay {
                 if (themed != 0) return themed;
             } catch (Throwable ignored) {
             }
-            return 0xFF6236E8;
+            return 0xFF0F5BE4;
         }
     }
 }

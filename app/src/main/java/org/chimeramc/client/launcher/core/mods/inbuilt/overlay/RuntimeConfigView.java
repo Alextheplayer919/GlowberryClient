@@ -52,7 +52,7 @@ import java.util.WeakHashMap;
 
 final class RuntimeConfigView {
     private static final WeakHashMap<ViewGroup, RuntimeConfigView> ACTIVE = new WeakHashMap<>();
-    private static final int ACCENT = 0xFF6236E8;
+    private static final int ACCENT = 0xFF0F5BE4;
     private static final int TEXT_PRIMARY = 0xFFF1F4F6;
     private static final int TEXT_SECONDARY = 0xFFA8B0B8;
     private static final int CARD = 0xFF202428;

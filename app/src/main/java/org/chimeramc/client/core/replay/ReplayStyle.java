@@ -35,7 +35,7 @@ public final class ReplayStyle {
     private static final int STATUS_WARN = 0xFFFFB347;
 
     private static final int DEFAULT_ACCENT = 0xFF7C5CFF;
-    private static final int ACCENT_SECONDARY = 0xFFE070C0;
+    private static final int ACCENT_SECONDARY = 0xFF3682E2;
 
     private final int accent;
     private final int accentSecondary;
