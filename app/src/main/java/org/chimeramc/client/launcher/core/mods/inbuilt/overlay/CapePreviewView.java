@@ -26,6 +26,7 @@ import org.chimeramc.client.core.cosmetics.PlayerSkinProvider;
 import org.chimeramc.client.core.cosmetics.PreviewCharacterScene;
 import org.chimeramc.client.core.cosmetics.PreviewDepthBuffer;
 import org.chimeramc.client.core.cosmetics.PreviewLighting;
+import org.chimeramc.client.core.cosmetics.PreviewPetScene;
 import org.chimeramc.client.core.cosmetics.PreviewRaster;
 import org.chimeramc.client.core.cosmetics.PreviewScene;
 import org.chimeramc.client.core.cosmetics.QuadDepthSorter;
@@ -131,7 +132,9 @@ public class CapePreviewView extends View {
     // and nearest-neighbour sampling (so a transparent texel cannot bleed into an opaque one). The
     // skin atlas is an int[] copy, taken once per skin.
     private final PreviewRaster raster = new PreviewRaster();
-    private PreviewScene characterScene;
+    private PreviewScene scene;
+    /** The pet scene, rebuilt when the pose advances; rendered into the same buffer as the body. */
+    private PreviewScene petScene;
     private int[] skinAtlasPixels;
     /** The rasteriser's ARGB buffer copied into a Bitmap the Canvas can blit. */
     private Bitmap rasterBitmap;
@@ -329,6 +332,7 @@ public class CapePreviewView extends View {
     public void setPet(CosmeticCatalog.Pet pet) {
         this.pet = pet;
         rebuildPetMesh();
+        rebuildPetScene();
         syncAnimation();
         invalidate();
     }
@@ -368,6 +372,7 @@ public class CapePreviewView extends View {
     /** The gait the equipped pet is currently animating; the panel offers the ones it supports. */
     public void setPetLocomotion(CosmeticCatalog.PetLocomotion locomotion) {
         this.petLocomotion = PetPose.resolveGait(pet == null ? null : pet.species, locomotion);
+        rebuildPetScene();
         syncAnimation();
         invalidate();
     }
@@ -528,6 +533,9 @@ public class CapePreviewView extends View {
             petPhase += PetPose.cyclesPerSecond(petLocomotion) * dt;
             if (petPhase > 1f) petPhase -= (float) Math.floor(petPhase);
             petPose.compute(pet.species, petLocomotion, petPhase);
+            // The procedural pet is part of the software scene, so its geometry is rebuilt for the
+            // new pose. An authored pet is still a Canvas layer and leaves petScene null.
+            rebuildPetScene();
         }
         // A slow idle head look, so a worn hat is visibly on the head rather than a static block
         // that only lines up at one angle. Bounded and gentle: the character glances, it does not
@@ -648,12 +656,13 @@ public class CapePreviewView extends View {
      * cosmetics are part of the scene rather than Canvas layers.
      */
     private void rasterCharacter(SkinModel.Camera cam, float scale, float originX, float originY) {
-        if (characterScene == null || skinAtlasPixels == null) return;
+        if (scene == null || skinAtlasPixels == null) return;
         PreviewScene.Fit fit = new PreviewScene.Fit();
         fit.scale = scale;
         fit.originX = originX;
         fit.originY = originY;
-        characterScene.render(raster, cam, fit);
+        scene.render(raster, cam, fit);
+        if (petScene != null) petScene.render(raster, cam, fit);
     }
 
     /** Builds the character scene from the current skin, once per skin. */
@@ -664,7 +673,7 @@ public class CapePreviewView extends View {
         // bounds, so fail closed to the Canvas pass rather than mis-sample it.
         if (atlas == null || atlas.getWidth() != SkinModel.ATLAS_SIZE
                 || atlas.getHeight() != SkinModel.ATLAS_SIZE) {
-            characterScene = null;
+            scene = null;
             skinAtlasPixels = null;
             return;
         }
@@ -672,21 +681,38 @@ public class CapePreviewView extends View {
         int ah = atlas.getHeight();
         skinAtlasPixels = new int[aw * ah];
         atlas.getPixels(skinAtlasPixels, 0, aw, 0, 0, aw, ah);
-        characterScene = new PreviewScene();
-        PreviewCharacterScene.addCharacter(characterScene, skinAtlasPixels, SkinModel.ATLAS_SIZE,
+        scene = new PreviewScene();
+        PreviewCharacterScene.addCharacter(scene, skinAtlasPixels, SkinModel.ATLAS_SIZE,
                 headPitchDeg, headYawDeg);
     }
 
     /**
-     * Draws the Canvas layers that the software rasteriser does not own yet (cape, pet, accessories)
-     * over the rasterised character. Called with the canvas scaled to the rasteriser's internal size,
+     * Rebuilds the procedural pet scene for the current pose. Called when the pose advances; an
+     * authored pet is still drawn through Canvas, so it leaves this null.
+     */
+    private void rebuildPetScene() {
+        if (pet == null || (petMesh != null && !petMesh.isEmpty())) {
+            petScene = null;
+            return;
+        }
+        petScene = new PreviewScene();
+        PreviewPetScene.addPet(petScene, pet, petPose, petLocomotion);
+    }
+
+    /**
+     * Draws the Canvas layers that the software rasteriser does not own yet (cape, accessories)
+     * over the rasterised scene. Called with the canvas scaled to the rasteriser's internal size,
      * and with the same camera/scale/origin the raster pass used, so the layers line up.
      */
     private void drawCanvasOverlays(Canvas canvas, float scale, float originX, float originY) {
         if (cape != null) projectCape(originX, originY, scale);
         if (cape != null) paintCape(canvas);
         if (accessory != null) drawAccessoryFront(canvas, originX, originY, scale);
-        if (pet != null) drawPet(canvas, originX, originY, scale);
+        // A procedural pet is part of the rasterised scene; an authored pet is still a Canvas layer
+        // until its own stage lands.
+        if (pet != null && petMesh != null && !petMesh.isEmpty()) {
+            drawAuthoredPet(canvas, originX, originY, scale);
+        }
         drawAccessoryBehind(canvas, originX, originY, scale);
     }
 

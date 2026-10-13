@@ -33,6 +33,11 @@ public final class PreviewScene {
         public float nx, ny, nz;
         public int[] atlas;
         public int atlasW, atlasH;
+        /**
+         * A flat, untextured colour (ARGB), or 0 for a textured face. Used by the procedural pet,
+         * whose parts are flat-shaded boxes; the shading is baked into the colour at build time.
+         */
+        public int flatColor;
         /** Alpha-test this face (overlay/cosmetic) rather than force it opaque (base skin). */
         public boolean alphaTest = true;
         /** Alpha-blend a translucent texel instead of writing it opaque. */
@@ -133,7 +138,7 @@ public final class PreviewScene {
         if (raster == null || camera == null || fit == null) return;
         float[] p = new float[12];
         for (Face f : faces) {
-            if (f.atlas == null) continue;
+            if (f.atlas == null && f.flatColor == 0) continue;
             if (!f.doubleSided && !camera.faceVisibleNormal(f.nx, f.ny, f.nz)) continue;
             for (int i = 0; i < 4; i++) {
                 float[] c = f.corners[i];
@@ -141,6 +146,14 @@ public final class PreviewScene {
                 p[i * 3] = tmpProject[0];
                 p[i * 3 + 1] = tmpProject[1];
                 p[i * 3 + 2] = tmpProject[2] - f.depthBias;
+            }
+            if (f.atlas == null) {
+                // A flat-coloured face (the procedural pet): two triangles filled with one colour.
+                raster.triangleFlat(p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8],
+                        f.flatColor, f.blend);
+                raster.triangleFlat(p[0], p[1], p[2], p[6], p[7], p[8], p[9], p[10], p[11],
+                        f.flatColor, f.blend);
+                continue;
             }
             // Two triangles: (TL,TR,BR) and (TL,BR,BL).
             raster.triangle(p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8],
@@ -200,6 +213,21 @@ public final class PreviewScene {
                 corners[3][0], corners[3][1], corners[3][2]);
         System.arraycopy(uv, 0, f.uv, 0, 8);
         f.atlas = atlas; f.atlasW = atlasW; f.atlasH = atlasH;
+        faces.add(f);
+        return f;
+    }
+
+    /** Adds a flat-coloured quad (the procedural pet's boxes), shaded by the caller's colour. */
+    public Face addFlatQuad(float[][] corners, int flatColor) {
+        if (corners == null || corners.length != 4) return null;
+        Face f = new Face();
+        f.set(corners[0][0], corners[0][1], corners[0][2],
+                corners[1][0], corners[1][1], corners[1][2],
+                corners[2][0], corners[2][1], corners[2][2],
+                corners[3][0], corners[3][1], corners[3][2]);
+        f.flatColor = flatColor;
+        f.alphaTest = false;
+        f.blend = false;
         faces.add(f);
         return f;
     }

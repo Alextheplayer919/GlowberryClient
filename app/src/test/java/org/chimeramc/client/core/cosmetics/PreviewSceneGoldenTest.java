@@ -135,6 +135,9 @@ public class PreviewSceneGoldenTest {
         scenes.add(new Scene("flat_pet", sceneWith(skin, (s) -> addFlatPlanePet(s, bandedAtlas(32)))));
         scenes.add(new Scene("large_pet", sceneWith(skin, (s) -> addLargePet(s, bandedAtlas(32)))));
         scenes.add(new Scene("cape", sceneWith(skin, (s) -> addCape(s, capeAtlas(32)))));
+        scenes.add(new Scene("procedural_pet",
+                sceneWith(skin, (s) -> PreviewPetScene.addPet(s, CosmeticCatalog.pets().get(0),
+                        null, CosmeticCatalog.PetLocomotion.WALK))));
 
         Files.createDirectories(goldenDir());
         for (Scene scene : scenes) {
