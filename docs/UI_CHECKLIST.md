@@ -64,8 +64,9 @@ should say a screen "works in game" until this list passes.
 - [ ] The radial hub head and the Closet/hero preview show the **same** skin.
 - [ ] Change your skin (import one in the launcher, or apply a skin pack) and reopen the wheel /
   Closet: the head updates **without restarting** the app.
-- [ ] With a game session running, the preview still renders (the native skin read is not wired yet,
-  so it shows the imported/applied/Steve skin — see the note below).
+- [ ] With a game session running, the preview shows your **real Minecraft skin** read from the
+  game (the engine image-loader seam). The Cosmetics diagnostics screen should read
+  "Game-skin feed installed: yes" and "Base skin captured from game: yes" once you are in a world.
 
 ## 7. UI gallery (debug)
 
@@ -74,10 +75,10 @@ should say a screen "works in game" until this list passes.
 
 ## Known limitations (not bugs)
 
-- **Native in-game skin read is not wired.** The engine route is the local player's
-  `SerializedSkinRef` base-skin `mce::Image` at `+0x78`, but `mce::Image`'s internal pixel pointer is
-  not recoverable from the stripped binary, so a pixel read is not reachable today. The preview
-  shows the imported skin, the applied skin pack, or Steve. This is **unverified (needs device)** and
-  the seam (`GameSkinSource`) is in place for a future native feed.
+- **The in-game skin read is content capture, not attribution.** The engine image-loader seam carries
+  no player id, so the held texture is the most recent base-skin-shaped upload — in practice the local
+  player's skin, but not proven to be. Whether the game routes the player's skin through this seam at
+  all is **unverified (needs device)**; if it does not, the preview falls back to the imported /
+  applied / Steve skin.
 - **Cosmetics in game** depend on the preloader's player-render hook, which resolves to "no hook" on
   the shipped builds (see `AGENTS.md`); the preview is the verified surface.
