@@ -69,4 +69,75 @@ public class RadialWheelLayoutTest {
         assertFalse(RadialWheelLayout.isDestination(Sector.CENTER));
         assertFalse(RadialWheelLayout.isDestination(Sector.NONE));
     }
+
+    // --- Blueberry geometry ------------------------------------------------------------------
+
+    @Test
+    public void theWheelFractionsMatchTheSpec() {
+        assertEquals(0.40f, RadialWheelLayout.OUTER_FRACTION, 1e-6);
+        assertEquals(0.52f, RadialWheelLayout.RING_INNER_FRACTION, 1e-6);
+        assertEquals(0.46f, RadialWheelLayout.HUB_FRACTION, 1e-6);
+    }
+
+    @Test
+    public void theGapIsParallelSidedNotWedgeShaped() {
+        // A constant linear gap means the angular half-gap shrinks as radius grows.
+        double innerHalf = RadialWheelLayout.angularHalfGapDegrees(100f, 6f);
+        double outerHalf = RadialWheelLayout.angularHalfGapDegrees(400f, 6f);
+        assertTrue("inner half-gap should be wider in angle", innerHalf > outerHalf);
+        // The arc length of the gap is the same constant at both radii.
+        double innerArc = Math.toRadians(2 * innerHalf) * 100.0;
+        double outerArc = Math.toRadians(2 * outerHalf) * 400.0;
+        assertEquals(6.0, innerArc, 0.2);
+        assertEquals(6.0, outerArc, 0.2);
+    }
+
+    @Test
+    public void everyFiveDegreesMapsToTheRightSector() {
+        float inner = 100f, outer = 400f, gap = 6f;
+        for (int deg = -180; deg < 180; deg += 5) {
+            double rad = Math.toRadians(deg);
+            float dx = (float) (Math.cos(rad) * 250);
+            float dy = (float) (Math.sin(rad) * 250);
+            Sector s = RadialWheelLayout.sectorAtLinear(dx, dy, inner, outer, gap);
+            Sector expected = RadialWheelLayout.quadrantFor(deg);
+            // Near a boundary the linear gap may read NONE; otherwise it must match the quadrant.
+            if (s != Sector.NONE) {
+                assertEquals("deg " + deg, expected, s);
+            }
+        }
+    }
+
+    @Test
+    public void theDeadZoneInsideTheHubIsCenter() {
+        assertEquals(Sector.CENTER, RadialWheelLayout.sectorAtLinear(0f, 0f, 100f, 400f, 6f));
+        assertEquals(Sector.CENTER, RadialWheelLayout.sectorAtLinear(20f, 20f, 100f, 400f, 6f));
+        assertEquals(Sector.NONE, RadialWheelLayout.sectorAtLinear(500f, 0f, 100f, 400f, 6f));
+    }
+
+    @Test
+    public void theThreeChipClustersNeverOverlapTheRingOrEachOther() {
+        int[][] screens = {{1920, 1080}, {1280, 720}, {2560, 1600}};
+        for (int[] screen : screens) {
+            int w = screen[0], h = screen[1];
+            float[][] centers = RadialWheelLayout.chipCenters(w, h, 2, 3, 1);
+            assertEquals(6, centers.length);
+            float outer = RadialWheelLayout.outerRadius(w, h);
+            float cx = w / 2f, cy = h / 2f;
+            for (float[] c : centers) {
+                // The chip centre must sit outside the ring's outer radius.
+                float dist = (float) Math.hypot(c[0] - cx, c[1] - cy);
+                assertTrue("chip overlaps the ring at " + w + "x" + h, dist > outer * 0.95f);
+            }
+            // No two chip centres closer than the chip height.
+            float chipH = 22f;
+            for (int i = 0; i < centers.length; i++) {
+                for (int j = i + 1; j < centers.length; j++) {
+                    float d = (float) Math.hypot(centers[i][0] - centers[j][0],
+                            centers[i][1] - centers[j][1]);
+                    assertTrue("chips overlap at " + w + "x" + h, d >= chipH);
+                }
+            }
+        }
+    }
 }

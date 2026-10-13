@@ -1,5 +1,6 @@
 package org.chimeramc.client.core.mods.inbuilt.overlay;
 
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -12,6 +13,7 @@ import android.util.AttributeSet;
 import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.animation.PathInterpolator;
 
 import org.chimeramc.client.R;
 import org.chimeramc.client.core.cosmetics.PlayerSkinProvider;
@@ -20,20 +22,22 @@ import org.chimeramc.client.core.cosmetics.PreviewRaster;
 import org.chimeramc.client.core.cosmetics.PreviewScene;
 import org.chimeramc.client.core.cosmetics.SkinModel;
 import org.chimeramc.client.core.mods.inbuilt.overlay.RadialWheelLayout.Sector;
+import org.chimeramc.client.ui.components.UiChip;
+import org.chimeramc.client.ui.components.UiIcons;
+import org.chimeramc.client.ui.components.UiTokens;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The radial mod wheel: four curved sectors around the player's skin head, with floating
+ * The radial mod wheel: four rounded annular sectors around the player's skin head, with floating
  * quick-toggle chips.
  *
- * <p>Drawn in code rather than XML because the sectors are arcs whose geometry depends on the view
- * size, and the chips are data-driven. The hit-testing is delegated to {@link RadialWheelLayout}, so
- * which sector a touch lands on is unit-tested and this view only paints and dispatches.
- *
- * <p>The centre hub shows the player's real skin head (the front face of the skin atlas), so the
- * wheel is anchored to the player rather than to a generic icon.
+ * <p>Rewritten to the "blueberry" visual language: a scrim, glass sectors with a rim, outline icons
+ * over a caps label, a hub disc with the player's real skin head, and chips in three floating
+ * clusters. Motion (open scale/alpha with a per-sector stagger, hover scale, press feedback) and
+ * haptics are the reference feel; the geometry and the chip layout are pure
+ * ({@link RadialWheelLayout}) and unit-tested.
  */
 public class RadialMenuView extends View {
 
@@ -49,39 +53,41 @@ public class RadialMenuView extends View {
         boolean isChipOn(String moduleId);
     }
 
+    private static final Sector[] SECTORS =
+            {Sector.MODS, Sector.CLOSET, Sector.SETTINGS, Sector.HUD};
+
     private static final class Chip {
         final String moduleId;
         final int labelRes;
-        // The chip's centre as a fraction of the view, so it follows any screen size.
-        final float fx;
-        final float fy;
+        final int cluster;  // 0 top-left, 1 top-right, 2 right-middle
 
-        Chip(String moduleId, int labelRes, float fx, float fy) {
+        Chip(String moduleId, int labelRes, int cluster) {
             this.moduleId = moduleId;
             this.labelRes = labelRes;
-            this.fx = fx;
-            this.fy = fy;
+            this.cluster = cluster;
         }
     }
 
-    private final Paint arcFill = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint arcStroke = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint sectorPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint rimPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint labelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint iconPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint chipPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint chipDotPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint chipTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint hubPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint chipPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint chipTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint headPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final RectF arcRect = new RectF();
+    private final Paint iconPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Path sectorPath = new Path();
+    private final Path headClip = new Path();
     private final Rect srcHead = new Rect();
     private final RectF dstHead = new RectF();
-    private final Path headClip = new Path();
 
     private final List<Chip> chips = new ArrayList<>();
     private Listener listener;
     private ChipToggle chipToggle;
     private Sector highlighted = Sector.NONE;
+    private int accent;
+
+    private float density;
 
     private Bitmap skinHead;
 
@@ -92,7 +98,8 @@ public class RadialMenuView extends View {
     private Bitmap headBitmap;
     private float headYawDeg;
     private long headLastMs;
-    private final android.os.Handler headHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final android.os.Handler headHandler =
+            new android.os.Handler(android.os.Looper.getMainLooper());
     private final Runnable headTick = new Runnable() {
         @Override
         public void run() {
@@ -105,22 +112,15 @@ public class RadialMenuView extends View {
         }
     };
 
-    // Palette (matches the app's violet/magenta brand).
-    private static final int ACCENT = 0xFF6236E8;
-    private static final int ACCENT_LIGHT = 0xFFA88CFF;
-    private static final int SECTOR_BASE = 0xCC2A2338;
-    private static final int SECTOR_HIGH = 0xE67C5CFF;
-    private static final int CHIP_BG = 0xE61A1A24;
-    private static final int CHIP_ON = 0xFF39C46A;
-    private static final int CHIP_OFF = 0xFF5A5A66;
-    private static final int TEXT = 0xFFF1F4F6;
+    // --- Motion state -------------------------------------------------------------------------
 
-    /** The half-width, in degrees, of the dead gap on each sector boundary. */
-    private static final float GAP_DEG = 6f;
-    /** The stroke width of a sector band, as a fraction of the ring's outer radius. */
-    private static final float BAND_FRACTION = 0.34f;
-    /** The wheel's outer radius, as a fraction of the shorter view dimension. */
-    private static final float OUTER_FRACTION = 0.30f;
+    private float openProgress;          // 0 closed .. 1 open
+    private final float[] sectorScale = new float[]{1f, 1f, 1f, 1f};
+    private ValueAnimator openAnimator;
+    private ValueAnimator hoverAnimator;
+
+    private static final PathInterpolator FAST_OUT_SLOW_IN =
+            new PathInterpolator(0.4f, 0f, 0.2f, 1f);
 
     public RadialMenuView(Context context) {
         this(context, null);
@@ -130,19 +130,14 @@ public class RadialMenuView extends View {
         super(context, attrs);
         setWillNotDraw(false);
         setClickable(true);
+        setFocusable(false);
+        density = getResources().getDisplayMetrics().density;
+        accent = UiTokens.resolveAccent(context);
         buildChips();
         resolveSkinHead();
-        labelPaint.setColor(TEXT);
         labelPaint.setTextAlign(Paint.Align.CENTER);
-        labelPaint.setTypeface(Typeface.DEFAULT_BOLD);
-        iconPaint.setColor(TEXT);
-        iconPaint.setTextAlign(Paint.Align.CENTER);
-        chipTextPaint.setColor(TEXT);
-        chipTextPaint.setTextAlign(Paint.Align.LEFT);
-        hubPaint.setColor(0xFF201A2C);
-        arcFill.setStyle(Paint.Style.STROKE);
-        arcFill.setStrokeCap(Paint.Cap.BUTT);
-        arcStroke.setStyle(Paint.Style.STROKE);
+        labelPaint.setTypeface(Typeface.create(Typeface.DEFAULT, UiTokens.SECTION_WEIGHT, false));
+        labelPaint.setLetterSpacing(UiTokens.SECTION_LETTER_SPACING);
     }
 
     public void setListener(Listener listener) {
@@ -155,21 +150,19 @@ public class RadialMenuView extends View {
     }
 
     private void buildChips() {
-        // Layout follows the reference: two top-left, three top-right, one bottom-right.
-        chips.add(new Chip("list_players", R.string.inbuilt_mod_list_players, 0.15f, 0.14f));
-        chips.add(new Chip("debug_menu", R.string.inbuilt_mod_debug_menu, 0.15f, 0.22f));
-        chips.add(new Chip("zoom", R.string.inbuilt_mod_zoom, 0.85f, 0.14f));
-        chips.add(new Chip("fullbright", R.string.inbuilt_mod_fullbright, 0.85f, 0.22f));
-        chips.add(new Chip("time_changer", R.string.inbuilt_mod_time_changer, 0.85f, 0.30f));
-        chips.add(new Chip("third_person_nametag", R.string.inbuilt_mod_third_person_nametag,
-                0.85f, 0.70f));
+        // Two top-left, three top-right, one right-middle — the reference cluster layout.
+        chips.add(new Chip("list_players", R.string.inbuilt_mod_list_players, 0));
+        chips.add(new Chip("debug_menu", R.string.inbuilt_mod_debug_menu, 0));
+        chips.add(new Chip("zoom", R.string.inbuilt_mod_zoom, 1));
+        chips.add(new Chip("fullbright", R.string.inbuilt_mod_fullbright, 1));
+        chips.add(new Chip("time_changer", R.string.inbuilt_mod_time_changer, 1));
+        chips.add(new Chip("third_person_nametag", R.string.inbuilt_mod_third_person_nametag, 2));
     }
 
     private void resolveSkinHead() {
         try {
             PlayerSkinProvider.SkinBitmap skin = PlayerSkinProvider.resolve(getContext());
             if (skin != null && skin.bitmap != null) {
-                // The head's front face is the standard 8x8 region at (8,8) in a 64x64 atlas.
                 srcHead.set(8, 8, 16, 16);
                 skinHead = skin.bitmap;
                 if (skin.bitmap.getWidth() == SkinModel.ATLAS_SIZE
@@ -188,6 +181,39 @@ public class RadialMenuView extends View {
         }
     }
 
+    // --- Open/close animation -----------------------------------------------------------------
+
+    /** Runs the open animation (scrim fade + ring scale/alpha with a stagger). */
+    public void playOpen() {
+        cancelAnimators();
+        openAnimator = ValueAnimator.ofFloat(0f, 1f);
+        openAnimator.setDuration(UiTokens.MOTION_DEFAULT_MS + 20);
+        openAnimator.setInterpolator(FAST_OUT_SLOW_IN);
+        openAnimator.addUpdateListener(a -> {
+            openProgress = (float) a.getAnimatedValue();
+            invalidate();
+        });
+        openAnimator.start();
+    }
+
+    /** Runs the close animation. */
+    public void playClose() {
+        cancelAnimators();
+        openAnimator = ValueAnimator.ofFloat(openProgress, 0f);
+        openAnimator.setDuration(120);
+        openAnimator.setInterpolator(FAST_OUT_SLOW_IN);
+        openAnimator.addUpdateListener(a -> {
+            openProgress = (float) a.getAnimatedValue();
+            invalidate();
+        });
+        openAnimator.start();
+    }
+
+    private void cancelAnimators() {
+        if (openAnimator != null) openAnimator.cancel();
+        if (hoverAnimator != null) hoverAnimator.cancel();
+    }
+
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
@@ -196,12 +222,14 @@ public class RadialMenuView extends View {
             headHandler.removeCallbacks(headTick);
             headHandler.post(headTick);
         }
+        playOpen();
     }
 
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         headHandler.removeCallbacks(headTick);
+        cancelAnimators();
     }
 
     // --- Geometry helpers (shared by draw and touch) ----------------------------------------
@@ -215,12 +243,18 @@ public class RadialMenuView extends View {
     }
 
     private float outerRadius() {
-        return Math.min(getWidth(), getHeight()) * OUTER_FRACTION;
+        return RadialWheelLayout.outerRadius(getWidth(), getHeight());
     }
 
-    private float innerRadius() {
-        return outerRadius() * (1f - BAND_FRACTION);
+    private float ringInnerRadius() {
+        return RadialWheelLayout.ringInnerRadius(outerRadius());
     }
+
+    private float hubRadius() {
+        return RadialWheelLayout.hubRadius(outerRadius());
+    }
+
+    // --- Draw ---------------------------------------------------------------------------------
 
     @Override
     protected void onDraw(Canvas canvas) {
@@ -228,52 +262,140 @@ public class RadialMenuView extends View {
         if (getWidth() <= 0 || getHeight() <= 0) return;
         float cx = centerX();
         float cy = centerY();
-        float outer = outerRadius();
-        float inner = innerRadius();
-        float band = outer - inner;
-        float radius = (inner + outer) / 2f;
+        float outer = outerRadius() * (0.85f + 0.15f * openProgress);
+        float inner = RadialWheelLayout.ringInnerRadius(outer);
+        float hub = RadialWheelLayout.hubRadius(outer);
+        int alpha = (int) (255 * Math.min(1f, openProgress * 1.4f));
 
-        arcFill.setStrokeWidth(band);
-        float sweep = 90f - 2f * GAP_DEG;
-        for (Sector s : new Sector[]{Sector.MODS, Sector.CLOSET, Sector.SETTINGS, Sector.HUD}) {
+        // Scrim.
+        canvas.drawColor(UiTokens.withAlpha(UiTokens.WHEEL_SCRIM,
+                (int) (((UiTokens.WHEEL_SCRIM >>> 24) & 0xFF) * openProgress)));
+
+        // Sectors.
+        for (int i = 0; i < SECTORS.length; i++) {
+            Sector s = SECTORS[i];
             float center = (float) RadialWheelLayout.sectorCenterDegrees(s);
-            arcRect.set(cx - radius, cy - radius, cx + radius, cy + radius);
-            arcFill.setColor(s == highlighted ? SECTOR_HIGH : SECTOR_BASE);
-            canvas.drawArc(arcRect, center - sweep / 2f, sweep, false, arcFill);
-            // A thin lighter outline on the outer edge of the band.
-            arcStroke.setStrokeWidth(Math.max(1.5f, band * 0.05f));
-            arcStroke.setColor(s == highlighted ? ACCENT_LIGHT : ACCENT);
-            float or = outer - arcStroke.getStrokeWidth() / 2f;
-            arcRect.set(cx - or, cy - or, cx + or, cy + or);
-            canvas.drawArc(arcRect, center - sweep / 2f, sweep, false, arcStroke);
+            // Per-sector stagger: each starts 20ms after the previous.
+            float local = Math.max(0f, Math.min(1f, (openProgress * 180f - i * 20f) / 120f));
+            float scale = sectorScale[i] * (0.9f + 0.1f * local);
+            float rOuter = outer * scale;
+            float rInner = inner * scale;
+            drawSector(canvas, cx, cy, rInner, rOuter, center - 45f, 90f,
+                    s == highlighted, alpha, local);
         }
 
-        // The hub with the player's skin head.
-        canvas.drawCircle(cx, cy, inner, hubPaint);
-        drawHead(canvas, cx, cy, inner);
+        // Hub.
+        drawHub(canvas, cx, cy, hub, alpha);
 
-        // Labels on the band at each sector's centre angle.
-        labelPaint.setTextSize(Math.max(11f, band * 0.34f));
-        for (Sector s : new Sector[]{Sector.MODS, Sector.CLOSET, Sector.SETTINGS, Sector.HUD}) {
+        // Icons + labels.
+        drawSectorContent(canvas, cx, cy, (inner + outer) / 2f, alpha);
+
+        // Chips.
+        drawChips(canvas, getWidth(), getHeight(), alpha);
+    }
+
+    private void drawSector(Canvas canvas, float cx, float cy, float rInner, float rOuter,
+                            float startDeg, float sweepDeg, boolean hover, int alpha,
+                            float localProgress) {
+        float gapPx = RadialWheelLayout.GAP_DP * density;
+        // Parallel-sided gap: inset the angular span by the half-gap at the mid radius.
+        float midR = (rInner + rOuter) / 2f;
+        float halfGapDeg = (float) RadialWheelLayout.angularHalfGapDegrees(midR, gapPx);
+        float corner = RadialWheelLayout.SECTOR_CORNER_DP * density;
+        sectorPath.reset();
+        buildRoundedAnnularSector(sectorPath, cx, cy, rInner, rOuter,
+                startDeg + halfGapDeg, sweepDeg - 2f * halfGapDeg, corner);
+
+        int fill = hover ? UiTokens.WHEEL_SEGMENT_HOVER : UiTokens.WHEEL_SEGMENT_BASE;
+        sectorPaint.setStyle(Paint.Style.FILL);
+        sectorPaint.setColor(UiTokens.withAlpha(fill,
+                (int) (((fill >>> 24) & 0xFF) * localProgress)));
+        canvas.drawPath(sectorPath, sectorPaint);
+
+        rimPaint.setStyle(Paint.Style.STROKE);
+        rimPaint.setStrokeWidth(Math.max(1f, density));
+        rimPaint.setColor(UiTokens.withAlpha(UiTokens.WHEEL_SEGMENT_RIM,
+                (int) (0x24 * localProgress)));
+        canvas.drawPath(sectorPath, rimPaint);
+    }
+
+    /** Builds a rounded annular sector as one closed path (outer arc, fillet, inner arc, fillet). */
+    private void buildRoundedAnnularSector(Path path, float cx, float cy, float rInner,
+                                           float rOuter, float startDeg, float sweepDeg,
+                                           float corner) {
+        float r = Math.min(corner, Math.min((rOuter - rInner) / 2f, Math.abs(sweepDeg) / 4f));
+        float oInset = (float) Math.toDegrees(r / Math.max(1f, rOuter));
+        float iInset = (float) Math.toDegrees(r / Math.max(1f, rInner));
+        float a0 = startDeg;
+        float a1 = startDeg + sweepDeg;
+
+        path.moveTo(polarX(cx, rOuter, a0 + oInset), polarY(cy, rOuter, a0 + oInset));
+        arc(path, cx, cy, rOuter, a0 + oInset, a1 - oInset);
+        // Corner fillet at the far end (outer -> inner).
+        float ix = polarX(cx, rInner, a1 - iInset), iy = polarY(cy, rInner, a1 - iInset);
+        path.quadTo(polarX(cx, (rInner + rOuter) / 2f, a1), polarY(cy, (rInner + rOuter) / 2f, a1),
+                ix, iy);
+        arc(path, cx, cy, rInner, a1 - iInset, a0 + iInset);
+        float ox0 = polarX(cx, rOuter, a0 + oInset), oy0 = polarY(cy, rOuter, a0 + oInset);
+        path.quadTo(polarX(cx, (rInner + rOuter) / 2f, a0), polarY(cy, (rInner + rOuter) / 2f, a0),
+                ox0, oy0);
+        path.close();
+    }
+
+    private static void arc(Path path, float cx, float cy, float radius, float from, float to) {
+        RectF oval = new RectF(cx - radius, cy - radius, cx + radius, cy + radius);
+        path.arcTo(oval, from, to - from);
+    }
+
+    private static float polarX(float cx, float radius, float deg) {
+        return cx + (float) (Math.cos(Math.toRadians(deg)) * radius);
+    }
+
+    private static float polarY(float cy, float radius, float deg) {
+        return cy + (float) (Math.sin(Math.toRadians(deg)) * radius);
+    }
+
+    private void drawHub(Canvas canvas, float cx, float cy, float radius, int alpha) {
+        hubPaint.setStyle(Paint.Style.FILL);
+        hubPaint.setColor(UiTokens.withAlpha(UiTokens.WHEEL_HUB_FILL,
+                (int) (((UiTokens.WHEEL_HUB_FILL >>> 24) & 0xFF) * (alpha / 255f))));
+        canvas.drawCircle(cx, cy, radius, hubPaint);
+        drawHead(canvas, cx, cy, radius);
+    }
+
+    private void drawSectorContent(Canvas canvas, float cx, float cy, float radius, int alpha) {
+        float iconSize = 24f * density;
+        float labelSize = UiTokens.TEXT_CAPTION * density;
+        labelPaint.setTextSize(labelSize);
+        for (Sector s : SECTORS) {
             double a = Math.toRadians(RadialWheelLayout.sectorCenterDegrees(s));
-            float lx = cx + (float) (Math.cos(a) * radius);
-            float ly = cy + (float) (Math.sin(a) * radius);
-            canvas.drawText(sectorLabel(s), lx, ly + labelPaint.getTextSize() * 0.35f, labelPaint);
+            float px = cx + (float) (Math.cos(a) * radius);
+            float py = cy + (float) (Math.sin(a) * radius);
+            UiIcons.draw(canvas, iconPaint, iconFor(s), px, py - labelSize * 0.4f, iconSize,
+                    UiTokens.withAlpha(UiTokens.TEXT_PRIMARY, alpha), density);
+            labelPaint.setColor(UiTokens.withAlpha(UiTokens.TEXT_PRIMARY, alpha));
+            canvas.drawText(sectorLabel(s), px, py + labelSize * 1.6f, labelPaint);
         }
+    }
 
-        drawChips(canvas, getWidth(), getHeight());
+    private static UiIcons.Icon iconFor(Sector s) {
+        switch (s) {
+            case MODS: return UiIcons.Icon.CUBE;
+            case HUD: return UiIcons.Icon.PENCIL;
+            case CLOSET: return UiIcons.Icon.HANGER;
+            case SETTINGS: return UiIcons.Icon.GEAR;
+            default: return UiIcons.Icon.CUBE;
+        }
     }
 
     private void drawHead(Canvas canvas, float cx, float cy, float radius) {
-        // Prefer the real 3D head: rasterise the player's skin head box as a turning turntable and
-        // blit it into the hub. Fall back to the flat front-face crop, then to a glyph, so the hub
-        // is never blank.
         if (headScene != null && headAtlas != null) {
             if (drawHead3D(canvas, cx, cy, radius)) return;
         }
         if (skinHead == null || skinHead.isRecycled()) {
-            iconPaint.setTextSize(radius * 0.9f);
-            canvas.drawText("\uD83D\uDC64", cx, cy + radius * 0.32f, iconPaint);
+            // No skin available: draw a neutral accent disc rather than a glyph or emoji.
+            hubPaint.setColor(UiTokens.ACCENT_900);
+            canvas.drawCircle(cx, cy, radius * 0.8f, hubPaint);
             return;
         }
         dstHead.set(cx - radius * 0.72f, cy - radius * 0.72f,
@@ -285,9 +407,6 @@ public class RadialMenuView extends View {
         headPaint.setFilterBitmap(false);
         canvas.drawBitmap(skinHead, srcHead, dstHead, headPaint);
         canvas.restoreToCount(save);
-        arcStroke.setColor(ACCENT_LIGHT);
-        arcStroke.setStrokeWidth(Math.max(2f, radius * 0.06f));
-        canvas.drawCircle(cx, cy, radius * 0.9f, arcStroke);
     }
 
     /** Renders the 3D head turntable into the hub; false when it cannot allocate a bitmap. */
@@ -316,38 +435,32 @@ public class RadialMenuView extends View {
                 cx + radius * 0.86f, cy + radius * 0.86f);
         canvas.drawBitmap(headBitmap, null, dstHead, headPaint);
         canvas.restoreToCount(save);
-        arcStroke.setColor(ACCENT_LIGHT);
-        arcStroke.setStrokeWidth(Math.max(2f, radius * 0.06f));
-        canvas.drawCircle(cx, cy, radius * 0.9f, arcStroke);
         return true;
     }
 
-    private void drawChips(Canvas canvas, int w, int h) {
+    private void drawChips(Canvas canvas, int w, int h, int alpha) {
+        int[] counts = chipClusterCounts();
+        float[][] centers = RadialWheelLayout.chipCenters(w, h, counts[0], counts[1], counts[2]);
+        int i = 0;
         for (Chip chip : chips) {
-            RectF box = chipRect(chip, w, h);
-            chipPaint.setColor(CHIP_BG);
-            canvas.drawRoundRect(box, box.height() / 2f, box.height() / 2f, chipPaint);
-            // A status dot: green when the module is on, grey when off.
-            boolean on = chipToggle != null && chipToggle.isChipOn(chip.moduleId);
-            chipDotPaint.setColor(on ? CHIP_ON : CHIP_OFF);
-            float dotR = box.height() * 0.22f;
-            canvas.drawCircle(box.left + box.height() * 0.5f, box.centerY(), dotR, chipDotPaint);
+            float[] c = centers[i++];
             String text = getContext().getString(chip.labelRes);
-            Paint.FontMetrics fm = chipTextPaint.getFontMetrics();
-            float ty = box.centerY() - (fm.ascent + fm.descent) / 2f;
-            canvas.drawText(text, box.left + box.height() * 0.95f, ty, chipTextPaint);
+            chipTextPaint.setTextSize(UiChip.LABEL_SP * density);
+            float labelWidth = chipTextPaint.measureText(text);
+            boolean on = chipToggle != null && chipToggle.isChipOn(chip.moduleId);
+            UiChip.draw(canvas, chipPaint, chipTextPaint, c[0], c[1], labelWidth, text,
+                    UiTokens.withAlpha(accent, alpha), on, density);
         }
     }
 
-    private RectF chipRect(Chip chip, int w, int h) {
-        float min = Math.min(w, h);
-        float chipH = Math.max(24f, min * 0.055f);
-        chipTextPaint.setTextSize(Math.max(10f, min * 0.028f));
-        String text = getContext().getString(chip.labelRes);
-        float chipW = chipTextPaint.measureText(text) + chipH * 1.5f;
-        float cx = w * chip.fx;
-        float cy = h * chip.fy;
-        return new RectF(cx - chipW / 2f, cy - chipH / 2f, cx + chipW / 2f, cy + chipH / 2f);
+    private int[] chipClusterCounts() {
+        int tl = 0, tr = 0, rm = 0;
+        for (Chip chip : chips) {
+            if (chip.cluster == 0) tl++;
+            else if (chip.cluster == 1) tr++;
+            else rm++;
+        }
+        return new int[]{tl, tr, rm};
     }
 
     private static String sectorLabel(Sector s) {
@@ -367,24 +480,26 @@ public class RadialMenuView extends View {
         float cx = centerX();
         float cy = centerY();
         float outer = outerRadius();
-        float inner = innerRadius();
+        float inner = ringInnerRadius();
+        float gapPx = RadialWheelLayout.GAP_DP * density;
 
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
                 if (handleChipTap(event.getX(), event.getY(), getWidth(), getHeight())) {
                     return true;
                 }
-                setHighlight(RadialWheelLayout.sectorAt(
-                        event.getX() - cx, event.getY() - cy, inner, outer, GAP_DEG));
+                setHighlight(RadialWheelLayout.sectorAtLinear(
+                        event.getX() - cx, event.getY() - cy, inner, outer, gapPx));
                 return true;
             case MotionEvent.ACTION_MOVE:
-                setHighlight(RadialWheelLayout.sectorAt(
-                        event.getX() - cx, event.getY() - cy, inner, outer, GAP_DEG));
+                setHighlight(RadialWheelLayout.sectorAtLinear(
+                        event.getX() - cx, event.getY() - cy, inner, outer, gapPx));
                 return true;
             case MotionEvent.ACTION_UP:
-                Sector s = RadialWheelLayout.sectorAt(
-                        event.getX() - cx, event.getY() - cy, inner, outer, GAP_DEG);
+                Sector s = RadialWheelLayout.sectorAtLinear(
+                        event.getX() - cx, event.getY() - cy, inner, outer, gapPx);
                 highlighted = Sector.NONE;
+                animateHover(null);
                 invalidate();
                 if (listener != null) {
                     if (RadialWheelLayout.isDestination(s)) {
@@ -405,10 +520,18 @@ public class RadialMenuView extends View {
 
     /** Toggles the chip under the pointer, if any; returns true when a chip was hit. */
     private boolean handleChipTap(float x, float y, int w, int h) {
+        int[] counts = chipClusterCounts();
+        float[][] centers = RadialWheelLayout.chipCenters(w, h, counts[0], counts[1], counts[2]);
+        int i = 0;
         for (Chip chip : chips) {
-            if (chipRect(chip, w, h).contains(x, y)) {
+            float[] c = centers[i++];
+            String text = getContext().getString(chip.labelRes);
+            chipTextPaint.setTextSize(UiChip.LABEL_SP * density);
+            float cw = UiChip.width(chipTextPaint.measureText(text), density);
+            float ch = UiChip.HEIGHT_DP * density;
+            if (Math.abs(x - c[0]) <= cw / 2f && Math.abs(y - c[1]) <= ch / 2f) {
                 if (chipToggle != null) chipToggle.onChipToggled(chip.moduleId);
-                performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
+                performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
                 invalidate();
                 return true;
             }
@@ -423,6 +546,31 @@ public class RadialMenuView extends View {
         if (RadialWheelLayout.isDestination(sector) && !wasDestination) {
             performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
         }
+        animateHover(sector);
         invalidate();
+    }
+
+    /** Scales the hovered sector to 1.04 over 80ms. */
+    private void animateHover(Sector sector) {
+        int idx = indexOf(sector);
+        if (hoverAnimator != null) hoverAnimator.cancel();
+        hoverAnimator = ValueAnimator.ofFloat(0f, 1f);
+        hoverAnimator.setDuration(UiTokens.MOTION_PRESS_MS);
+        hoverAnimator.setInterpolator(FAST_OUT_SLOW_IN);
+        final int target = idx;
+        hoverAnimator.addUpdateListener(a -> {
+            float t = (float) a.getAnimatedValue();
+            for (int i = 0; i < sectorScale.length; i++) {
+                float goal = (i == target) ? 1.04f : 1f;
+                sectorScale[i] = sectorScale[i] + (goal - sectorScale[i]) * t;
+            }
+            invalidate();
+        });
+        hoverAnimator.start();
+    }
+
+    private static int indexOf(Sector sector) {
+        for (int i = 0; i < SECTORS.length; i++) if (SECTORS[i] == sector) return i;
+        return -1;
     }
 }
