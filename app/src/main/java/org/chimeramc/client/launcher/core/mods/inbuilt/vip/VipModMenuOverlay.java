@@ -52,7 +52,6 @@ import org.chimeramc.client.launcher.ui.views.KeyboardIllustrationView;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -111,6 +110,9 @@ public class VipModMenuOverlay {
     private RecyclerView recycler;
     private VipModuleAdapter adapter;
     private EditText searchInput;
+    /** The active category tab; ALL shows everything, FAVORITES shows the pinned set. */
+    private ModCategory.Tab activeCategory = ModCategory.Tab.ALL;
+    private LinearLayout categoryRow;
     private ImageButton searchClear;
     private TextView moduleCount;
     private TextView activeCount;
@@ -330,6 +332,8 @@ public class VipModMenuOverlay {
         ImageButton configBack = overlayView.findViewById(R.id.vip_config_back);
         if (configBack != null) configBack.setOnClickListener(v -> closeConfig());
 
+        buildCategoryRow();
+
         ImageView logo = overlayView.findViewById(R.id.vip_logo);
         logo.setImageTintList(ColorStateList.valueOf(theme.accent()));
         // Build the badge's border rather than casting whatever drawable the XML set: the badge
@@ -374,6 +378,15 @@ public class VipModMenuOverlay {
             @Override
             public void onConfig(UnifiedMod mod) {
                 openConfig(mod);
+            }
+
+            @Override
+            public void onFavorite(UnifiedMod mod, boolean favorite) {
+                InbuiltModManager manager = InbuiltModManager.getInstance(activity);
+                if (manager != null) {
+                    manager.setModFavorite(mod.getStableKey(), favorite);
+                }
+                applySearch();
             }
         });
 
@@ -652,7 +665,8 @@ public class VipModMenuOverlay {
 
             visibleMods.clear();
             for (UnifiedMod mod : allMods) {
-                if (query.isEmpty() || matches(mod, query)) {
+                if (!ModCategory.matches(activeCategory, mod, favorites)) continue;
+                if (query.isEmpty() || ModCategory.matchesQuery(mod, query)) {
                     visibleMods.add(mod);
                 }
             }
@@ -663,11 +677,58 @@ public class VipModMenuOverlay {
         }
     }
 
-    private boolean matches(UnifiedMod mod, String query) {
-        String lower = query.toLowerCase(Locale.US);
-        return mod.getName().toLowerCase(Locale.US).contains(lower)
-                || (mod.getGroupName() != null
-                && mod.getGroupName().toLowerCase(Locale.US).contains(lower));
+    /** Builds the category tab chips (All / Favorites / Visuals / PvP / Misc). */
+    private void buildCategoryRow() {
+        categoryRow = overlayView.findViewById(R.id.vip_category_row);
+        if (categoryRow == null) return;
+        categoryRow.removeAllViews();
+        addCategoryChip(ModCategory.Tab.ALL, R.string.vip_category_all);
+        addCategoryChip(ModCategory.Tab.FAVORITES, R.string.vip_category_favorites);
+        addCategoryChip(ModCategory.Tab.VISUALS, R.string.vip_category_visuals);
+        addCategoryChip(ModCategory.Tab.PVP, R.string.vip_category_pvp);
+        addCategoryChip(ModCategory.Tab.MISC, R.string.vip_category_misc);
+        refreshCategoryChips();
+    }
+
+    private void addCategoryChip(ModCategory.Tab tab, int labelRes) {
+        TextView chip = new TextView(activity);
+        chip.setText(labelRes);
+        chip.setTextSize(11f);
+        chip.setPadding((int) (14 * density()), (int) (6 * density()),
+                (int) (14 * density()), (int) (6 * density()));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.setMarginEnd((int) (8 * density()));
+        chip.setLayoutParams(lp);
+        chip.setOnClickListener(v -> {
+            activeCategory = tab;
+            refreshCategoryChips();
+            applySearch();
+        });
+        categoryRow.addView(chip);
+    }
+
+    /** Re-tints the chips so the active category reads as selected. */
+    private void refreshCategoryChips() {
+        if (categoryRow == null) return;
+        int active = theme.accent();
+        int idle = 0xFF2A2540;
+        int activeText = 0xFF0E0B18;
+        int idleText = 0xFFC9C3E0;
+        ModCategory.Tab[] tabs = {ModCategory.Tab.ALL, ModCategory.Tab.FAVORITES,
+                ModCategory.Tab.VISUALS, ModCategory.Tab.PVP, ModCategory.Tab.MISC};
+        for (int i = 0; i < categoryRow.getChildCount() && i < tabs.length; i++) {
+            View child = categoryRow.getChildAt(i);
+            if (!(child instanceof TextView)) continue;
+            TextView chip = (TextView) child;
+            boolean selected = tabs[i] == activeCategory;
+            GradientDrawable bg = new GradientDrawable();
+            bg.setShape(GradientDrawable.RECTANGLE);
+            bg.setCornerRadius(14 * density());
+            bg.setColor(selected ? active : idle);
+            chip.setBackground(bg);
+            chip.setTextColor(selected ? activeText : idleText);
+        }
     }
 
     private void updateCounts() {

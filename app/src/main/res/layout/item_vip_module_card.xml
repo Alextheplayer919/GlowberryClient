@@ -99,6 +99,17 @@
                     android:visibility="gone" />
             </LinearLayout>
 
+            <ImageButton
+                android:id="@+id/vip_card_star"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:layout_marginStart="2dp"
+                android:background="@drawable/bg_vip_icon_button"
+                android:contentDescription="@string/vip_pin_module"
+                android:padding="8dp"
+                android:src="@drawable/ic_star_outline"
+                android:tint="#8B85A3" />
+
             <TextView
                 android:id="@+id/vip_card_status"
                 android:layout_width="wrap_content"

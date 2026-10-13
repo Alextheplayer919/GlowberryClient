@@ -815,6 +815,21 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="mod_menu_group_inbuilt">Inbuilt Features</string>
     <string name="mod_menu_group_voice">Voice</string>
 
+    <!-- Mod panel: pin/favourites and category tabs (section 2). -->
+    <string name="vip_pin_module">Pin to favorites</string>
+    <string name="vip_unpin_module">Remove from favorites</string>
+    <string name="vip_category_favorites">Favorites</string>
+    <string name="vip_category_visuals">Visuals</string>
+    <string name="vip_category_pvp">PvP</string>
+    <string name="vip_category_misc">Misc</string>
+    <string name="vip_category_all">All</string>
+    <string name="vip_nav_main">Main</string>
+    <string name="vip_nav_settings">Settings</string>
+    <string name="vip_nav_closet">Closet</string>
+    <string name="vip_nav_hud">HUD</string>
+    <string name="vip_nav_editor">Editor</string>
+    <string name="vip_favorites_empty">No favorite modules yet. Tap the star on a module to pin it here.</string>
+
     <!-- New visual / HUD / utility modules (mod-panel list). -->
     <string name="inbuilt_mod_fullbright">Fullbright</string>
     <string name="inbuilt_mod_fullbright_desc">Brightens the world so caves and the night are visible without a torch.</string>

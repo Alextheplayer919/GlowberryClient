@@ -52,6 +52,8 @@ public class VipModuleAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
     public interface Listener {
         void onToggle(UnifiedMod mod, boolean enabled);
         void onConfig(UnifiedMod mod);
+        /** Pin or unpin a module from the favorites list. */
+        void onFavorite(UnifiedMod mod, boolean favorite);
     }
 
     public VipModuleAdapter(VipTheme theme) {
@@ -327,6 +329,18 @@ public class VipModuleAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
             if (listener != null) listener.onConfig(mod);
             return true;
         });
+
+        // The star pins the module to the Favorites tab. It is independent of the enable toggle,
+        // so a module can be pinned without turning it on (and vice versa).
+        boolean isFavorite = favorite.getOrDefault(mod.getStableKey(), false);
+        modHolder.star.setImageResource(isFavorite
+                ? R.drawable.ic_star_filled : R.drawable.ic_star_outline);
+        modHolder.star.setColorFilter(isFavorite ? 0xFFFFC94D : 0xFF8B85A3);
+        modHolder.star.setContentDescription(modHolder.star.getResources().getString(
+                isFavorite ? R.string.vip_unpin_module : R.string.vip_pin_module));
+        modHolder.star.setOnClickListener(v -> {
+            if (listener != null) listener.onFavorite(mod, !isFavorite);
+        });
     }
 
     @Override
@@ -499,6 +513,7 @@ public class VipModuleAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
         final TextView status;
         final TextView unavailable;
         final ImageButton config;
+        final ImageButton star;
         final View accent;
 
         ModHolder(View itemView) {
@@ -509,6 +524,7 @@ public class VipModuleAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
             status = itemView.findViewById(R.id.vip_card_status);
             unavailable = itemView.findViewById(R.id.vip_card_unavailable);
             config = itemView.findViewById(R.id.vip_card_config);
+            star = itemView.findViewById(R.id.vip_card_star);
             accent = itemView.findViewById(R.id.vip_card_accent);
         }
     }

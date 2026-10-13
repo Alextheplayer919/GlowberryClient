@@ -320,6 +320,20 @@
                             android:textStyle="bold" />
                     </LinearLayout>
 
+                    <HorizontalScrollView
+                        android:id="@+id/vip_category_scroll"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:scrollbars="none"
+                        android:paddingBottom="6dp">
+
+                        <LinearLayout
+                            android:id="@+id/vip_category_row"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal" />
+                    </HorizontalScrollView>
+
                     <FrameLayout
                         android:layout_width="match_parent"
                         android:layout_height="0dp"
