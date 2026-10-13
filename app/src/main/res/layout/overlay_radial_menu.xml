@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The radial mod wheel overlay. A single full-screen custom view draws the four-sector wheel, the
+    player's skin head in the hub and the floating quick-toggle chips, and owns its own touch
+    handling, so the overlay wrapper only attaches and detaches it.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/radial_menu_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#33000000"
+    android:focusable="false"
+    android:defaultFocusHighlightEnabled="false">
+
+    <org.chimeramc.client.core.mods.inbuilt.overlay.RadialMenuView
+        android:id="@+id/radial_menu_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:focusable="false" />
+
+</FrameLayout>

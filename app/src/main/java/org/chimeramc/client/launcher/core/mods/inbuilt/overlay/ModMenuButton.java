@@ -43,6 +43,8 @@ public class ModMenuButton {
      * different inputs.
      */
     private org.chimeramc.client.core.mods.inbuilt.vip.VipModMenuOverlay vipMenuOverlay;
+    /** The radial mod wheel (section 1), opened from the same bind. */
+    private org.chimeramc.client.core.mods.inbuilt.overlay.RadialMenuOverlay radialMenuOverlay;
     
     public ModMenuButton(Activity activity) {
         this.activity = activity;
@@ -299,7 +301,8 @@ public class ModMenuButton {
 
     public boolean isMenuShowing() {
         return (menuOverlay != null && menuOverlay.isShowing())
-                || (vipMenuOverlay != null && vipMenuOverlay.isShowing());
+                || (vipMenuOverlay != null && vipMenuOverlay.isShowing())
+                || (radialMenuOverlay != null && radialMenuOverlay.isShowing());
     }
 
     /**
@@ -311,10 +314,51 @@ public class ModMenuButton {
      */
     public void toggleMenuFromBind() {
         if (!isShowing) return;
+        if (radialMenuOverlay == null) {
+            radialMenuOverlay =
+                    new org.chimeramc.client.core.mods.inbuilt.overlay.RadialMenuOverlay(activity);
+            radialMenuOverlay.setDestinations(new org.chimeramc.client.core.mods.inbuilt.overlay
+                    .RadialMenuOverlay.Destinations() {
+                @Override
+                public void openMods() {
+                    ensureVipMenu().showModuleList();
+                }
+
+                @Override
+                public void openCloset() {
+                    ensureVipMenu().showSection(
+                            org.chimeramc.client.core.mods.inbuilt.vip.VipTab.GENERAL);
+                }
+
+                @Override
+                public void openSettings() {
+                    ensureVipMenu().showSection(
+                            org.chimeramc.client.core.mods.inbuilt.vip.VipTab.GENERAL);
+                }
+
+                @Override
+                public void openHudEditor() {
+                    InbuiltOverlayManager manager = InbuiltOverlayManager.getInstance();
+                    if (manager != null) {
+                        manager.setMoreButtonsEditorOpen(true);
+                    }
+                }
+            });
+        }
+        radialMenuOverlay.toggle();
+    }
+
+    /** The VIP menu, created lazily. */
+    private org.chimeramc.client.core.mods.inbuilt.vip.VipModMenuOverlay ensureVipMenu() {
         if (vipMenuOverlay == null) {
             vipMenuOverlay = new org.chimeramc.client.core.mods.inbuilt.vip.VipModMenuOverlay(activity);
         }
-        vipMenuOverlay.toggle();
+        return vipMenuOverlay;
+    }
+
+    /** The open radial wheel, or null. */
+    public org.chimeramc.client.core.mods.inbuilt.overlay.RadialMenuOverlay getRadialMenuOverlay() {
+        return radialMenuOverlay;
     }
 
     /** The open VIP Mod Menu (Screen B), or null. */
@@ -332,6 +376,9 @@ public class ModMenuButton {
     public void hideMenu() {
         if (menuOverlay != null && menuOverlay.isShowing()) {
             menuOverlay.hide();
+        }
+        if (radialMenuOverlay != null && radialMenuOverlay.isShowing()) {
+            radialMenuOverlay.hide();
         }
     }
 }

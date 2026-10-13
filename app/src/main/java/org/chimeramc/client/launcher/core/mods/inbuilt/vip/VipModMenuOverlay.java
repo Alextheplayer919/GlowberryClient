@@ -175,6 +175,27 @@ public class VipModMenuOverlay {
         return isShowing;
     }
 
+    /**
+     * Opens the menu directly on a section, for the radial wheel's sectors.
+     *
+     * <p>The wheel routes MODS to the module list and SETTINGS to the settings surface; a section
+     * that has no dedicated surface (CLOSET, HUD) opens the module list, which is where those
+     * modules live. Safe to call when the menu is already open: it just switches section.
+     */
+    public void showSection(VipTab tab) {
+        if (!isShowing) {
+            show();
+        }
+        if (isShowing) {
+            selectTabSafe(tab == null ? VipTab.GENERAL : tab);
+        }
+    }
+
+    /** Opens the menu on the module list, the surface the radial MODS sector points at. */
+    public void showModuleList() {
+        showSection(VipTab.GENERAL);
+    }
+
     /** Opens or closes from the in-game bind. */
     public void toggle() {
         if (isShowing) {
