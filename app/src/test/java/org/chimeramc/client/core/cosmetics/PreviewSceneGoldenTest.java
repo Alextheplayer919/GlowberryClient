@@ -72,14 +72,9 @@ public class PreviewSceneGoldenTest {
     }
 
     private static PreviewScene characterScene(int[] atlas) {
+        // Use the real character builder, so the golden pins what the view actually rasterises.
         PreviewScene scene = new PreviewScene();
-        for (SkinModel.Box box : SkinModel.boxes()) {
-            for (SkinModel.Face face : SkinModel.Face.values()) {
-                PreviewScene.Face f = scene.addBoxFace(box, face, box.baseUv(face),
-                        atlas, SkinModel.ATLAS_SIZE, SkinModel.ATLAS_SIZE);
-                if (f != null) { f.alphaTest = false; f.blend = false; }
-            }
-        }
+        PreviewCharacterScene.addCharacter(scene, atlas, SkinModel.ATLAS_SIZE, 0f, 0f);
         return scene;
     }
 

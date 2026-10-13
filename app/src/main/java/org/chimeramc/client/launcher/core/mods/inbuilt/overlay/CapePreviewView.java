@@ -23,8 +23,11 @@ import org.chimeramc.client.core.cosmetics.AuthoredPetModels;
 import org.chimeramc.client.core.cosmetics.PetModel;
 import org.chimeramc.client.core.cosmetics.PetPose;
 import org.chimeramc.client.core.cosmetics.PlayerSkinProvider;
+import org.chimeramc.client.core.cosmetics.PreviewCharacterScene;
 import org.chimeramc.client.core.cosmetics.PreviewDepthBuffer;
 import org.chimeramc.client.core.cosmetics.PreviewLighting;
+import org.chimeramc.client.core.cosmetics.PreviewRaster;
+import org.chimeramc.client.core.cosmetics.PreviewScene;
 import org.chimeramc.client.core.cosmetics.QuadDepthSorter;
 import org.chimeramc.client.core.cosmetics.SkinAlphaFilter;
 import org.chimeramc.client.core.cosmetics.SkinModel;
@@ -121,6 +124,21 @@ public class CapePreviewView extends View {
 
     /** Body depth, so the cape is clipped where the skin is in front of it. */
     private final PreviewDepthBuffer depthBuffer = new PreviewDepthBuffer();
+
+    // --- Phase D: the software-rasterised character pass -------------------------------------
+    // The character is drawn by the pure PreviewRaster/PreviewScene pipeline instead of Canvas: it
+    // gives a per-pixel depth buffer (so the overlay layer and later the cosmetics occlude correctly)
+    // and nearest-neighbour sampling (so a transparent texel cannot bleed into an opaque one). The
+    // skin atlas is an int[] copy, taken once per skin.
+    private final PreviewRaster raster = new PreviewRaster();
+    private PreviewScene characterScene;
+    private int[] skinAtlasPixels;
+    /** The rasteriser's ARGB buffer copied into a Bitmap the Canvas can blit. */
+    private Bitmap rasterBitmap;
+    /** 2x internal supersample: the scene renders at twice the view size, then downscales. */
+    private static final int RASTER_SUPERSAMPLE = 2;
+    /** Cap on the rasteriser's internal edge, so a large view cannot blow the memory budget. */
+    private static final int RASTER_MAX_EDGE = 1024;
 
     /**
      * The authored Blockbench mesh for the equipped accessory, resolved once per selection.
@@ -257,6 +275,7 @@ public class CapePreviewView extends View {
         pixelPaint.setAntiAlias(false);
         this.skin = PlayerSkinProvider.resolve(context);
         rebuildFaceCrops();
+        rebuildCharacterScene();
     }
 
     public void setCape(CosmeticCatalog.Cape cape) {
@@ -516,8 +535,13 @@ public class CapePreviewView extends View {
         headLookMs += dt * 1000f;
         float[] look = headLookScratch;
         HeadLookTransform.idleLook((long) headLookMs, look);
-        headPitchDeg = look[0];
-        headYawDeg = look[1];
+        // Rebuild the software character scene only when the head look moved materially, so the
+        // per-frame path does not re-derive the whole model for a sub-degree change.
+        if (Math.abs(look[0] - headPitchDeg) > 0.75f || Math.abs(look[1] - headYawDeg) > 0.75f) {
+            headPitchDeg = look[0];
+            headYawDeg = look[1];
+            rebuildCharacterScene();
+        }
     }
 
     private final float[] headLookScratch = new float[2];
@@ -580,20 +604,90 @@ public class CapePreviewView extends View {
         int h = getHeight();
         if (w <= 0 || h <= 0) return;
 
-        // Supersample: draw everything into an offscreen bitmap at 2x and scale it down, so the
-        // thin cloth edges and the model's silhouette are anti-aliased instead of jagged. The
-        // preview is small, so 2x costs little and is the single biggest quality win.
-        int ss = 2;
-        Bitmap target = ensureFrame(w * ss, h * ss);
+        // Phase D: the character is rasterised by the pure software renderer. Everything else (cape,
+        // pet, accessories) is still drawn through Canvas on top until its own stage lands, so this
+        // stage only replaces the character pass.
+        int internalW = Math.min(w * RASTER_SUPERSAMPLE, RASTER_MAX_EDGE);
+        int internalH = Math.min(h * RASTER_SUPERSAMPLE, RASTER_MAX_EDGE);
+        Bitmap target = ensureFrame(internalW, internalH);
         if (target != null) {
-            Canvas scaled = new Canvas(target);
-            scaled.scale(ss, ss);
-            drawScene(scaled, w, h);
-            canvas.drawBitmap(target, new android.graphics.Rect(0, 0, w * ss, h * ss),
+            // Background: transparent, so the glass panel behind the preview shows through exactly
+            // as it did before.
+            raster.prepare(internalW, internalH, 0x00000000);
+            // One camera and one placement for the whole frame, shared by the rasterised character
+            // and the Canvas layers drawn over it, so they cannot drift apart.
+            camera = new SkinModel.Camera(yawDeg, pitchDeg, SkinModel.CAMERA_DISTANCE, 0f, 18f, 0f);
+            float scale = Math.min(internalW / 52f, internalH / 42f);
+            float originX = internalW * 0.40f;
+            float originY = internalH * 0.58f + SkinModel.heightPixels() * 0.5f * scale;
+            rasterCharacter(camera, scale, originX, originY);
+            target.setPixels(raster.pixels(), 0, internalW, 0, 0, internalW, internalH);
+            canvas.drawBitmap(target, new android.graphics.Rect(0, 0, internalW, internalH),
                     new android.graphics.Rect(0, 0, w, h), pixelPaint);
+
+            // The remaining Canvas layers draw in view coordinates, so they are scaled to match the
+            // downscaled bitmap.
+            int save = canvas.save();
+            canvas.scale((float) w / internalW, (float) h / internalH);
+            drawCanvasOverlays(canvas, scale, originX, originY);
+            canvas.restoreToCount(save);
             return;
         }
+
+        // No offscreen target could be allocated: fall back to the Canvas character pass so the
+        // preview still renders rather than going blank.
         drawScene(canvas, w, h);
+    }
+
+    /**
+     * Rasterises the character (base + overlay layers) into the software renderer's buffer.
+     *
+     * <p>The camera and placement are the ones the Canvas pass used, so the character sits in the
+     * same place at the same size; only the rasterisation differs. The scene-level camera fit (which
+     * would frame the whole scene including the pet) arrives in a later stage, once the pet and
+     * cosmetics are part of the scene rather than Canvas layers.
+     */
+    private void rasterCharacter(SkinModel.Camera cam, float scale, float originX, float originY) {
+        if (characterScene == null || skinAtlasPixels == null) return;
+        PreviewScene.Fit fit = new PreviewScene.Fit();
+        fit.scale = scale;
+        fit.originX = originX;
+        fit.originY = originY;
+        characterScene.render(raster, cam, fit);
+    }
+
+    /** Builds the character scene from the current skin, once per skin. */
+    private void rebuildCharacterScene() {
+        Bitmap atlas = skin == null ? null : skin.bitmap;
+        // The scene samples the atlas as a 64x64 grid (the UV table's contract, which
+        // PlayerSkinProvider.normalise upholds). A differently-sized bitmap would be read out of
+        // bounds, so fail closed to the Canvas pass rather than mis-sample it.
+        if (atlas == null || atlas.getWidth() != SkinModel.ATLAS_SIZE
+                || atlas.getHeight() != SkinModel.ATLAS_SIZE) {
+            characterScene = null;
+            skinAtlasPixels = null;
+            return;
+        }
+        int aw = atlas.getWidth();
+        int ah = atlas.getHeight();
+        skinAtlasPixels = new int[aw * ah];
+        atlas.getPixels(skinAtlasPixels, 0, aw, 0, 0, aw, ah);
+        characterScene = new PreviewScene();
+        PreviewCharacterScene.addCharacter(characterScene, skinAtlasPixels, SkinModel.ATLAS_SIZE,
+                headPitchDeg, headYawDeg);
+    }
+
+    /**
+     * Draws the Canvas layers that the software rasteriser does not own yet (cape, pet, accessories)
+     * over the rasterised character. Called with the canvas scaled to the rasteriser's internal size,
+     * and with the same camera/scale/origin the raster pass used, so the layers line up.
+     */
+    private void drawCanvasOverlays(Canvas canvas, float scale, float originX, float originY) {
+        if (cape != null) projectCape(originX, originY, scale);
+        if (cape != null) paintCape(canvas);
+        if (accessory != null) drawAccessoryFront(canvas, originX, originY, scale);
+        if (pet != null) drawPet(canvas, originX, originY, scale);
+        drawAccessoryBehind(canvas, originX, originY, scale);
     }
 
     /** The offscreen supersample target, or null when it cannot be allocated. */

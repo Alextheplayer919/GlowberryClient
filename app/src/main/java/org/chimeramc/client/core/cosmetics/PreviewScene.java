@@ -41,6 +41,12 @@ public final class PreviewScene {
         public boolean doubleSided;
         /** 0..1 brightness from the face normal. */
         public float shade = 1f;
+        /**
+         * A bias subtracted from the projected depth (smaller = nearer), so a face that is coplanar
+         * with another — a skin's overlay layer over its base face — reliably wins the depth test
+         * instead of z-fighting at an equal depth.
+         */
+        public float depthBias = 0f;
 
         void set(float x0, float y0, float z0, float x1, float y1, float z1,
                  float x2, float y2, float z2, float x3, float y3, float z3) {
@@ -134,7 +140,7 @@ public final class PreviewScene {
                 camera.project(c[0], c[1], c[2], fit.scale, fit.originX, fit.originY, tmpProject);
                 p[i * 3] = tmpProject[0];
                 p[i * 3 + 1] = tmpProject[1];
-                p[i * 3 + 2] = tmpProject[2];
+                p[i * 3 + 2] = tmpProject[2] - f.depthBias;
             }
             // Two triangles: (TL,TR,BR) and (TL,BR,BL).
             raster.triangle(p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8],
