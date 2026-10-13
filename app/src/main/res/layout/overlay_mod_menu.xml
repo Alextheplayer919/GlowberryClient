@@ -24,7 +24,7 @@
         android:layout_marginTop="20dp"
         android:layout_marginEnd="32dp"
         android:layout_marginBottom="20dp"
-        app:cardBackgroundColor="#FA181A1D"
+        app:cardBackgroundColor="@color/ui_bg_window"
         app:cardCornerRadius="14dp"
         app:cardElevation="12dp"
         android:focusable="false"
@@ -46,7 +46,7 @@
                 android:id="@+id/mod_menu_topbar"
                 android:layout_width="match_parent"
                 android:layout_height="50dp"
-                android:background="#151719"
+                android:background="@color/ui_bg_titlebar"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
                 android:paddingStart="12dp"
@@ -101,14 +101,14 @@
                             android:defaultFocusHighlightEnabled="false"
                             android:drawableStart="@drawable/ic_modules"
                             android:drawablePadding="6dp"
-                            android:drawableTint="#A8B0B8"
+                            android:drawableTint="@color/ui_text_secondary"
                             android:ellipsize="end"
                             android:gravity="center_vertical"
                             android:paddingStart="10dp"
                             android:paddingEnd="10dp"
                             android:singleLine="true"
                             android:text="@string/mod_menu_general"
-                            android:textColor="#A8B0B8"
+                            android:textColor="@color/ui_text_secondary"
                             android:textSize="13sp" />
 
                         <TextView
@@ -120,14 +120,14 @@
                             android:defaultFocusHighlightEnabled="false"
                             android:drawableStart="@drawable/ic_content"
                             android:drawablePadding="6dp"
-                            android:drawableTint="#A8B0B8"
+                            android:drawableTint="@color/ui_text_secondary"
                             android:ellipsize="end"
                             android:gravity="center_vertical"
                             android:paddingStart="10dp"
                             android:paddingEnd="10dp"
                             android:singleLine="true"
                             android:text="@string/mod_menu_packs"
-                            android:textColor="#A8B0B8"
+                            android:textColor="@color/ui_text_secondary"
                             android:textSize="13sp" />
 
                         <TextView
@@ -139,14 +139,14 @@
                             android:defaultFocusHighlightEnabled="false"
                             android:drawableStart="@drawable/ic_tshirt"
                             android:drawablePadding="6dp"
-                            android:drawableTint="#A8B0B8"
+                            android:drawableTint="@color/ui_text_secondary"
                             android:ellipsize="end"
                             android:gravity="center_vertical"
                             android:paddingStart="10dp"
                             android:paddingEnd="10dp"
                             android:singleLine="true"
                             android:text="@string/mod_menu_cosmetics"
-                            android:textColor="#A8B0B8"
+                            android:textColor="@color/ui_text_secondary"
                             android:textSize="13sp" />
 
                         <TextView
@@ -158,14 +158,14 @@
                             android:defaultFocusHighlightEnabled="false"
                             android:drawableStart="@drawable/ic_edit"
                             android:drawablePadding="6dp"
-                            android:drawableTint="#A8B0B8"
+                            android:drawableTint="@color/ui_text_secondary"
                             android:ellipsize="end"
                             android:gravity="center_vertical"
                             android:paddingStart="10dp"
                             android:paddingEnd="10dp"
                             android:singleLine="true"
                             android:text="@string/mod_menu_hud_editor"
-                            android:textColor="#A8B0B8"
+                            android:textColor="@color/ui_text_secondary"
                             android:textSize="13sp" />
 
                         <TextView
@@ -177,14 +177,14 @@
                             android:defaultFocusHighlightEnabled="false"
                             android:drawableStart="@drawable/ic_replay"
                             android:drawablePadding="6dp"
-                            android:drawableTint="#A8B0B8"
+                            android:drawableTint="@color/ui_text_secondary"
                             android:ellipsize="end"
                             android:gravity="center_vertical"
                             android:paddingStart="10dp"
                             android:paddingEnd="10dp"
                             android:singleLine="true"
                             android:text="@string/nav_replay"
-                            android:textColor="#A8B0B8"
+                            android:textColor="@color/ui_text_secondary"
                             android:textSize="13sp" />
 
                         <TextView
@@ -196,14 +196,14 @@
                             android:defaultFocusHighlightEnabled="false"
                             android:drawableStart="@drawable/ic_settings"
                             android:drawablePadding="6dp"
-                            android:drawableTint="#A8B0B8"
+                            android:drawableTint="@color/ui_text_secondary"
                             android:ellipsize="end"
                             android:gravity="center_vertical"
                             android:paddingStart="10dp"
                             android:paddingEnd="10dp"
                             android:singleLine="true"
                             android:text="@string/settings"
-                            android:textColor="#A8B0B8"
+                            android:textColor="@color/ui_text_secondary"
                             android:textSize="13sp" />
 
                     </LinearLayout>
@@ -232,7 +232,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:minHeight="46dp"
-                    android:background="#1C1F22"
+                    android:background="@color/ui_bg_surface"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:paddingStart="12dp"
@@ -254,7 +254,7 @@
                             android:layout_width="16dp"
                             android:layout_height="16dp"
                             android:src="@drawable/ic_search"
-                            android:tint="#A8B0B8" />
+                            android:tint="@color/ui_text_secondary" />
 
                         <EditText
                             android:id="@+id/search_input"
@@ -267,8 +267,8 @@
                             android:imeOptions="actionSearch"
                             android:inputType="text"
                             android:singleLine="true"
-                            android:textColor="#F1F4F6"
-                            android:textColorHint="#8F979F"
+                            android:textColor="@color/ui_text_primary"
+                            android:textColorHint="@color/ui_text_disabled"
                             android:textSize="12sp" />
 
                         <ImageButton
@@ -279,7 +279,7 @@
                             android:contentDescription="@string/cancel"
                             android:padding="3dp"
                             android:src="@drawable/ic_close"
-                            android:tint="#A8B0B8"
+                            android:tint="@color/ui_text_secondary"
                             android:visibility="gone" />
 
                     </LinearLayout>
@@ -337,7 +337,7 @@
                             android:paddingStart="8dp"
                             android:paddingEnd="8dp"
                             android:text="@string/mod_stats_fps_placeholder"
-                            android:textColor="#8CCBFF"
+                            android:textColor="@color/ui_accent_300"
                             android:textSize="11sp" />
 
                         <TextView
@@ -351,7 +351,7 @@
                             android:paddingStart="8dp"
                             android:paddingEnd="8dp"
                             android:text="@string/mod_stats_ping_placeholder"
-                            android:textColor="#A8B0B8"
+                            android:textColor="@color/ui_text_secondary"
                             android:textSize="11sp" />
 
                         <TextView
@@ -366,7 +366,7 @@
                             android:paddingStart="8dp"
                             android:paddingEnd="8dp"
                             android:text="@string/mod_stats_battery_placeholder"
-                            android:textColor="#A8B0B8"
+                            android:textColor="@color/ui_text_secondary"
                             android:textSize="11sp" />
                     </LinearLayout>
 
@@ -376,7 +376,7 @@
                     android:id="@+id/filter_bar"
                     android:layout_width="match_parent"
                     android:layout_height="42dp"
-                    android:background="#1C1F22"
+                    android:background="@color/ui_bg_surface"
                     android:overScrollMode="never"
                     android:scrollbars="none">
 
@@ -418,7 +418,7 @@
                             android:paddingStart="14dp"
                             android:paddingEnd="14dp"
                             android:text="@string/mod_menu_favorites"
-                            android:textColor="#A8B0B8"
+                            android:textColor="@color/ui_text_secondary"
                             android:textSize="12sp" />
 
                         <TextView
@@ -434,7 +434,7 @@
                             android:paddingStart="14dp"
                             android:paddingEnd="14dp"
                             android:text="@string/mod_menu_filter_enabled"
-                            android:textColor="#A8B0B8"
+                            android:textColor="@color/ui_text_secondary"
                             android:textSize="12sp" />
 
                         <TextView
@@ -450,7 +450,7 @@
                             android:paddingStart="14dp"
                             android:paddingEnd="14dp"
                             android:text="@string/mod_menu_filter_inbuilt"
-                            android:textColor="#A8B0B8"
+                            android:textColor="@color/ui_text_secondary"
                             android:textSize="12sp" />
 
                         <TextView
@@ -466,7 +466,7 @@
                             android:paddingStart="14dp"
                             android:paddingEnd="14dp"
                             android:text="@string/mod_menu_filter_external"
-                            android:textColor="#A8B0B8"
+                            android:textColor="@color/ui_text_secondary"
                             android:textSize="12sp" />
 
                         <TextView
@@ -482,7 +482,7 @@
                             android:paddingStart="14dp"
                             android:paddingEnd="14dp"
                             android:text="@string/mod_menu_filter_pvp"
-                            android:textColor="#A8B0B8"
+                            android:textColor="@color/ui_text_secondary"
                             android:textSize="12sp" />
 
                         <TextView
@@ -491,7 +491,7 @@
                             android:layout_height="wrap_content"
                             android:minHeight="30dp"
                             android:gravity="center"
-                            android:textColor="#A8B0B8"
+                            android:textColor="@color/ui_text_secondary"
                             android:textSize="11sp" />
 
                     </LinearLayout>
@@ -502,7 +502,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:minHeight="42dp"
-                    android:background="#1C1F22"
+                    android:background="@color/ui_bg_surface"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:paddingStart="10dp"
@@ -518,7 +518,7 @@
                         android:defaultFocusHighlightEnabled="false"
                         android:drawableEnd="@drawable/ic_arrow_down"
                         android:drawablePadding="6dp"
-                        android:drawableTint="#A8B0B8"
+                        android:drawableTint="@color/ui_text_secondary"
                         android:gravity="center_vertical"
                         android:minWidth="94dp"
                         android:paddingStart="12dp"
@@ -539,7 +539,7 @@
                         android:layout_height="wrap_content"
                         android:minHeight="30dp"
                         android:gravity="center"
-                        android:textColor="#A8B0B8"
+                        android:textColor="@color/ui_text_secondary"
                         android:textSize="11sp" />
 
                 </LinearLayout>
@@ -547,7 +547,7 @@
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:background="#343A40" />
+                    android:background="@color/ui_bg_surface_hover" />
 
                 <FrameLayout
                     android:id="@+id/modules_container"
@@ -577,7 +577,7 @@
                             android:layout_width="48dp"
                             android:layout_height="48dp"
                             android:src="@drawable/ic_modules"
-                            android:tint="#333333" />
+                            android:tint="@color/ui_bg_surface_hover" />
 
                         <TextView
                             android:id="@+id/empty_state_text"
@@ -585,7 +585,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
                             android:text="@string/mod_menu_no_mods"
-                            android:textColor="#555555"
+                            android:textColor="@color/ui_text_disabled"
                             android:textSize="12sp" />
 
                     </LinearLayout>
@@ -662,7 +662,7 @@
                                 android:layout_width="24dp"
                                 android:layout_height="24dp"
                                 android:src="@drawable/ic_notifications"
-                                android:tint="#888888" />
+                                android:tint="@color/ui_text_disabled" />
 
                             <LinearLayout
                                 android:layout_width="0dp"
@@ -684,7 +684,7 @@
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="2dp"
                                     android:text="@string/mod_menu_notifications_desc"
-                                    android:textColor="#888888"
+                                    android:textColor="@color/ui_text_disabled"
                                     android:textSize="11sp" />
 
                             </LinearLayout>
@@ -712,7 +712,7 @@
                                 android:layout_width="24dp"
                                 android:layout_height="24dp"
                                 android:src="@drawable/ic_hud"
-                                android:tint="#888888" />
+                                android:tint="@color/ui_text_disabled" />
 
                             <LinearLayout
                                 android:layout_width="0dp"
@@ -734,7 +734,7 @@
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="2dp"
                                     android:text="@string/mod_menu_pause_menu_only_desc"
-                                    android:textColor="#888888"
+                                    android:textColor="@color/ui_text_disabled"
                                     android:textSize="11sp" />
 
                             </LinearLayout>
@@ -753,7 +753,7 @@
                             android:layout_height="1dp"
                             android:layout_marginTop="20dp"
                             android:layout_marginBottom="16dp"
-                            android:background="#2A2A2A" />
+                            android:background="@color/ui_bg_surface" />
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -780,7 +780,7 @@
                                 android:layout_width="24dp"
                                 android:layout_height="24dp"
                                 android:src="@drawable/ic_menu"
-                                android:tint="#888888" />
+                                android:tint="@color/ui_text_disabled" />
 
                             <LinearLayout
                                 android:layout_width="0dp"
@@ -802,7 +802,7 @@
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="2dp"
                                     android:text="@string/mod_menu_compact_desc"
-                                    android:textColor="#888888"
+                                    android:textColor="@color/ui_text_disabled"
                                     android:textSize="11sp" />
 
                             </LinearLayout>
@@ -834,7 +834,7 @@
                                     android:layout_width="24dp"
                                     android:layout_height="24dp"
                                     android:src="@drawable/ic_modules"
-                                    android:tint="#888888" />
+                                    android:tint="@color/ui_text_disabled" />
 
                                 <TextView
                                     android:layout_width="0dp"
@@ -930,7 +930,7 @@
                             android:layout_height="1dp"
                             android:layout_marginTop="20dp"
                             android:layout_marginBottom="16dp"
-                            android:background="#2A2A2A" />
+                            android:background="@color/ui_bg_surface" />
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -948,7 +948,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginBottom="12dp"
                             android:text="@string/mod_menu_keybinds_desc"
-                            android:textColor="#888888"
+                            android:textColor="@color/ui_text_disabled"
                             android:textSize="11sp" />
 
                         <LinearLayout
@@ -965,7 +965,7 @@
                                 android:layout_height="24dp"
                                 android:contentDescription="@string/mod_menu_keyboard_bind"
                                 android:src="@drawable/ic_hud"
-                                android:tint="#888888" />
+                                android:tint="@color/ui_text_disabled" />
 
                             <LinearLayout
                                 android:layout_width="0dp"
@@ -988,7 +988,7 @@
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="2dp"
                                     android:text="@string/mod_menu_bind_none"
-                                    android:textColor="#888888"
+                                    android:textColor="@color/ui_text_disabled"
                                     android:textSize="11sp" />
 
                             </LinearLayout>
@@ -1010,7 +1010,7 @@
                                 android:layout_height="24dp"
                                 android:contentDescription="@string/mod_menu_controller_bind"
                                 android:src="@drawable/ic_nav_controller"
-                                android:tint="#888888" />
+                                android:tint="@color/ui_text_disabled" />
 
                             <LinearLayout
                                 android:layout_width="0dp"
@@ -1033,7 +1033,7 @@
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="2dp"
                                     android:text="@string/mod_menu_bind_none"
-                                    android:textColor="#888888"
+                                    android:textColor="@color/ui_text_disabled"
                                     android:textSize="11sp" />
 
                             </LinearLayout>
@@ -1061,7 +1061,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginBottom="12dp"
                             android:text="@string/mod_menu_loadouts_desc"
-                            android:textColor="#888888"
+                            android:textColor="@color/ui_text_disabled"
                             android:textSize="11sp" />
 
                         <LinearLayout
@@ -1085,7 +1085,7 @@
                                 android:layout_height="24dp"
                                 android:contentDescription="@string/mod_menu_loadout_save"
                                 android:src="@drawable/ic_add_circle"
-                                android:tint="#888888" />
+                                android:tint="@color/ui_text_disabled" />
 
                             <TextView
                                 android:layout_width="0dp"
@@ -1128,7 +1128,7 @@
         android:layout_gravity="top|center_horizontal"
         android:layout_marginTop="20dp"
         android:visibility="gone"
-        app:cardBackgroundColor="#FA181A1D"
+        app:cardBackgroundColor="@color/ui_bg_window"
         app:cardCornerRadius="14dp"
         app:cardElevation="10dp">
 
@@ -1183,7 +1183,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/mod_menu_hud_editor"
-                            android:textColor="#F1F4F6"
+                            android:textColor="@color/ui_text_primary"
                             android:textSize="13sp"
                             android:textStyle="bold" />
 
@@ -1218,7 +1218,7 @@
                     android:contentDescription="@string/reset"
                     android:padding="8dp"
                     android:src="@drawable/ic_delete"
-                    android:tint="#FF6B6B" />
+                    android:tint="@color/ui_danger" />
 
                 <ImageButton
                     android:id="@+id/btn_hud_cancel"

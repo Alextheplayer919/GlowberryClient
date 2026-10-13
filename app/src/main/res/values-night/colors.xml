@@ -1,12 +1,12 @@
 <resources>
-    <color name="primary">#A88CFF</color>
-    <color name="on_primary">#1A0B40</color>
+    <color name="primary">#71ACEF</color>
+    <color name="on_primary">#10254F</color>
 
-    <color name="secondary">#E070C0</color>
-    <color name="on_secondary">#2A0A24</color>
+    <color name="secondary">#3682E2</color>
+    <color name="on_secondary">#FFFFFF</color>
 
-    <color name="primary_container">#2A1A5E</color>
-    <color name="on_primary_container">#D8CBFF</color>
+    <color name="primary_container">#10254F</color>
+    <color name="on_primary_container">#E8EAED</color>
 
     <color name="tertiary">#FFB870</color>
     <color name="on_tertiary">#2A1600</color>
@@ -28,28 +28,28 @@
     <color name="white">#FFFFFF</color>
     <color name="scrim">#99000000</color>
 
-    <color name="glow_violet">#A88CFF</color>
-    <color name="glow_magenta">#E070C0</color>
+    <color name="glow_violet">#71ACEF</color>
+    <color name="glow_magenta">#3682E2</color>
 
     <color name="abi_label_text">#FFFFFF</color>
-    <color name="accent_text">#A88CFF</color>
+    <color name="accent_text">#71ACEF</color>
 
     <color name="text_primary">#FFFFFF</color>
     <color name="text_secondary">#A79FC4</color>
     <color name="qa_icon_color">#FFFFFF</color>
 
     <!-- Gradient accent palette (dark theme: keep accents bright) -->
-    <color name="grad_hero_start">#5A2BD0</color>
-    <color name="grad_hero_end">#9E3A92</color>
-    <color name="grad_launch_start">#6D4AFF</color>
-    <color name="grad_launch_end">#A82E9E</color>
-    <color name="grad_versions_start">#339070FF</color>
-    <color name="grad_versions_end">#149070FF</color>
-    <color name="grad_mods_start">#33D070C0</color>
-    <color name="grad_mods_end">#14D070C0</color>
-    <color name="grad_content_start">#336080FF</color>
-    <color name="grad_content_end">#146080FF</color>
-    <color name="grad_pulse_glow">#44A88CFF</color>
+    <color name="grad_hero_start">#10254F</color>
+    <color name="grad_hero_end">#0F5BE4</color>
+    <color name="grad_launch_start">#0F5BE4</color>
+    <color name="grad_launch_end">#3682E2</color>
+    <color name="grad_versions_start">#330F5BE4</color>
+    <color name="grad_versions_end">#140F5BE4</color>
+    <color name="grad_mods_start">#333682E2</color>
+    <color name="grad_mods_end">#143682E2</color>
+    <color name="grad_content_start">#3371ACEF</color>
+    <color name="grad_content_end">#1471ACEF</color>
+    <color name="grad_pulse_glow">#440F5BE4</color>
 
     <!-- Glass surfaces: light-mode white translucency reads as fog on a black backdrop, so
          dark mode uses a subtler lift with a brighter hairline border. -->

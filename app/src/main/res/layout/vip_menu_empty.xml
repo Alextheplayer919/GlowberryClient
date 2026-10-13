@@ -34,7 +34,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="18dp"
         android:text="@string/vip_empty_title"
-        android:textColor="#F4F1FF"
+        android:textColor="@color/ui_text_primary"
         android:textSize="16sp"
         android:textStyle="bold" />
 
@@ -46,6 +46,6 @@
         android:gravity="center"
         android:maxWidth="280dp"
         android:text="@string/vip_empty_no_mods"
-        android:textColor="#8B85A3"
+        android:textColor="@color/ui_text_secondary"
         android:textSize="12sp" />
 </LinearLayout>

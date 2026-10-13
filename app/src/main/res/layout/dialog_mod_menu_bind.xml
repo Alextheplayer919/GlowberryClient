@@ -21,7 +21,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
         android:text="@string/mod_menu_bind_press_button"
-        android:textColor="#B8B8B8"
+        android:textColor="@color/ui_text_secondary"
         android:textSize="12sp" />
 
     <org.chimeramc.client.launcher.ui.views.Controller3DView
@@ -55,7 +55,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/mod_menu_bind_clear"
-            android:textColor="#B8B8B8" />
+            android:textColor="@color/ui_text_secondary" />
 
     </LinearLayout>
 </LinearLayout>

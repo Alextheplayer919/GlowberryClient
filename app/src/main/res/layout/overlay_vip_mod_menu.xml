@@ -15,7 +15,7 @@
     android:id="@+id/vip_overlay_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#A6000008"
+    android:background="@color/ui_bg_window"
     android:clickable="true"
     android:defaultFocusHighlightEnabled="false"
     android:focusable="false">
@@ -77,7 +77,7 @@
                         android:layout_height="wrap_content"
                         android:letterSpacing="0.02"
                         android:text="@string/vip_menu_title"
-                        android:textColor="#F4F1FF"
+                        android:textColor="@color/ui_text_primary"
                         android:textSize="15sp"
                         android:textStyle="bold" />
 
@@ -86,7 +86,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/vip_menu_subtitle"
-                        android:textColor="#8B85A3"
+                        android:textColor="@color/ui_text_secondary"
                         android:textSize="10sp"
                         android:letterSpacing="0.06" />
                 </LinearLayout>
@@ -103,14 +103,14 @@
                     android:background="@drawable/bg_vip_status_off"
                     android:drawableStart="@drawable/ic_controller"
                     android:drawablePadding="6dp"
-                    android:drawableTint="#7C5CFF"
+                    android:drawableTint="@color/ui_accent_500"
                     android:gravity="center_vertical"
                     android:paddingStart="12dp"
                     android:paddingTop="6dp"
                     android:paddingEnd="12dp"
                     android:paddingBottom="6dp"
                     android:text="@string/vip_mode_keyboard"
-                    android:textColor="#B6B0CC"
+                    android:textColor="@color/ui_text_secondary"
                     android:textSize="10sp"
                     android:textStyle="bold" />
 
@@ -123,7 +123,7 @@
                     android:contentDescription="@string/vip_close"
                     android:padding="9dp"
                     android:src="@drawable/ic_close"
-                    android:tint="#E6E1F5" />
+                    android:tint="@color/ui_text_primary" />
             </LinearLayout>
 
             <!-- Tab row with a sliding selection indicator -->
@@ -131,7 +131,7 @@
                 android:id="@+id/vip_tab_host"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:background="#140F24">
+                android:background="@color/ui_bg_surface">
 
                 <LinearLayout
                     android:id="@+id/vip_tab_bar"
@@ -150,13 +150,13 @@
                         android:defaultFocusHighlightEnabled="false"
                         android:drawableStart="@drawable/ic_modules"
                         android:drawablePadding="8dp"
-                        android:drawableTint="#B6B0CC"
+                        android:drawableTint="@color/ui_text_secondary"
                         android:gravity="center_vertical"
                         android:minHeight="34dp"
                         android:paddingStart="14dp"
                         android:paddingEnd="16dp"
                         android:text="@string/vip_tab_general"
-                        android:textColor="#B6B0CC"
+                        android:textColor="@color/ui_text_secondary"
                         android:textSize="13sp"
                         android:textStyle="bold" />
 
@@ -168,13 +168,13 @@
                         android:defaultFocusHighlightEnabled="false"
                         android:drawableStart="@drawable/ic_replay"
                         android:drawablePadding="8dp"
-                        android:drawableTint="#B6B0CC"
+                        android:drawableTint="@color/ui_text_secondary"
                         android:gravity="center_vertical"
                         android:minHeight="34dp"
                         android:paddingStart="14dp"
                         android:paddingEnd="16dp"
                         android:text="@string/vip_tab_replay"
-                        android:textColor="#B6B0CC"
+                        android:textColor="@color/ui_text_secondary"
                         android:textSize="13sp"
                         android:textStyle="bold" />
 
@@ -186,13 +186,13 @@
                         android:defaultFocusHighlightEnabled="false"
                         android:drawableStart="@drawable/ic_controller"
                         android:drawablePadding="8dp"
-                        android:drawableTint="#B6B0CC"
+                        android:drawableTint="@color/ui_text_secondary"
                         android:gravity="center_vertical"
                         android:minHeight="34dp"
                         android:paddingStart="14dp"
                         android:paddingEnd="16dp"
                         android:text="@string/vip_tab_controller"
-                        android:textColor="#B6B0CC"
+                        android:textColor="@color/ui_text_secondary"
                         android:textSize="13sp"
                         android:textStyle="bold" />
 
@@ -203,13 +203,13 @@
                         android:defaultFocusHighlightEnabled="false"
                         android:drawableStart="@drawable/ic_keyboard"
                         android:drawablePadding="8dp"
-                        android:drawableTint="#B6B0CC"
+                        android:drawableTint="@color/ui_text_secondary"
                         android:gravity="center_vertical"
                         android:minHeight="34dp"
                         android:paddingStart="14dp"
                         android:paddingEnd="16dp"
                         android:text="@string/vip_tab_keyboard"
-                        android:textColor="#B6B0CC"
+                        android:textColor="@color/ui_text_secondary"
                         android:textSize="13sp"
                         android:textStyle="bold" />
                 </LinearLayout>
@@ -226,7 +226,7 @@
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:background="#2E2A44" />
+                android:background="@color/ui_stroke_hairline" />
 
             <!-- Section hosts -->
             <FrameLayout
@@ -266,7 +266,7 @@
                                 android:layout_height="16dp"
                                 android:contentDescription="@null"
                                 android:src="@drawable/ic_search"
-                                android:tint="#8B85A3" />
+                                android:tint="@color/ui_text_secondary" />
 
                             <EditText
                                 android:id="@+id/vip_search_input"
@@ -279,8 +279,8 @@
                                 android:imeOptions="actionSearch"
                                 android:inputType="text"
                                 android:singleLine="true"
-                                android:textColor="#F4F1FF"
-                                android:textColorHint="#7B7591"
+                                android:textColor="@color/ui_text_primary"
+                                android:textColorHint="@color/ui_text_disabled"
                                 android:textSize="12sp" />
 
                             <ImageButton
@@ -291,7 +291,7 @@
                                 android:contentDescription="@string/cancel"
                                 android:padding="3dp"
                                 android:src="@drawable/ic_close"
-                                android:tint="#8B85A3"
+                                android:tint="@color/ui_text_secondary"
                                 android:visibility="gone" />
                         </LinearLayout>
 
@@ -300,7 +300,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="12dp"
-                            android:textColor="#8B85A3"
+                            android:textColor="@color/ui_text_secondary"
                             android:textSize="11sp"
                             android:textStyle="bold"
                             android:letterSpacing="0.06" />
@@ -315,7 +315,7 @@
                             android:paddingTop="4dp"
                             android:paddingEnd="10dp"
                             android:paddingBottom="4dp"
-                            android:textColor="#3DDC97"
+                            android:textColor="@color/ui_success"
                             android:textSize="10sp"
                             android:textStyle="bold" />
                     </LinearLayout>
@@ -392,7 +392,7 @@
                     android:id="@+id/vip_config_view"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:background="#0E0C1C"
+                    android:background="@color/ui_bg_window"
                     android:visibility="gone">
 
                     <LinearLayout
@@ -418,14 +418,14 @@
                                 android:contentDescription="@string/cancel"
                                 android:padding="8dp"
                                 android:src="@drawable/ic_arrow_back"
-                                android:tint="#E6E1F5" />
+                                android:tint="@color/ui_text_primary" />
 
                             <TextView
                                 android:id="@+id/vip_config_title"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginStart="12dp"
-                                android:textColor="#F4F1FF"
+                                android:textColor="@color/ui_text_primary"
                                 android:textSize="15sp"
                                 android:textStyle="bold" />
                         </LinearLayout>
