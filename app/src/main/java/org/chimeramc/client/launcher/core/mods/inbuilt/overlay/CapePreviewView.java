@@ -23,6 +23,7 @@ import org.chimeramc.client.core.cosmetics.AuthoredPetModels;
 import org.chimeramc.client.core.cosmetics.PetModel;
 import org.chimeramc.client.core.cosmetics.PetPose;
 import org.chimeramc.client.core.cosmetics.PlayerSkinProvider;
+import org.chimeramc.client.core.cosmetics.PreviewCapeScene;
 import org.chimeramc.client.core.cosmetics.PreviewCharacterScene;
 import org.chimeramc.client.core.cosmetics.PreviewDepthBuffer;
 import org.chimeramc.client.core.cosmetics.PreviewLighting;
@@ -135,6 +136,8 @@ public class CapePreviewView extends View {
     private PreviewScene scene;
     /** The pet scene, rebuilt when the pose advances; rendered into the same buffer as the body. */
     private PreviewScene petScene;
+    /** The cape cloth scene, rebuilt when the cloth steps; rendered into the same buffer. */
+    private PreviewScene capeScene;
     private int[] skinAtlasPixels;
     /** The rasteriser's ARGB buffer copied into a Bitmap the Canvas can blit. */
     private Bitmap rasterBitmap;
@@ -284,6 +287,7 @@ public class CapePreviewView extends View {
     public void setCape(CosmeticCatalog.Cape cape) {
         this.cape = cape;
         if (cape != null) capeSim.reset(0f, 0f, 0f);
+        rebuildCapeScene();
         syncAnimation();
         invalidate();
     }
@@ -528,6 +532,8 @@ public class CapePreviewView extends View {
             float fx = (float) Math.sin(Math.toRadians(yawDeg));
             float fz = (float) Math.cos(Math.toRadians(yawDeg));
             capeSim.step(dt, 0f, 0f, -0.02f, fx, fz, speed);
+            // The cape is part of the software scene now, so its cloth is rebuilt for the new state.
+            rebuildCapeScene();
         }
         if (pet != null) {
             petPhase += PetPose.cyclesPerSecond(petLocomotion) * dt;
@@ -663,6 +669,7 @@ public class CapePreviewView extends View {
         fit.originY = originY;
         scene.render(raster, cam, fit);
         if (petScene != null) petScene.render(raster, cam, fit);
+        if (capeScene != null) capeScene.render(raster, cam, fit);
     }
 
     /** Builds the character scene from the current skin, once per skin. */
@@ -700,13 +707,23 @@ public class CapePreviewView extends View {
     }
 
     /**
-     * Draws the Canvas layers that the software rasteriser does not own yet (cape, accessories)
+     * Rebuilds the cape cloth scene from the current simulator state. Called when the cloth steps.
+     */
+    private void rebuildCapeScene() {
+        if (cape == null) {
+            capeScene = null;
+            return;
+        }
+        capeScene = new PreviewScene();
+        PreviewCapeScene.addCape(capeScene, cape, capeSim);
+    }
+
+    /**
+     * Draws the Canvas layers that the software rasteriser does not own yet (accessories)
      * over the rasterised scene. Called with the canvas scaled to the rasteriser's internal size,
      * and with the same camera/scale/origin the raster pass used, so the layers line up.
      */
     private void drawCanvasOverlays(Canvas canvas, float scale, float originX, float originY) {
-        if (cape != null) projectCape(originX, originY, scale);
-        if (cape != null) paintCape(canvas);
         if (accessory != null) drawAccessoryFront(canvas, originX, originY, scale);
         // A procedural pet is part of the rasterised scene; an authored pet is still a Canvas layer
         // until its own stage lands.

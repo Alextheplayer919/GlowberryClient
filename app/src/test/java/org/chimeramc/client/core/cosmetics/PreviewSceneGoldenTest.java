@@ -114,12 +114,12 @@ public class PreviewSceneGoldenTest {
         }
     }
 
-    /** A cape: a plane hanging behind the shoulders, double-sided. */
+    /** A cape: the real cloth builder, so the golden pins what the view rasterises. */
     private static void addCape(PreviewScene scene, int[] atlas) {
-        float[][] c = {{-5, 24, -3}, {5, 24, -3}, {-4, 6, -4}, {4, 6, -4}};
-        float[] uv = {0, 0, 1, 0, 0, 1, 1, 1};
-        PreviewScene.Face f = scene.addQuad(c, uv, atlas, 32, 32);
-        if (f != null) { f.doubleSided = true; f.alphaTest = false; }
+        CapeSimulator cloth = new CapeSimulator();
+        cloth.reset(0f, 0f, 0f);
+        for (int i = 0; i < 30; i++) cloth.step(CapeSimulator.FIXED_DT, 0f, 0f, 0f, 0f, 0f, 0f);
+        PreviewCapeScene.addCape(scene, CosmeticCatalog.capes().get(0), cloth);
     }
 
     // --- Golden rendering ----------------------------------------------------------------------
