@@ -56,7 +56,7 @@ public class Controller3DView extends View {
     private final RectF scratch = new RectF();
     private final Path bodyPath = new Path();
 
-    private int accent = 0xFF6236E8;
+    private int accent = 0xFF0F5BE4;
     private int confirmedColor = 0xFF2FBF71;
     private float density = 1f;
     private boolean bodyDirty = true;

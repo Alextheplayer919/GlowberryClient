@@ -22,7 +22,7 @@ public class ExternalButtonOverlay extends BaseOverlayButton {
     private static final int KEYCAP_TEXT = 0xFF373737;
     private static final int KEYCAP_ACTIVE_TEXT = 0xFF1F1F1F;
     private static final int ACCENT_NORMAL_BG = 0xCC24282C;
-    private static final int ACCENT_ACTIVE_BG = 0xFF6236E8;
+    private static final int ACCENT_ACTIVE_BG = 0xFF0F5BE4;
     private static final int ACCENT_BORDER = 0x996236E8;
     private static final int ACCENT_TEXT = Color.WHITE;
     private static final int ACCENT_ACTIVE_TEXT = Color.BLACK;

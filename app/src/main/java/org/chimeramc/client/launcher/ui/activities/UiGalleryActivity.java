@@ -1,0 +1,185 @@
+package org.chimeramc.client.launcher.ui.activities;
+
+import android.app.Activity;
+import android.os.Bundle;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.TextView;
+
+import org.chimeramc.client.ui.components.UiTokens;
+
+/**
+ * The hidden UI gallery: every shared component in every state, so a reviewer can compare the app
+ * against the reference on a real phone. Reached from Settings &gt; Updates by tapping the version
+ * seven times. It is a debug surface — nothing here is product UI — so it draws plainly with the
+ * same tokens the product screens use.
+ */
+public class UiGalleryActivity extends Activity {
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        float density = getResources().getDisplayMetrics().density;
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.setBackgroundColor(UiTokens.BG_WINDOW);
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        int pad = (int) (UiTokens.SPACE_4 * density);
+        root.setPadding(pad, pad, pad, pad);
+        scroll.addView(root);
+
+        int accent = UiTokens.resolveAccent(this);
+        addTitle(root, density, "GlowberryClient — UI gallery");
+        addTitle(root, density, "Accent: #" + Integer.toHexString(accent).toUpperCase());
+
+        addSection(root, density, "Colours");
+        addSwatch(root, density, "bg.window", UiTokens.BG_WINDOW);
+        addSwatch(root, density, "bg.surface", UiTokens.BG_SURFACE);
+        addSwatch(root, density, "bg.surface.hover", UiTokens.BG_SURFACE_HOVER);
+        addSwatch(root, density, "accent.500", UiTokens.ACCENT_500);
+        addSwatch(root, density, "accent.400", UiTokens.ACCENT_400);
+        addSwatch(root, density, "accent.300", UiTokens.ACCENT_300);
+        addSwatch(root, density, "accent.900", UiTokens.ACCENT_900);
+        addSwatch(root, density, "success", UiTokens.SUCCESS);
+        addSwatch(root, density, "warning", UiTokens.WARNING);
+        addSwatch(root, density, "danger", UiTokens.DANGER);
+
+        addSection(root, density, "Type");
+        addLabel(root, density, "Title 16sp/600", UiTokens.TEXT_TITLE, UiTokens.TEXT_PRIMARY);
+        addLabel(root, density, "Row title 13sp/500", UiTokens.TEXT_ROW_TITLE,
+                UiTokens.TEXT_PRIMARY);
+        addLabel(root, density, "Caption 11sp/400", UiTokens.TEXT_CAPTION,
+                UiTokens.TEXT_SECONDARY);
+        addLabel(root, density, "Section 10sp/600 caps", UiTokens.TEXT_SECTION,
+                UiTokens.TEXT_SECONDARY);
+
+        addSection(root, density, "Toggle (off / on / disabled)");
+        root.addView(new UiToggleView(this, accent, false, false));
+        root.addView(new UiToggleView(this, accent, true, false));
+        root.addView(new UiToggleView(this, accent, false, true));
+
+        addSection(root, density, "Row (off / on)");
+        root.addView(new UiRowView(this, accent, false, false));
+        root.addView(new UiRowView(this, accent, true, false));
+
+        setContentView(scroll);
+    }
+
+    private void addTitle(LinearLayout root, float density, String text) {
+        TextView tv = new TextView(this);
+        tv.setText(text);
+        tv.setTextColor(UiTokens.TEXT_PRIMARY);
+        tv.setTextSize(UiTokens.TEXT_TITLE);
+        tv.setPadding(0, (int) (UiTokens.SPACE_2 * density), 0, (int) (UiTokens.SPACE_2 * density));
+        root.addView(tv);
+    }
+
+    private void addSection(LinearLayout root, float density, String text) {
+        TextView tv = new TextView(this);
+        tv.setText(text.toUpperCase());
+        tv.setTextColor(UiTokens.TEXT_SECONDARY);
+        tv.setTextSize(UiTokens.TEXT_SECTION);
+        tv.setLetterSpacing(UiTokens.SECTION_LETTER_SPACING);
+        tv.setPadding(0, (int) (UiTokens.SPACE_4 * density), 0, (int) (UiTokens.SPACE_2 * density));
+        root.addView(tv);
+    }
+
+    private void addLabel(LinearLayout root, float density, String text, float size, int color) {
+        TextView tv = new TextView(this);
+        tv.setText(text);
+        tv.setTextColor(color);
+        tv.setTextSize(size);
+        root.addView(tv);
+    }
+
+    private void addSwatch(LinearLayout root, float density, String name, int color) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        View box = new View(this);
+        int size = (int) (28 * density);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(size, size);
+        lp.rightMargin = (int) (UiTokens.SPACE_3 * density);
+        box.setLayoutParams(lp);
+        box.setBackgroundColor(color);
+        row.addView(box);
+        TextView label = new TextView(this);
+        label.setText(name);
+        label.setTextColor(UiTokens.TEXT_SECONDARY);
+        label.setTextSize(UiTokens.TEXT_CAPTION);
+        row.addView(label);
+        row.setPadding(0, (int) (UiTokens.SPACE_1 * density), 0, (int) (UiTokens.SPACE_1 * density));
+        root.addView(row);
+    }
+
+    /** A live toggle rendered by {@code UiToggle}, at a fixed 36x20dp. */
+    private static final class UiToggleView extends View {
+        private final int accent;
+        private final boolean on;
+        private final boolean disabled;
+        private final android.graphics.Paint paint = new android.graphics.Paint(
+                android.graphics.Paint.ANTI_ALIAS_FLAG);
+
+        UiToggleView(Activity a, int accent, boolean on, boolean disabled) {
+            super(a);
+            this.accent = accent;
+            this.on = on;
+            this.disabled = disabled;
+            setLayoutParams(new ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, (int) (40 * a.getResources()
+                    .getDisplayMetrics().density)));
+        }
+
+        @Override
+        protected void onDraw(android.graphics.Canvas canvas) {
+            float density = getResources().getDisplayMetrics().density;
+            float w = UiTokens.TOGGLE_WIDTH * density;
+            float h = UiTokens.TOGGLE_HEIGHT * density;
+            float top = (getHeight() - h) / 2f;
+            int c = disabled ? UiTokens.TEXT_DISABLED : accent;
+            org.chimeramc.client.ui.components.UiToggle.draw(canvas, paint, 0f, top, w, h,
+                    c, on, on ? 1f : 0f, density);
+        }
+    }
+
+    /** A live module row rendered by {@code UiRow}. */
+    private static final class UiRowView extends View {
+        private final int accent;
+        private final boolean on;
+        private final boolean pressed;
+        private final android.graphics.Paint paint = new android.graphics.Paint(
+                android.graphics.Paint.ANTI_ALIAS_FLAG);
+        private final android.graphics.Paint text = new android.graphics.Paint(
+                android.graphics.Paint.ANTI_ALIAS_FLAG);
+
+        UiRowView(Activity a, int accent, boolean on, boolean pressed) {
+            super(a);
+            this.accent = accent;
+            this.on = on;
+            this.pressed = pressed;
+            setLayoutParams(new ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, (int) (52 * a.getResources()
+                    .getDisplayMetrics().density)));
+        }
+
+        @Override
+        protected void onDraw(android.graphics.Canvas canvas) {
+            float density = getResources().getDisplayMetrics().density;
+            android.graphics.RectF row = new android.graphics.RectF(
+                    0, 4 * density, getWidth(), getHeight() - 4 * density);
+            org.chimeramc.client.ui.components.UiRow.drawBackground(canvas, paint, row,
+                    UiTokens.RADIUS_CARD * density, accent, on, pressed);
+            text.setColor(UiTokens.TEXT_PRIMARY);
+            text.setTextSize(UiTokens.TEXT_ROW_TITLE * density);
+            android.graphics.Paint.FontMetrics fm = text.getFontMetrics();
+            float ty = row.centerY() - (fm.ascent + fm.descent) / 2f;
+            canvas.drawText("Example module", row.left + 44 * density, ty, text);
+            android.graphics.RectF t = org.chimeramc.client.ui.components.UiRow
+                    .toggleBounds(row, density);
+            org.chimeramc.client.ui.components.UiToggle.draw(canvas, paint, t.left, t.top,
+                    t.width(), t.height(), accent, on, on ? 1f : 0f, density);
+        }
+    }
+}

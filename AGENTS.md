@@ -2056,3 +2056,78 @@ has a specific invariant.
 - **The geometry-blob guard is `flags & 0xF`.** Bit 3 is the VFX flag, so a VFX-only frame must not be
   rejected by the old `flags & 0x7` check (renderer and `NativeRenderHook`).
 
+
+## Preview rasteriser: triangle split, float depth, atlas sizes (do not regress)
+
+Three defects were fixed together; each has an invariant.
+
+- **The 4-corner face split is `(0,1,3)+(0,3,2)`, not `(0,1,2)+(0,2,3)`.** `SkinModel.Box.faceCorners`
+  and every other face builder return row-major `[TL,TR,BL,BR]`. Splitting on the TL-BR diagonal is
+  therefore `(TL,TR,BR)` and `(TL,BR,BL)`. The shipped split used the two *left* triangles, so the
+  right-hand triangle was never painted and every face lost a ~22-25% notch. The comment always said
+  the right split; the indices now match it. `PreviewSceneCoverageTest` (solid-quad full coverage,
+  shared-diagonal gap, no see-through pixel inside every shipped hat/pet face at 8 yaws) is the gate.
+  The golden PNGs were regenerated because the old ones were produced by the buggy renderer.
+- **The depth buffer is `float[]`, empty = `+Infinity`, test `z < stored - 1e-4`.** It was `int[]`
+  holding `floor(z)` in model pixels (~46±18), so the overlay (jacket/hat) layer biased by 0.5 landed
+  in the same integer bucket as its base face about half the time and showed in stripes. Any two
+  surfaces closer than one model pixel (hat band vs head) had the same problem.
+- **Sample with the decoded bitmap's real size; normalise UVs against the geometry's declared
+  `texture_width/height`.** `CapePreviewView` used to build the authored scene with the constants
+  `AccessoryGeometry`/`PetGeometry.TEXTURE_WIDTH/HEIGHT` (64x64) while the shipped PNGs are 32x32,
+  64x32, 64x48, 128x128, 512x256, ... — a 32x32 hat indexed `31*64+0 = 1984` into a 1024-int array
+  and crashed the app. `PreviewAuthoredScene.addAccessory/addPet` now take both sizes; `faceUv`
+  clamps against the geometry size. Defence in depth: `PreviewScene.addQuad/addBoxFace` skip (and
+  record via `PreviewSceneDiagnostics`) a face whose atlas is smaller than its declared size,
+  `PreviewRaster.triangle` returns early on an undersized atlas, and `CapePreviewView.onDraw` wraps
+  the render in `try/catch` and paints a "preview error" notice. The diagnostics report lists per
+  cosmetic id the PNG size, geometry size and cube count (`CosmeticAssetAudit`).
+
+## Blueberry UI (UiTokens + shared components)
+
+- **One token file: `ui/components/UiTokens`.** It replaces the retired violet/magenta palette and
+  the two separate mod-menu themes; `ModMenuTheme` and `VipTheme` are now thin adapters over it. Blue
+  is the default accent (`resolveAccent` falls back to `ACCENT_500`); `PersonalizationManager`'s
+  first preset is blue. `colors.xml` mirrors the tokens as `ui_*` for the XML layouts; the mod-menu
+  layouts must not carry inline hex.
+- **Components are pure where it matters.** `UiToggle`, `UiRow`, `UiChip`, `UiRailButton`, `UiButton`,
+  `UiCard`, `UiSegmented`, `UiSlider`, `UiSearchField`, `UiWindow` keep their geometry/state machine
+  pure and are covered by `UiTokensTest` (palette, WCAG contrast, toggle state machine, segmented
+  hit-testing, window bounds). `UiIcons` is the outline icon set (24dp grid, 2dp stroke, round caps).
+- **The radial wheel is rounded annular sectors, not stroked arcs.** `RadialMenuView` builds each
+  sector as one `Path` (outer arc, quadratic corner fillet, inner arc, fillet) with a **parallel-sided
+  linear gap** (`RadialWheelLayout.angularHalfGapDegrees`, constant 6dp) rather than a fixed angular
+  gap that widens with radius. Geometry is pure: `RadialWheelLayout` gains the fractions,
+  `sectorAtLinear`, `chipCenters`; `RadialWheelLayoutTest` pins them (5-degree sweep, dead zone, chip
+  clusters never overlapping the ring or each other at three screen sizes).
+- **The Mod Menu keeps its top navigation bar, not a left rail.** This is the same constraint the
+  earlier "side rail was reverted" note records: the app is landscape-only, so a rail only gets the
+  short edge. Restyling must not convert it. The module grid is two columns wide / one compact.
+- **The Closet's Hats/Back split is `ClosetCategory` (pure).** An accessory is exactly one of the two
+  (`followsHead()` decides), pinned by `ClosetCategoryTest` so the screen cannot silently drop one.
+- **Hidden UI gallery:** Settings > Updates, tap the version text 7 times
+  (`UiGalleryActivity`, unexported). `docs/UI_CHECKLIST.md` is the device pass.
+
+## Real Minecraft skin (engine-hook seam, wired)
+
+- **`GameSkinSource` is the fail-closed seam; `GameSkinFeed` is the live provider.** `GameSkinFeed`
+  reads `PreloaderInput.nativeReadCapturedSkin()` (a 16-byte LE header `width,height,format,stampMs`
+  + payload), decodes a PNG or raw RGBA8, normalises to the 64x64 atlas, and is installed in
+  `NativeCosmeticsRuntime.init`. With no provider (or no capture, a bad header, a decode failure, or
+  a throwing provider) it returns null and `PlayerSkinProvider.resolve` falls through (imported →
+  applied pack → Steve → placeholder). `SkinResolution` is the pure order, pinned by
+  `GameSkinSourceTest`; the header parse is pinned by `GameSkinFeedTest`.
+- **The native capture is at the engine image-loader seam** (`preloader`, `mce_image_hook.cpp`): the
+  loader detour sees the source bytes of every image the engine builds, recognises a base-skin-shaped
+  payload (a square PNG whose IHDR edge is 64/128/256/512, or a square RGBA8 buffer of one of those
+  sizes), and copies it into a bounded single slot. JNI: `nativeReadCapturedSkin` /
+  `nativeHasCapturedSkin` / `nativeClearCapturedSkin`. It is bounded (one memcpy under a short mutex
+  on the loader thread, one exact-size allocation on the read), so no per-frame cost.
+- **`refreshSkin()`** on `CapePreviewView` and `RadialMenuView` re-resolves the skin and rebuilds the
+  character/head without recreating the view; called when the Launch hero binds, when the Closet is
+  shown (`CosmeticsPanel.onShown`) and when the wheel attaches.
+- **Honest boundary:** the loader seam carries no player id, so the capture is *content*, not
+  attribution — the most recent base-skin-shaped upload, which in practice is the local player's
+  skin. Whether the game routes the player's skin through this seam is **unverified (needs device)**.
+  The `SerializedSkinRef` base-skin `mce::Image` at `+0x78` would give attribution but its internal
+  pixel pointer is not recoverable from the stripped binary, so that route stays documented-only.

@@ -42,7 +42,7 @@ public class PreviewAuthoredSceneTest {
     @Test
     public void anAuthoredMeshBecomesTexturedFaces() {
         PreviewScene scene = new PreviewScene();
-        PreviewAuthoredScene.addAccessory(scene, mesh(), atlas(), 64, 64, 0f, 0f, false);
+        PreviewAuthoredScene.addAccessory(scene, mesh(), atlas(), 64, 64, 64, 64, 0f, 0f, false);
         assertFalse("the authored mesh produced no faces", scene.faces().isEmpty());
         for (PreviewScene.Face f : scene.faces()) {
             assertTrue("an authored face is not textured", f.atlas != null);
@@ -53,7 +53,7 @@ public class PreviewAuthoredSceneTest {
     @Test
     public void anAuthoredMeshRendersPixels() {
         PreviewScene scene = new PreviewScene();
-        PreviewAuthoredScene.addAccessory(scene, mesh(), atlas(), 64, 64, 0f, 0f, false);
+        PreviewAuthoredScene.addAccessory(scene, mesh(), atlas(), 64, 64, 64, 64, 0f, 0f, false);
         PreviewRaster raster = new PreviewRaster();
         raster.prepare(120, 120, 0x00000000);
         SkinModel.Camera camera = PreviewScene.cameraFor(30f);
@@ -72,9 +72,9 @@ public class PreviewAuthoredSceneTest {
         moved.compute(CosmeticCatalog.PetSpecies.CAT, CosmeticCatalog.PetLocomotion.WALK, 0.25f);
 
         PreviewScene a = new PreviewScene();
-        PreviewAuthoredScene.addPet(a, mesh(), atlas(), 64, 64, 20f, 0f, 0f, rest);
+        PreviewAuthoredScene.addPet(a, mesh(), atlas(), 64, 64, 64, 64, 20f, 0f, 0f, rest);
         PreviewScene b = new PreviewScene();
-        PreviewAuthoredScene.addPet(b, mesh(), atlas(), 64, 64, 20f, 0f, 0f, moved);
+        PreviewAuthoredScene.addPet(b, mesh(), atlas(), 64, 64, 64, 64, 20f, 0f, 0f, moved);
         boolean differs = false;
         int n = Math.min(a.faces().size(), b.faces().size());
         for (int i = 0; i < n && !differs; i++) {
@@ -91,9 +91,9 @@ public class PreviewAuthoredSceneTest {
     @Test
     public void aHeadWornAuthoredMeshFollowsTheHeadLook() {
         PreviewScene rest = new PreviewScene();
-        PreviewAuthoredScene.addAccessory(rest, mesh(), atlas(), 64, 64, 0f, 0f, true);
+        PreviewAuthoredScene.addAccessory(rest, mesh(), atlas(), 64, 64, 64, 64, 0f, 0f, true);
         PreviewScene turned = new PreviewScene();
-        PreviewAuthoredScene.addAccessory(turned, mesh(), atlas(), 64, 64, 0f, 45f, true);
+        PreviewAuthoredScene.addAccessory(turned, mesh(), atlas(), 64, 64, 64, 64, 0f, 45f, true);
         boolean moved = false;
         for (int i = 0; i < rest.faces().size() && !moved; i++) {
             for (int c = 0; c < 4; c++) {
@@ -109,8 +109,8 @@ public class PreviewAuthoredSceneTest {
     @Test
     public void aNullMeshOrAtlasAddsNothing() {
         PreviewScene scene = new PreviewScene();
-        PreviewAuthoredScene.addAccessory(scene, null, atlas(), 64, 64, 0f, 0f, false);
-        PreviewAuthoredScene.addAccessory(scene, mesh(), null, 64, 64, 0f, 0f, false);
+        PreviewAuthoredScene.addAccessory(scene, null, atlas(), 64, 64, 64, 64, 0f, 0f, false);
+        PreviewAuthoredScene.addAccessory(scene, mesh(), null, 64, 64, 64, 64, 0f, 0f, false);
         assertTrue(scene.faces().isEmpty());
     }
 }

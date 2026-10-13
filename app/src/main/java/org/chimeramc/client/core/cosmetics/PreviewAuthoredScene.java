@@ -22,24 +22,33 @@ public final class PreviewAuthoredScene {
     /** Adds an authored accessory mesh (offset zero), tracking the head when {@code headLooked}. */
     public static void addAccessory(PreviewScene scene, List<PreviewMeshModel.Box> mesh,
                                     int[] atlas, int atlasW, int atlasH,
+                                    int geoTexW, int geoTexH,
                                     float headPitch, float headYaw, boolean headLooked) {
-        addMesh(scene, mesh, atlas, atlasW, atlasH, 0f, 0f, 0f,
+        addMesh(scene, mesh, atlas, atlasW, atlasH, geoTexW, geoTexH, 0f, 0f, 0f,
                 headPitch, headYaw, headLooked, null);
     }
 
     /** Adds an authored pet mesh at a model-space offset, animated by {@code pose}. */
     public static void addPet(PreviewScene scene, List<PreviewMeshModel.Box> mesh,
                               int[] atlas, int atlasW, int atlasH,
+                              int geoTexW, int geoTexH,
                               float offsetX, float offsetY, float offsetZ, PetPose pose) {
-        addMesh(scene, mesh, atlas, atlasW, atlasH, offsetX, offsetY, offsetZ,
+        addMesh(scene, mesh, atlas, atlasW, atlasH, geoTexW, geoTexH, offsetX, offsetY, offsetZ,
                 0f, 0f, false, pose);
     }
 
     private static void addMesh(PreviewScene scene, List<PreviewMeshModel.Box> mesh,
                                 int[] atlas, int atlasW, int atlasH,
+                                int geoTexW, int geoTexH,
                                 float offsetX, float offsetY, float offsetZ,
                                 float headPitch, float headYaw, boolean headLooked, PetPose pose) {
         if (scene == null || mesh == null || mesh.isEmpty() || atlas == null) return;
+        // The geometry declares the atlas its UVs are written against; the decoded bitmap can be a
+        // different size (many shipped PNGs are not 64x64). UV normalisation must use the geometry's
+        // declared size, while the rasteriser samples the real bitmap size. Falling back to the real
+        // size when the geometry declares nothing keeps a malformed file working.
+        if (geoTexW <= 0) geoTexW = atlasW;
+        if (geoTexH <= 0) geoTexH = atlasH;
         float[] p = new float[3];
         float[] n = new float[3];
         for (PreviewMeshModel.Box box : mesh) {
@@ -73,7 +82,7 @@ public final class PreviewAuthoredScene {
                 PreviewMeshModel.FaceUv uv = box.faceUv[face];
                 float[] uvArr = {0f, 0f, 1f, 0f, 0f, 1f, 1f, 1f};
                 if (uv != null) {
-                    uvArr = faceUv(uv, atlasW, atlasH);
+                    uvArr = faceUv(uv, geoTexW, geoTexH);
                 }
                 PreviewScene.Face f = scene.addQuad(corners, uvArr, atlas, atlasW, atlasH);
                 if (f == null) continue;
@@ -88,26 +97,31 @@ public final class PreviewAuthoredScene {
         }
     }
 
-    /** The four corner UVs for a face, applying the negative-uv_size mirror. */
-    private static float[] faceUv(PreviewMeshModel.FaceUv uv, int atlasW, int atlasH) {
+    /**
+     * The four corner UVs for a face, applying the negative-uv_size mirror, normalised against the
+     * size the <b>geometry</b> declares (not the decoded bitmap size). Clamping uses the same size,
+     * so a face whose rectangle runs past the declared atlas edge is trimmed instead of silently
+     * shrinking against a wrong bound.
+     */
+    private static float[] faceUv(PreviewMeshModel.FaceUv uv, int geoTexW, int geoTexH) {
         int u = Math.max(0, uv.u);
         int v = Math.max(0, uv.v);
         int w = uv.w;
         int h = uv.h;
-        if (u + w > atlasW) w = atlasW - u;
-        if (v + h > atlasH) h = atlasH - v;
+        if (u + w > geoTexW) w = geoTexW - u;
+        if (v + h > geoTexH) h = geoTexH - v;
         if (w <= 0 || h <= 0) {
             // A degenerate rect: sample a single texel rather than nothing.
-            float su = u / (float) atlasW;
-            float sv = v / (float) atlasH;
+            float su = u / (float) geoTexW;
+            float sv = v / (float) geoTexH;
             return new float[]{su, sv, su, sv, su, sv, su, sv};
         }
         float su0 = uv.flipH ? (u + w) : u;
         float su1 = uv.flipH ? u : (u + w);
         float sv0 = uv.flipV ? (v + h) : v;
         float sv1 = uv.flipV ? v : (v + h);
-        return new float[]{su0 / atlasW, sv0 / atlasH, su1 / atlasW, sv0 / atlasH,
-                su0 / atlasW, sv1 / atlasH, su1 / atlasW, sv1 / atlasH};
+        return new float[]{su0 / geoTexW, sv0 / geoTexH, su1 / geoTexW, sv0 / geoTexH,
+                su0 / geoTexW, sv1 / geoTexH, su1 / geoTexW, sv1 / geoTexH};
     }
 
     /** One component of a cube face's normal. The mesh does not store normals per face, so the

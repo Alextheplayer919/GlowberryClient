@@ -259,7 +259,7 @@ public class ControllerIllustrationView extends View {
             Float strength = glow.get(r.id);
             float g = strength == null ? 0f : strength;
             if (g > 0.05f) {
-                glowPaint.setColor(accentColor != -1 ? accentColor : 0xFF6236E8);
+                glowPaint.setColor(accentColor != -1 ? accentColor : 0xFF0F5BE4);
                 glowPaint.setAlpha((int) (150 * g));
                 drawTrigger(canvas, px, py, pr * (1f + 0.3f * g), true);
             }
@@ -442,7 +442,7 @@ public class ControllerIllustrationView extends View {
         if (g > 0.05f) {
             // A confirmed picker region reads green ("selected"), the live hold glow reads accent.
             glowPaint.setColor(isConfirmed ? 0xFF2FBF71
-                    : (accentColor != -1 ? accentColor : 0xFF6236E8));
+                    : (accentColor != -1 ? accentColor : 0xFF0F5BE4));
             glowPaint.setAlpha((int) (150 * g));
             drawShape(canvas, r, px, py, pr * (1f + 0.3f * g), true);
         }

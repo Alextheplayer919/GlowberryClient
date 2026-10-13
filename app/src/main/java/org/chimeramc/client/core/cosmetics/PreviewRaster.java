@@ -28,14 +28,28 @@ public final class PreviewRaster {
 
     /**
      * The depth value meaning "nothing recorded". The camera projects real depths as positive values
-     * (its minimum depth is clamped above zero), so 0 is a safe sentinel for an empty pixel.
+     * (its minimum depth is clamped above zero), so positive infinity is a safe sentinel for an
+     * empty pixel.
+     *
+     * <p>The buffer is <b>float</b>, not int. It used to hold {@code floor(z)} where z is camera
+     * depth in model pixels (~46 ± 18), so two surfaces closer than one model pixel — the overlay
+     * (jacket/hat) layer biased by 0.5 over its base face, or a hat band against the head — landed
+     * in the same integer bucket about half the time and the overlay showed in stripes. A float
+     * buffer resolves them exactly.
      */
-    private static final int NO_DEPTH = 0;
+    private static final float NO_DEPTH = Float.POSITIVE_INFINITY;
+
+    /**
+     * A hair of tolerance for genuinely coplanar faces so the first drawn still wins deterministically.
+     * Smaller than the smallest meaningful separation (the overlay bias is 0.5), so it never lets a
+     * farther surface through.
+     */
+    private static final float DEPTH_EPSILON = 1e-4f;
 
     private int width;
     private int height;
     private int[] color;
-    private int[] depth;
+    private float[] depth;
 
     /** Sizes the buffers to the frame and fills the colour buffer with {@code background}. */
     public void prepare(int frameWidth, int frameHeight, int background) {
@@ -50,7 +64,7 @@ public final class PreviewRaster {
             width = frameWidth;
             height = frameHeight;
             color = new int[frameWidth * frameHeight];
-            depth = new int[frameWidth * frameHeight];
+            depth = new float[frameWidth * frameHeight];
         }
         java.util.Arrays.fill(color, background);
         java.util.Arrays.fill(depth, NO_DEPTH);
@@ -70,10 +84,10 @@ public final class PreviewRaster {
     }
 
     /**
-     * The depth currently recorded at a pixel (0 when nothing is there). Exposed for tests and for a
-     * caller that needs to composite by hand.
+     * The depth currently recorded at a pixel ({@link Float#POSITIVE_INFINITY} when nothing is
+     * there). Exposed for tests and for a caller that needs to composite by hand.
      */
-    public int depthAt(int x, int y) {
+    public float depthAt(int x, int y) {
         if (depth == null || x < 0 || y < 0 || x >= width || y >= height) return NO_DEPTH;
         return depth[y * width + x];
     }
@@ -81,16 +95,15 @@ public final class PreviewRaster {
     /** Whether a surface at {@code z} is visible at the pixel (nearer than what is recorded). */
     public boolean depthTest(int x, int y, float z) {
         if (depth == null || x < 0 || y < 0 || x >= width || y >= height) return false;
-        int stored = depth[y * width + x];
-        int zi = Math.max(1, (int) Math.floor(z));
-        return stored == NO_DEPTH || zi < stored;
+        float stored = depth[y * width + x];
+        return stored == NO_DEPTH || z < stored - DEPTH_EPSILON;
     }
 
     /** Records a depth at a pixel (used after a successful {@link #depthTest}). */
     public void writeDepth(int x, int y, float z) {
         if (depth == null) return;
-        int zi = Math.max(1, (int) Math.floor(z));
-        depth[y * width + x] = zi;
+        if (x < 0 || y < 0 || x >= width || y >= height) return;
+        depth[y * width + x] = z;
     }
 
     /**
@@ -116,6 +129,9 @@ public final class PreviewRaster {
                          int[] argb, int texW, int texH,
                          boolean alphaTest, boolean blend, float shade) {
         if (color == null || argb == null || texW <= 0 || texH <= 0) return;
+        // Defence in depth: an atlas smaller than the declared dimensions would index out of bounds
+        // below. Never draw a face whose atlas is the wrong size.
+        if (argb.length < texW * texH) return;
 
         // Bounding box.
         int minX = (int) Math.floor(Math.min(x0, Math.min(x1, x2)));
@@ -145,9 +161,8 @@ public final class PreviewRaster {
                 if (w0 < 0f || w1 < 0f || w2 < 0f) continue;
 
                 float z = w0 * z0 + w1 * z1 + w2 * z2;
-                int stored = depth[row + px];
-                int zi = Math.max(1, (int) Math.floor(z));
-                if (stored != NO_DEPTH && zi >= stored) continue;
+                float stored = depth[row + px];
+                if (stored != NO_DEPTH && z >= stored - DEPTH_EPSILON) continue;
 
                 // Nearest-neighbour sample: truncate, and clamp any rounding past the edge.
                 float fu = w0 * u0 + w1 * u1 + w2 * u2;
@@ -174,7 +189,7 @@ public final class PreviewRaster {
                     out = texel;
                 }
                 color[row + px] = out;
-                depth[row + px] = zi;
+                depth[row + px] = z;
             }
         }
     }
@@ -218,11 +233,10 @@ public final class PreviewRaster {
                 float w2 = 1f - w0 - w1;
                 if (w0 < 0f || w1 < 0f || w2 < 0f) continue;
                 float z = w0 * z0 + w1 * z1 + w2 * z2;
-                int stored = depth[row + px];
-                int zi = Math.max(1, (int) Math.floor(z));
-                if (stored != NO_DEPTH && zi >= stored) continue;
+                float stored = depth[row + px];
+                if (stored != NO_DEPTH && z >= stored - DEPTH_EPSILON) continue;
                 color[row + px] = blend ? blendOver(color[row + px], argb) : argb;
-                depth[row + px] = zi;
+                depth[row + px] = z;
             }
         }
     }

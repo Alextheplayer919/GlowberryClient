@@ -1620,6 +1620,9 @@ import okhttp3.OkHttpClient;
             launchPreview.setCape(store.getEquippedCapeForDisplay());
             launchPreview.setAccessory(store.getEquippedAccessory());
             launchPreview.setPet(store.getEquippedPet());
+            // Re-resolve the skin so the hero shows the player's real Minecraft skin (read from the
+            // game through the engine hook when available) rather than a stale or generic one.
+            launchPreview.refreshSkin();
         } catch (Throwable ignored) {
             // A preview must never block the Launch tab; the placeholder skin is fine.
         }
@@ -2094,7 +2097,7 @@ import okhttp3.OkHttpClient;
                 boolean is32Bit = "armeabi-v7a".equals(abi) || "x86".equals(abi);
                 holder.abiBadge.setText(holder.itemView.getContext().getString(
                         is32Bit ? R.string.abi_32_bit : R.string.abi_64_bit));
-                holder.abiBadge.setTextColor(is32Bit ? 0xFFF6A821 : 0xFF6236E8);
+                holder.abiBadge.setTextColor(is32Bit ? 0xFFF6A821 : 0xFF0F5BE4);
                 holder.abiBadge.setVisibility(View.VISIBLE);
             } else {
                 holder.abiBadge.setVisibility(View.GONE);
@@ -2282,7 +2285,7 @@ import okhttp3.OkHttpClient;
             } else {
                 boolean is32Bit = "armeabi-v7a".equals(abi) || "x86".equals(abi);
                 abiBadge.setText(is32Bit ? getString(R.string.abi_32_bit) : getString(R.string.abi_64_bit));
-                abiBadge.setTextColor(is32Bit ? 0xFFF6A821 : 0xFF6236E8);
+                abiBadge.setTextColor(is32Bit ? 0xFFF6A821 : 0xFF0F5BE4);
                 abiBadge.setVisibility(View.VISIBLE);
             }
         }

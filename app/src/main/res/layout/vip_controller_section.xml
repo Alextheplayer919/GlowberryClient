@@ -27,7 +27,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:letterSpacing="0.12"
-            android:textColor="#B6B0CC"
+            android:textColor="@color/ui_text_secondary"
             android:textSize="11sp"
             android:textStyle="bold" />
 
@@ -49,7 +49,7 @@
             android:paddingTop="6dp"
             android:paddingEnd="12dp"
             android:paddingBottom="6dp"
-            android:textColor="#B6B0CC"
+            android:textColor="@color/ui_text_secondary"
             android:textSize="11sp"
             android:textStyle="bold" />
     </LinearLayout>
@@ -73,7 +73,7 @@
                 android:letterSpacing="0.14"
                 android:text="@string/vip_controller_profiles"
                 android:textAllCaps="true"
-                android:textColor="#8B85A3"
+                android:textColor="@color/ui_text_secondary"
                 android:textSize="11sp"
                 android:textStyle="bold" />
 
@@ -92,7 +92,7 @@
                 android:background="@drawable/bg_vip_surface"
                 android:padding="16dp"
                 android:text="@string/vip_empty_no_controller"
-                android:textColor="#8B85A3"
+                android:textColor="@color/ui_text_secondary"
                 android:textSize="12sp"
                 android:visibility="gone" />
 
@@ -103,7 +103,7 @@
                 android:letterSpacing="0.14"
                 android:text="@string/vip_dead_zone"
                 android:textAllCaps="true"
-                android:textColor="#8B85A3"
+                android:textColor="@color/ui_text_secondary"
                 android:textSize="11sp"
                 android:textStyle="bold" />
 

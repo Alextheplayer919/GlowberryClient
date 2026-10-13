@@ -133,7 +133,7 @@ final class PackChangerPanel {
                 pack.active ? activity.getString(R.string.pack_changer_on)
                         : activity.getString(R.string.pack_changer_off)));
         meta.setTextSize(compact ? 10f : 11f);
-        meta.setTextColor(pack.active ? 0xFFA88CFF : 0xFF8F979F);
+        meta.setTextColor(pack.active ? 0xFF71ACEF : 0xFF8F979F);
         labels.addView(meta);
 
         // A pill toggle rather than a SwitchMaterial: the overlay is inflated from a plain
@@ -147,7 +147,7 @@ final class PackChangerPanel {
         GradientDrawable background = new GradientDrawable();
         background.setCornerRadius(dp(16));
         background.setColor(pack.active ? 0x556236E8 : 0x3324282C);
-        background.setStroke(dp(1), pack.active ? 0xFF6236E8 : 0x44FFFFFF);
+        background.setStroke(dp(1), pack.active ? 0xFF0F5BE4 : 0x44FFFFFF);
         toggle.setBackground(background);
         toggle.setOnClickListener(v -> {
             // Apply to every candidate root the way the cape/installer does: the game picks its

@@ -155,8 +155,16 @@ public class RadialMenuOverlay {
 
     public void hide() {
         isShowing = false;
+        RadialMenuView view = menuView;
         menuView = null;
-        detachQuietly();
+        if (view != null) view.playClose();
+        // Detach after the short close animation so the reverse plays rather than popping.
+        View overlay = overlayView;
+        if (overlay != null) {
+            overlay.postDelayed(this::detachQuietly, 120L);
+        } else {
+            detachQuietly();
+        }
     }
 
     private void detachQuietly() {

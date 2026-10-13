@@ -120,7 +120,7 @@ public class VoiceChatActivity extends BaseActivity {
         PersonalizationManager pm = new PersonalizationManager(this);
         View root = findViewById(R.id.voice_root);
         if (root != null) pm.applyAccentToView(root, this);
-        accent = pm.hasCustomAccent() ? pm.getAccentColor() : 0xFF6236E8;
+        accent = pm.hasCustomAccent() ? pm.getAccentColor() : 0xFF0F5BE4;
 
         View back = findViewById(R.id.voice_back);
         if (back != null) back.setOnClickListener(v -> finish());

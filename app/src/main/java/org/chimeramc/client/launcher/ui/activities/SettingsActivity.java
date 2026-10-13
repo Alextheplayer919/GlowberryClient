@@ -1338,6 +1338,20 @@ public class SettingsActivity extends BaseActivity {
             String localVersion = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
             TextView versionText = findViewById(R.id.version_text);
             versionText.setText(getString(R.string.version_prefix) + localVersion);
+            versionText.setOnClickListener(new View.OnClickListener() {
+                private int taps;
+
+                @Override
+                public void onClick(View v) {
+                    // Seven taps opens the hidden UI gallery (a debug surface for comparing the
+                    // shared component library against the reference on a real device).
+                    if (++taps >= 7) {
+                        taps = 0;
+                        startActivity(new Intent(SettingsActivity.this,
+                                org.chimeramc.client.launcher.ui.activities.UiGalleryActivity.class));
+                    }
+                }
+            });
         } catch (PackageManager.NameNotFoundException ignored) {
         }
 

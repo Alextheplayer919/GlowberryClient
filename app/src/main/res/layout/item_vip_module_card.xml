@@ -15,7 +15,7 @@
     android:clickable="true"
     android:defaultFocusHighlightEnabled="false"
     android:focusable="false"
-    app:cardBackgroundColor="#1E1B2E"
+    app:cardBackgroundColor="@color/ui_bg_surface_hover"
     app:cardCornerRadius="16dp"
     app:cardElevation="3dp"
     app:cardPreventCornerOverlap="true"
@@ -30,7 +30,7 @@
             android:id="@+id/vip_card_accent"
             android:layout_width="match_parent"
             android:layout_height="3dp"
-            android:background="#7C5CFF" />
+            android:background="@color/ui_accent_500" />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -72,7 +72,7 @@
                     android:layout_height="wrap_content"
                     android:ellipsize="end"
                     android:singleLine="true"
-                    android:textColor="#F4F1FF"
+                    android:textColor="@color/ui_text_primary"
                     android:textSize="14sp"
                     android:textStyle="bold" />
 
@@ -83,7 +83,7 @@
                     android:layout_marginTop="2dp"
                     android:ellipsize="end"
                     android:singleLine="true"
-                    android:textColor="#8B85A3"
+                    android:textColor="@color/ui_text_secondary"
                     android:textSize="11sp" />
 
                 <TextView
@@ -92,7 +92,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
                     android:text="@string/vip_status_unavailable"
-                    android:textColor="#FF5C7A"
+                    android:textColor="@color/ui_danger"
                     android:textSize="9sp"
                     android:textStyle="bold"
                     android:letterSpacing="0.08"
@@ -108,7 +108,7 @@
                 android:contentDescription="@string/vip_pin_module"
                 android:padding="8dp"
                 android:src="@drawable/ic_star_outline"
-                android:tint="#8B85A3" />
+                android:tint="@color/ui_text_secondary" />
 
             <TextView
                 android:id="@+id/vip_card_status"
@@ -123,7 +123,7 @@
                 android:paddingEnd="10dp"
                 android:paddingBottom="5dp"
                 android:text="@string/vip_status_off"
-                android:textColor="#B6B0CC"
+                android:textColor="@color/ui_text_secondary"
                 android:textSize="9sp"
                 android:textStyle="bold"
                 android:letterSpacing="0.08" />
@@ -137,7 +137,7 @@
                 android:contentDescription="@string/vip_configure"
                 android:padding="8dp"
                 android:src="@drawable/ic_settings"
-                android:tint="#C9C3E0"
+                android:tint="@color/ui_text_secondary"
                 android:visibility="gone" />
         </LinearLayout>
     </LinearLayout>

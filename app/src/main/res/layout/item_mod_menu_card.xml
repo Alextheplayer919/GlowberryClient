@@ -5,7 +5,7 @@
     android:layout_height="wrap_content"
     android:layout_margin="6dp"
     android:defaultFocusHighlightEnabled="false"
-    app:cardBackgroundColor="#24282C"
+    app:cardBackgroundColor="@color/ui_bg_surface"
     app:cardCornerRadius="12dp"
     app:cardElevation="2dp">
 
@@ -54,7 +54,7 @@
                     android:defaultFocusHighlightEnabled="false"
                     android:padding="6dp"
                     android:src="@drawable/ic_star"
-                    android:tint="#A8B0B8" />
+                    android:tint="@color/ui_text_secondary" />
 
             </LinearLayout>
 
@@ -65,7 +65,7 @@
                 android:layout_marginTop="8dp"
                 android:ellipsize="end"
                 android:maxLines="2"
-                android:textColor="#F1F4F6"
+                android:textColor="@color/ui_text_primary"
                 android:textSize="13sp"
                 android:textStyle="bold" />
 
@@ -76,7 +76,7 @@
                 android:layout_marginTop="2dp"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="#7F8993"
+                android:textColor="@color/ui_text_secondary"
                 android:textSize="10sp"
                 android:visibility="gone" />
 
@@ -113,7 +113,7 @@
                     android:defaultFocusHighlightEnabled="false"
                     android:padding="6dp"
                     android:src="@drawable/ic_settings"
-                    android:tint="#A8B0B8" />
+                    android:tint="@color/ui_text_secondary" />
 
             </LinearLayout>
 
@@ -136,7 +136,7 @@
                 android:paddingEnd="10dp"
                 android:paddingBottom="4dp"
                 android:text="@string/mod_unavailable_message"
-                android:textColor="#FF8A80"
+                android:textColor="@color/ui_danger"
                 android:textSize="10sp"
                 android:textStyle="bold"
                 android:visibility="gone" />

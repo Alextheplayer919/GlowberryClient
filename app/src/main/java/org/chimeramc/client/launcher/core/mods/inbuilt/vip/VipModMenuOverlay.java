@@ -47,6 +47,7 @@ import org.chimeramc.client.launcher.controller.ControllerProfile;
 import org.chimeramc.client.launcher.controller.ControllerProfileManager;
 import org.chimeramc.client.launcher.controller.ControllerType;
 import org.chimeramc.client.ui.animation.DynamicAnim;
+import org.chimeramc.client.ui.components.UiTokens;
 import org.chimeramc.client.launcher.ui.views.Controller3DView;
 import org.chimeramc.client.launcher.ui.views.KeyboardIllustrationView;
 
@@ -346,7 +347,7 @@ public class VipModMenuOverlay {
         GradientDrawable badgeBg = new GradientDrawable();
         badgeBg.setShape(GradientDrawable.RECTANGLE);
         badgeBg.setCornerRadius(10 * density());
-        badgeBg.setColor(0xFF241F38);
+        badgeBg.setColor(UiTokens.BG_SURFACE_HOVER);
         badgeBg.setStroke(Math.max(1, (int) density()),
                 VipTheme.withAlpha(theme.accent(), 0x88));
         modeBadge.setBackground(badgeBg);
@@ -721,9 +722,9 @@ public class VipModMenuOverlay {
     private void refreshCategoryChips() {
         if (categoryRow == null) return;
         int active = theme.accent();
-        int idle = 0xFF2A2540;
-        int activeText = 0xFF0E0B18;
-        int idleText = 0xFFC9C3E0;
+        int idle = UiTokens.BG_SURFACE_HOVER;
+        int activeText = 0xFFFFFFFF;
+        int idleText = UiTokens.TEXT_SECONDARY;
         ModCategory.Tab[] tabs = {ModCategory.Tab.ALL, ModCategory.Tab.FAVORITES,
                 ModCategory.Tab.VISUALS, ModCategory.Tab.PVP, ModCategory.Tab.MISC};
         for (int i = 0; i < categoryRow.getChildCount() && i < tabs.length; i++) {
@@ -870,7 +871,7 @@ public class VipModMenuOverlay {
         TextView button = new TextView(activity);
         button.setText(R.string.controller_edit);
         button.setTextSize(13);
-        button.setTextColor(0xFF160F2A);
+        button.setTextColor(0xFFFFFFFF);
         int pad = (int) (16 * density());
         button.setPadding(pad, pad / 2, pad, pad / 2);
         button.setGravity(android.view.Gravity.CENTER);
@@ -903,11 +904,11 @@ public class VipModMenuOverlay {
             int pad = (int) (14 * density());
             chip.setPadding(pad, pad / 2, pad, pad / 2);
             boolean selected = i == activeSlot;
-            chip.setTextColor(selected ? 0xFF160F2A : theme.textSecondary());
+            chip.setTextColor(selected ? 0xFFFFFFFF : theme.textSecondary());
             GradientDrawable bg = new GradientDrawable();
             bg.setShape(GradientDrawable.RECTANGLE);
             bg.setCornerRadius(12 * density());
-            bg.setColor(selected ? theme.accent() : 0xFF241F38);
+            bg.setColor(selected ? theme.accent() : UiTokens.BG_SURFACE_HOVER);
             chip.setBackground(bg);
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);

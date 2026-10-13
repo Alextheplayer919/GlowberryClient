@@ -19,6 +19,7 @@ import org.chimeramc.client.R;
 import org.chimeramc.client.core.mods.inbuilt.UnifiedMod;
 import org.chimeramc.client.core.mods.inbuilt.model.ModAvailability;
 import org.chimeramc.client.core.mods.inbuilt.overlay.ModMenuNavigation;
+import org.chimeramc.client.ui.components.UiTokens;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -388,7 +389,7 @@ public class VipModuleAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
         boolean isFavorite = favorite.getOrDefault(mod.getStableKey(), false);
         modHolder.star.setImageResource(isFavorite
                 ? R.drawable.ic_star_filled : R.drawable.ic_star_outline);
-        modHolder.star.setColorFilter(isFavorite ? 0xFFFFC94D : 0xFF8B85A3);
+        modHolder.star.setColorFilter(isFavorite ? UiTokens.WARNING : UiTokens.TEXT_SECONDARY);
         modHolder.star.setContentDescription(modHolder.star.getResources().getString(
                 isFavorite ? R.string.vip_unpin_module : R.string.vip_pin_module));
         modHolder.star.setOnClickListener(v -> {
@@ -462,7 +463,7 @@ public class VipModuleAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
         // after this call -- a recycled card would otherwise paint with the previous item's state.
         int stripColor;
         if (!isAvailable) {
-            card.setCardBackgroundColor(0xFF1A1729);
+            card.setCardBackgroundColor(UiTokens.BG_SURFACE);
             card.setCardElevation(0f);
             stripColor = 0x33FFFFFF;
         } else {

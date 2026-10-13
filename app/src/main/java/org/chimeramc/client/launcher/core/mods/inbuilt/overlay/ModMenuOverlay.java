@@ -29,6 +29,7 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.chimeramc.client.R;
+import org.chimeramc.client.ui.components.UiTokens;
 import org.chimeramc.client.ui.animation.DynamicAnim;
 import org.chimeramc.client.core.mods.inbuilt.ExternalModuleProvider;
 import org.chimeramc.client.core.mods.inbuilt.InbuiltModuleProvider;
@@ -653,7 +654,10 @@ public class ModMenuOverlay {
 
         adapter = new ModMenuAdapter(new ModMenuTheme(activity));
         adapter.setCompactMode(compactMode);
-        modsLayoutManager = new GridLayoutManager(activity, compactMode ? 1 : 4);
+        // Two columns on a wide window, one below the 560dp threshold (the spec's rule). The old
+        // four-column grid was too dense; the two-column module list is the blueberry layout.
+        int spanCount = compactMode ? 1 : 2;
+        modsLayoutManager = new GridLayoutManager(activity, spanCount);
         modsLayoutManager.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
             @Override
             public int getSpanSize(int position) {
@@ -1102,6 +1106,8 @@ public class ModMenuOverlay {
                                 ViewGroup.LayoutParams.MATCH_PARENT));
             }
             cosmeticsContainer.setVisibility(View.VISIBLE);
+            // Re-resolve the skin so a change made since the Closet was last open appears now.
+            cosmeticsPanel.onShown();
             crossfade(cosmeticsContainer);
         }
 
@@ -1601,12 +1607,16 @@ public class ModMenuOverlay {
                 params.setMarginStart(dp(18));
                 params.setMarginEnd(0);
             } else {
-                params.width = ViewGroup.LayoutParams.MATCH_PARENT;
-                params.height = ViewGroup.LayoutParams.MATCH_PARENT;
+                int screenWidth = activity.getResources().getDisplayMetrics().widthPixels;
+                int screenHeight = activity.getResources().getDisplayMetrics().heightPixels;
+                int width = Math.min(dp(UiTokens.WINDOW_MAX_WIDTH_DP),
+                        Math.round(screenWidth * UiTokens.WINDOW_WIDTH_FRACTION));
+                params.width = Math.max(1, width);
+                params.height = Math.max(1, Math.round(screenHeight * UiTokens.WINDOW_HEIGHT_FRACTION));
                 params.gravity = Gravity.CENTER;
-                params.setMargins(dp(32), dp(20), dp(32), dp(20));
-                params.setMarginStart(dp(32));
-                params.setMarginEnd(dp(32));
+                params.setMargins(0, 0, 0, 0);
+                params.setMarginStart(0);
+                params.setMarginEnd(0);
             }
             menuContainer.setLayoutParams(params);
         }

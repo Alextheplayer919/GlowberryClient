@@ -59,7 +59,7 @@ public final class SplashSceneView extends View {
     private ValueAnimator driver;
     private long lastFrameMs;
 
-    private int accent = 0xFF6236E8;
+    private int accent = 0xFF0F5BE4;
     private boolean dark = true;
     private boolean animationsEnabled = true;
 

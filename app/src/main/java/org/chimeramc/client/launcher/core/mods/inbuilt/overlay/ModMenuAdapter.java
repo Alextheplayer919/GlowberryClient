@@ -20,6 +20,7 @@ import org.chimeramc.client.R;
 import org.chimeramc.client.core.mods.inbuilt.UnifiedMod;
 import org.chimeramc.client.core.mods.inbuilt.model.ModAvailability;
 import org.chimeramc.client.ui.animation.DynamicAnim;
+import org.chimeramc.client.ui.components.UiTokens;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -420,7 +421,7 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     }
 
     private void updateFavoriteView(ModViewHolder holder, boolean favorite) {
-        int color = favorite ? 0xFFFFC107 : 0xFFA8B0B8;
+        int color = favorite ? UiTokens.WARNING : UiTokens.TEXT_SECONDARY;
         holder.favoriteBtn.setImageTintList(ColorStateList.valueOf(color));
         holder.favoriteBtn.setAlpha(favorite ? 1f : 0.9f);
         holder.favoriteBtn.setContentDescription(holder.favoriteBtn.getContext().getString(
@@ -441,19 +442,19 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             holder.statusText.setBackground(pill);
         } else {
             holder.statusText.setText(R.string.mod_status_disabled);
-            holder.statusText.setTextColor(0xFFB4BBC3);
+            holder.statusText.setTextColor(UiTokens.TEXT_SECONDARY);
             holder.statusText.setBackgroundResource(R.drawable.bg_mod_status_disabled);
         }
         updateCardState(holder, enabled, available);
     }
 
-    /** Paints the top edge strip so each card carries its section colour. */
+    /** Paints the top edge strip so each card carries the accent. */
     private void updateAccentBar(ModViewHolder holder, String groupId, boolean enabled) {
         if (holder.accentBar == null) return;
-        int color = theme.groupColor(groupId);
+        int color = theme.accent();
         GradientDrawable bar = new GradientDrawable();
         bar.setShape(GradientDrawable.RECTANGLE);
-        bar.setColor(enabled ? color : (color & 0x00FFFFFF) | 0x40000000);
+        bar.setColor(enabled ? color : UiTokens.withAlpha(color, 0x40));
         holder.accentBar.setBackground(bar);
     }
 
@@ -464,13 +465,15 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         holder.itemView.setClickable(available);
         holder.statusText.setEnabled(available);
         holder.icon.setAlpha(!available ? 0.5f : (enabled ? 1f : 0.8f));
-        holder.name.setTextColor(!available ? 0xFF8892A0 : (enabled ? 0xFFF1F4F6 : 0xFFD6DCE2));
+        holder.name.setTextColor(!available ? UiTokens.TEXT_DISABLED
+                : (enabled ? UiTokens.TEXT_PRIMARY : UiTokens.blend(UiTokens.TEXT_PRIMARY,
+                UiTokens.TEXT_SECONDARY, 0.4f)));
         
         if (holder.itemView instanceof androidx.cardview.widget.CardView) {
             androidx.cardview.widget.CardView cv = (androidx.cardview.widget.CardView) holder.itemView;
             
             if (!available) {
-                cv.setCardBackgroundColor(0xFF1B1E22);
+                cv.setCardBackgroundColor(UiTokens.BG_SURFACE);
                 cv.setCardElevation(0f);
             } else if (enabled) {
                 cv.setCardBackgroundColor(theme.enabledCardColor());
