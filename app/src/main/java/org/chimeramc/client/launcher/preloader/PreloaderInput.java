@@ -174,6 +174,23 @@ public class PreloaderInput {
     public static native int[] nativeReadCosmeticsStats();
 
     /**
+     * Returns the player's captured base-skin texture, or null when none is held.
+     *
+     * <p>The bytes are a 16-byte little-endian header {@code (width, height, format, stampMs)}
+     * followed by the payload, which is either a PNG (format 0) or raw RGBA8 (format 4). The native
+     * side captures it at the engine's image-loader seam, so the payload is the engine's own source
+     * bytes — the skin the game is actually using. There is no player id at that seam, so the held
+     * texture is the most recent base-skin-shaped upload (content capture, not attribution).
+     */
+    public static native byte[] nativeReadCapturedSkin();
+
+    /** True while a captured base skin is held. */
+    public static native boolean nativeHasCapturedSkin();
+
+    /** Discards the held base-skin capture (session teardown). */
+    public static native void nativeClearCapturedSkin();
+
+    /**
      * A one-shot native render-path diagnostic, readable inside the app (logcat is not available to
      * the app without READ_LOGS, so the diagnostics screen reads this instead).
      *

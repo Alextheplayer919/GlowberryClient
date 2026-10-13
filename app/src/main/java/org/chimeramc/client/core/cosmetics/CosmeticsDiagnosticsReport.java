@@ -54,6 +54,10 @@ public final class CosmeticsDiagnosticsReport {
         public int textureOverrides;
         public String localKeyId = NativeCosmeticsBridge.LOCAL_PLAYER_ID;
         public boolean debugCubeArmed;
+        /** True when the engine captured a base-skin texture this session (the real-skin route). */
+        public boolean skinCaptured;
+        /** True when a game-skin provider is installed (the engine-hook seam is active). */
+        public boolean skinFeedInstalled;
         /** Per-cosmetic asset audit lines (PNG size, geometry size, cube count), or null. */
         public java.util.List<CosmeticAssetAudit.Entry> cosmeticAssets;
         /** Faces the scene refused to build (a size mismatch), as one-line descriptions. */
@@ -89,6 +93,11 @@ public final class CosmeticsDiagnosticsReport {
         in.rendererDrawable = NativeCosmeticsFeed.isRendererDrawable();
         in.drawsThisSession = NativeCosmeticsFeed.drawCount();
         in.debugCubeArmed = PreloaderInput.isDebugCubeEnabled();
+        try {
+            in.skinCaptured = PreloaderInput.nativeHasCapturedSkin();
+        } catch (Throwable ignored) {
+        }
+        in.skinFeedInstalled = GameSkinSource.hasProvider();
 
         // Per-cosmetic asset audit: the real PNG size, the geometry's declared size and the cube
         // count, so a size mismatch (which used to crash the preview) is visible without a device.
@@ -168,6 +177,8 @@ public final class CosmeticsDiagnosticsReport {
         b.append("Texture overrides: ").append(v.textureOverrides).append('\n');
         b.append("Local cosmetics published under key: \"").append(v.localKeyId).append("\"\n");
         b.append("Debug cube armed: ").append(yesNo(v.debugCubeArmed)).append('\n');
+        b.append("Game-skin feed installed: ").append(yesNo(v.skinFeedInstalled)).append('\n');
+        b.append("Base skin captured from game: ").append(yesNo(v.skinCaptured)).append('\n');
         b.append('\n');
 
         b.append("Cosmetic assets (PNG size / geometry size / cubes):\n");

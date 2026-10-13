@@ -54,6 +54,13 @@ public final class NativeCosmeticsRuntime {
         });
         if (initialized) return;
         initialized = true;
+        // Install the engine-backed skin feed so the preview and the radial hub can show the
+        // player's real Minecraft skin, read from the game's own image loader. Fail-closed: with no
+        // native capture it returns null and the imported/applied/Steve chain renders instead.
+        try {
+            GameSkinFeed.install();
+        } catch (Throwable ignored) {
+        }
         syncEquipped(context);
         applyDebugCubePreference(context);
     }
