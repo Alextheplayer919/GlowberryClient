@@ -2087,4 +2087,15 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="launch_replay_status_count">%1$d clips saved</string>
     <string name="launch_replay_status_none">No clips yet</string>
     <string name="launch_preparing">Preparing launcher\u2026</string>
+
+    <!-- Closet (cosmetics) screen -->
+    <string name="closet_category_back">Back</string>
+    <string name="closet_category_offhand">Offhand</string>
+    <string name="closet_category_effects">Effects</string>
+    <string name="closet_state_equipped">Equipped</string>
+    <string name="closet_state_owned">Owned</string>
+    <string name="cosmetics_equip">Equip</string>
+    <string name="cosmetics_equipped_toast">Cosmetic equipped</string>
+    <string name="closet_offhand_note">Off-hand items are set from the inventory in game.</string>
+    <string name="closet_effects_note">Toggle the particle aura for the equipped set.</string>
 </resources>
