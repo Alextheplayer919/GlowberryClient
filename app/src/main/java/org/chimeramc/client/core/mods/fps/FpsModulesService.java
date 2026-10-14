@@ -37,6 +37,41 @@ public final class FpsModulesService {
         return sPlan;
     }
 
+    private static long lastOverlayTickMs;
+    private static long lastBackgroundMs;
+
+    /**
+     * Whether the overlay tick loop should run this frame, per the active plan.
+     *
+     * <p>The plan's {@code overlayTickIntervalMs} is the throttle: 0 (the modules off, or no
+     * session) means every frame, exactly as before, so a disabled module changes nothing. This is
+     * the real effect of the culling and coalescing modules — the launcher advances its own overlays
+     * in batches instead of every frame.
+     */
+    public static boolean shouldRunOverlayTick(long nowMs) {
+        long interval = sPlan.overlayTickIntervalMs;
+        if (interval <= 0) return true;
+        if (nowMs - lastOverlayTickMs < interval) return false;
+        lastOverlayTickMs = nowMs;
+        return true;
+    }
+
+    /**
+     * Whether background/speculative work may run now, per the active plan.
+     *
+     * <p>The plan's {@code backgroundRequestIntervalMs} is the throttle: 0 means "no throttle, use
+     * the caller's own cadence". A non-zero value makes the launcher's own background refresh wait
+     * this long between runs — the real effect of the tick-rate module. It never suppresses the
+     * game; it only paces the launcher's own polling.
+     */
+    public static boolean backgroundWorkAllowed(long nowMs) {
+        long interval = sPlan.backgroundRequestIntervalMs;
+        if (interval <= 0) return true;
+        if (nowMs - lastBackgroundMs < interval) return false;
+        lastBackgroundMs = nowMs;
+        return true;
+    }
+
     /**
      * Re-reads the module switches and option values and applies the plan.
      *

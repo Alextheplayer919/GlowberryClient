@@ -131,4 +131,29 @@ public class FpsModulesTest {
             assertTrue(module.id + " description does not scope itself to host work", honest);
         }
     }
+
+    @Test
+    public void aDisabledPlanThrottlesNothing() {
+        // The modules off (or no session) must leave every per-frame path exactly as it was: the
+        // plan's intervals are 0 and the consumers run every frame.
+        FpsPolicy.HostPlan plan = FpsPolicy.plan(false, false, false, false, defaults());
+        assertEquals(0L, plan.overlayTickIntervalMs);
+        assertEquals(0L, plan.backgroundRequestIntervalMs);
+    }
+
+    @Test
+    public void anEnabledCullingModuleThrottlesTheOverlayTick() {
+        // With the coalescing module on, the plan raises the overlay interval, which is what the
+        // tick loop reads to batch its work.
+        FpsPolicy.HostPlan plan = FpsPolicy.plan(true, false, true, false, defaults());
+        assertTrue("an enabled coalescing module must raise the overlay interval",
+                plan.overlayTickIntervalMs > 0);
+    }
+
+    @Test
+    public void anEnabledTickModuleThrottlesBackgroundPolling() {
+        FpsPolicy.HostPlan plan = FpsPolicy.plan(true, false, false, true, defaults());
+        assertTrue("an enabled tick module must set a background interval",
+                plan.backgroundRequestIntervalMs > 0);
+    }
 }

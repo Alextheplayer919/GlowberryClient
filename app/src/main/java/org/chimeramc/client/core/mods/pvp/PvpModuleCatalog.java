@@ -36,15 +36,32 @@ public final class PvpModuleCatalog {
         public final boolean implemented;
         /** What the module can and cannot do, so a named-after-an-outcome module is not a lie. */
         public final String scopeNote;
+        /**
+         * The {@code ModIds} id of the module that already implements this capability, or null when
+         * this entry is a roadmap item.
+         *
+         * <p>Most of the "implemented" entries are the PvP catalogue's own naming of a module the
+         * launcher already ships (Hit Registration, Zoom, Auto Sprint, …). Rather than list a second
+         * copy of each — which would give the player two switches for one feature and let them
+         * disagree — an entry with a {@link #existingModId} is a <em>view</em> of that module: its
+         * toggle drives the real one, and its enabled state is read from the real one.
+         */
+        public final String existingModId;
 
         Module(String id, String name, String description, PvpCategory category,
-               boolean implemented, String scopeNote) {
+               boolean implemented, String scopeNote, String existingModId) {
             this.id = id;
             this.name = name;
             this.description = description;
             this.category = category;
             this.implemented = implemented;
             this.scopeNote = scopeNote;
+            this.existingModId = existingModId;
+        }
+
+        /** True when this entry drives a module the launcher already ships. */
+        public boolean linksToExisting() {
+            return existingModId != null && !existingModId.isEmpty();
         }
     }
 
@@ -62,27 +79,27 @@ public final class PvpModuleCatalog {
 
         // --- Combat & Targeting (45) --------------------------------------------------------------
         // The seven existing combat modules are implemented; the rest are the requested roadmap.
-        add(modules, "combat_hit_registration", "Hit Registration",
+        link(modules, "combat_hit_registration", "Hit Registration",
                 "Shapes the look input the device sends so aim tracks smoothly.", PvpCategory.COMBAT,
-                true, CLIENT_HELPER);
-        add(modules, "combat_reach_indicator", "Reach Indicator",
+                "hit_registration", CLIENT_HELPER);
+        link(modules, "combat_reach_indicator", "Reach Indicator",
                 "Shows the distance to the player under the crosshair.", PvpCategory.COMBAT,
-                true, "Reads the peer feed; vanilla players are invisible to it.");
-        add(modules, "combat_crystal_optimizer", "Crystal Optimizer",
+                "reach_indicator", "Reads the peer feed; vanilla players are invisible to it.");
+        link(modules, "combat_crystal_optimizer", "Crystal Optimizer",
                 "Highlights a safe crystal placement spot.", PvpCategory.COMBAT,
-                true, "Manual assist by default; automatic placement is opt-in and server-restricted.");
-        add(modules, "combat_hit_timing", "Select Hit",
+                "crystal_optimizer", "Manual assist by default; automatic placement is opt-in and server-restricted.");
+        link(modules, "combat_hit_timing", "Select Hit",
                 "A green/red pill for the post-hit window and combo count.", PvpCategory.COMBAT,
-                true, "Reads your own attack input; the server still decides whether a hit lands.");
-        add(modules, "combat_hitboxes", "Hitboxes",
+                "hit_timing", "Reads your own attack input; the server still decides whether a hit lands.");
+        link(modules, "combat_hitboxes", "Hitboxes",
                 "Draws entity bounding boxes and combat guides.", PvpCategory.COMBAT,
-                true, "Peer boxes need the voice feed; mob/item boxes need a native entity feed.");
-        add(modules, "combat_aim_settings", "Aim Settings",
+                "hitbox", "Peer boxes need the voice feed; mob/item boxes need a native entity feed.");
+        link(modules, "combat_aim_settings", "Aim Settings",
                 "Crosshair, smoothing and sensitivity for the look input.", PvpCategory.COMBAT,
-                true, CLIENT_HELPER);
-        add(modules, "combat_snaplook", "Snaplook",
+                "aim_settings", CLIENT_HELPER);
+        link(modules, "combat_snaplook", "Snaplook",
                 "Snaps the view to a saved angle while a key is held.", PvpCategory.COMBAT,
-                true, CLIENT_HELPER);
+                "snaplook", CLIENT_HELPER);
 
         add(modules, "combat_velocity_modifier", "Velocity Modifier",
                 "Adjusts how incoming knockback is applied on your client.", PvpCategory.COMBAT,
@@ -150,9 +167,9 @@ public final class PvpModuleCatalog {
         add(modules, "combat_combo_counter", "Combo Counter",
                 "Counts your landed-in-window attacks.", PvpCategory.COMBAT,
                 false, "Counts your own attacks, not the game's server-side combo value.");
-        add(modules, "combat_cps_limit", "CPS Limit",
+        link(modules, "combat_cps_limit", "CPS Limit",
                 "Caps clicks per second per button to protect the hardware.", PvpCategory.COMBAT,
-                true, "Drops presses above the cap; the server sees the reduced rate.");
+                "cps_display", "Drops presses above the cap; the server sees the reduced rate.");
         add(modules, "combat_click_delay", "Click Delay Randomiser",
                 "Adds a small random delay between clicks.", PvpCategory.COMBAT,
                 false, "A client that adds timing noise is what servers restrict or ban.");
@@ -200,9 +217,9 @@ public final class PvpModuleCatalog {
                 false, "Needs the effect feed from the game.");
 
         // --- Movement & Physics (40) --------------------------------------------------------------
-        add(modules, "move_auto_sprint", "Auto Sprint",
+        link(modules, "move_auto_sprint", "Auto Sprint",
                 "Keeps sprint held without holding the key.", PvpCategory.MOVEMENT,
-                true, "Sends the same sprint input a player would.");
+                "auto_sprint", "Sends the same sprint input a player would.");
         add(modules, "move_friction_handler", "Custom Friction Handler",
                 "Shapes the client's movement friction.", PvpCategory.MOVEMENT,
                 false, CLIENT_HELPER);
@@ -322,15 +339,15 @@ public final class PvpModuleCatalog {
                 false, LOCAL_OVERLAY);
 
         // --- Visual Overlays & HUD (35) -----------------------------------------------------------
-        add(modules, "hud_cps_display", "CPS Counter",
-                "Shows clicks per second.", PvpCategory.VISUAL, true, LOCAL_OVERLAY);
-        add(modules, "hud_fps_display", "FPS Display",
-                "Shows the launcher's own frame counter.", PvpCategory.VISUAL, true,
+        link(modules, "hud_cps_display", "CPS Counter",
+                "Shows clicks per second.", PvpCategory.VISUAL, "cps_display", LOCAL_OVERLAY);
+        link(modules, "hud_fps_display", "FPS Display",
+                "Shows the launcher's own frame counter.", PvpCategory.VISUAL, "fps_display",
                 "The launcher's counter, not a measurement of the game's frame rate.");
         add(modules, "hud_keystrokes", "Keystrokes",
                 "Shows WASD and mouse presses.", PvpCategory.VISUAL, false, LOCAL_OVERLAY);
-        add(modules, "hud_armor_status", "Armor Status",
-                "Shows your armour and its durability.", PvpCategory.VISUAL, true,
+        link(modules, "hud_armor_status", "Armor Status",
+                "Shows your armour and its durability.", PvpCategory.VISUAL, "armor_hud",
                 "Needs the native armour feed; shows an empty state without it.");
         add(modules, "hud_ping_graph", "Ping Graph",
                 "Shows a latency history graph.", PvpCategory.VISUAL, false,
@@ -338,10 +355,10 @@ public final class PvpModuleCatalog {
         add(modules, "hud_coordinates", "Coordinates",
                 "Shows your X/Y/Z position.", PvpCategory.VISUAL, false,
                 "Needs the local-player feed; shows nothing without it.");
-        add(modules, "hud_crosshair_custom", "Custom Crosshair",
-                "A customisable crosshair.", PvpCategory.VISUAL, true, LOCAL_OVERLAY);
-        add(modules, "hud_reach_display", "Reach Display",
-                "Shows the distance to the target.", PvpCategory.VISUAL, true,
+        link(modules, "hud_crosshair_custom", "Custom Crosshair",
+                "A customisable crosshair.", PvpCategory.VISUAL, "crosshair", LOCAL_OVERLAY);
+        link(modules, "hud_reach_display", "Reach Display",
+                "Shows the distance to the target.", PvpCategory.VISUAL, "reach_indicator",
                 "Reads the peer feed; vanilla players are invisible to it.");
         add(modules, "hud_combo_display", "Combo Display",
                 "Shows the combo count.", PvpCategory.VISUAL, false,
@@ -368,8 +385,8 @@ public final class PvpModuleCatalog {
                 "Needs the native entity feed.");
         add(modules, "hud_watermark", "Watermark",
                 "Draws a small client watermark.", PvpCategory.VISUAL, false, LOCAL_OVERLAY);
-        add(modules, "hud_playtime", "Playtime",
-                "Shows session and total playtime.", PvpCategory.VISUAL, true,
+        link(modules, "hud_playtime", "Playtime",
+                "Shows session and total playtime.", PvpCategory.VISUAL, "mod_menu",
                 "Reads the launcher's own playtime tracker.");
         add(modules, "hud_memory", "Memory Usage",
                 "Shows the launcher's memory use.", PvpCategory.VISUAL, false, LOCAL_OVERLAY);
@@ -400,11 +417,11 @@ public final class PvpModuleCatalog {
         add(modules, "hud_tps", "Server TPS",
                 "Shows an estimated server tick rate.", PvpCategory.VISUAL, false,
                 "The launcher cannot measure the server's tick rate.");
-        add(modules, "hud_reach_meter", "Reach Meter",
-                "A compact reach readout.", PvpCategory.VISUAL, true,
+        link(modules, "hud_reach_meter", "Reach Meter",
+                "A compact reach readout.", PvpCategory.VISUAL, "reach_indicator",
                 "Reads the peer feed; vanilla players are invisible to it.");
-        add(modules, "hud_hitbox_toggle", "Hitbox Toggle Indicator",
-                "Shows whether hitboxes are on.", PvpCategory.VISUAL, true, LOCAL_OVERLAY);
+        link(modules, "hud_hitbox_toggle", "Hitbox Toggle Indicator",
+                "Shows whether hitboxes are on.", PvpCategory.VISUAL, "hitbox", LOCAL_OVERLAY);
         add(modules, "hud_armor_percent", "Armor Percentage",
                 "Shows armour as a percentage.", PvpCategory.VISUAL, false,
                 "Needs the native armour feed.");
@@ -414,8 +431,8 @@ public final class PvpModuleCatalog {
                 "Shows your speed.", PvpCategory.VISUAL, false, LOCAL_OVERLAY);
 
         // --- Utility & Automation (50) ------------------------------------------------------------
-        add(modules, "quick_drop", "Quick Drop",
-                "Drops the held item with one tap.", PvpCategory.UTILITY, true,
+        link(modules, "util_quick_drop", "Quick Drop",
+                "Drops the held item with one tap.", PvpCategory.UTILITY, "quick_drop",
                 "Sends the same drop input a player would.");
         add(modules, "util_fast_place", "Fast Place",
                 "Places blocks without the use delay.", PvpCategory.UTILITY, false,
@@ -444,34 +461,34 @@ public final class PvpModuleCatalog {
         add(modules, "util_command_bind", "Command Bind",
                 "Runs a saved command with a key.", PvpCategory.UTILITY, false,
                 "Runs a command you wrote; the server's rules still apply.");
-        add(modules, "util_item_scroll", "Item Scroll",
-                "Scrolls the hotbar with the mouse wheel.", PvpCategory.UTILITY, true,
+        link(modules, "util_item_scroll", "Item Scroll",
+                "Scrolls the hotbar with the mouse wheel.", PvpCategory.UTILITY, "hotbar_slot",
                 "Sends the same hotbar input a player would.");
-        add(modules, "util_hotbar_slot", "Hotbar Slots",
-                "Adds tap targets for each hotbar slot.", PvpCategory.UTILITY, true, LOCAL_OVERLAY);
-        add(modules, "util_more_buttons", "More Buttons",
-                "Adds extra on-screen control buttons.", PvpCategory.UTILITY, true, LOCAL_OVERLAY);
-        add(modules, "util_offhand", "Offhand Helper",
-                "Opens the inventory to place an offhand item.", PvpCategory.UTILITY, true,
+        link(modules, "util_hotbar_slot", "Hotbar Slots",
+                "Adds tap targets for each hotbar slot.", PvpCategory.UTILITY, "hotbar_slot", LOCAL_OVERLAY);
+        link(modules, "util_more_buttons", "More Buttons",
+                "Adds extra on-screen control buttons.", PvpCategory.UTILITY, "more_buttons", LOCAL_OVERLAY);
+        link(modules, "util_offhand", "Offhand Helper",
+                "Opens the inventory to place an offhand item.", PvpCategory.UTILITY, "offhand",
                 "Bedrock has no swap key; the module opens the inventory instead.");
-        add(modules, "util_zoom", "Zoom",
-                "A configurable zoom.", PvpCategory.UTILITY, true, LOCAL_OVERLAY);
-        add(modules, "util_toggle_hud", "Toggle HUD",
-                "Hides the vanilla HUD.", PvpCategory.UTILITY, true, LOCAL_OVERLAY);
-        add(modules, "util_camera_perspective", "Camera Perspective",
-                "Cycles the camera perspective.", PvpCategory.UTILITY, true, LOCAL_OVERLAY);
-        add(modules, "util_virtual_cursor", "Virtual Cursor",
-                "A touch cursor for menus.", PvpCategory.UTILITY, true, LOCAL_OVERLAY);
-        add(modules, "util_gyro", "Gyro",
-                "Drives the look with the device gyroscope.", PvpCategory.UTILITY, true,
+        link(modules, "util_zoom", "Zoom",
+                "A configurable zoom.", PvpCategory.UTILITY, "zoom", LOCAL_OVERLAY);
+        link(modules, "util_toggle_hud", "Toggle HUD",
+                "Hides the vanilla HUD.", PvpCategory.UTILITY, "toggle_hud", LOCAL_OVERLAY);
+        link(modules, "util_camera_perspective", "Camera Perspective",
+                "Cycles the camera perspective.", PvpCategory.UTILITY, "camera_perspective", LOCAL_OVERLAY);
+        link(modules, "util_virtual_cursor", "Virtual Cursor",
+                "A touch cursor for menus.", PvpCategory.UTILITY, "virtual_cursor", LOCAL_OVERLAY);
+        link(modules, "util_gyro", "Gyro",
+                "Drives the look with the device gyroscope.", PvpCategory.UTILITY, "gyro",
                 "Sends look deltas through the same path mouse look uses.");
-        add(modules, "util_pojav_controls", "Pojav Controls",
-                "Edits the on-screen control layout.", PvpCategory.UTILITY, true, LOCAL_OVERLAY);
-        add(modules, "util_debug_menu", "Debug Menu",
-                "A client-side debug readout.", PvpCategory.UTILITY, true,
+        link(modules, "util_pojav_controls", "Pojav Controls",
+                "Edits the on-screen control layout.", PvpCategory.UTILITY, "pojav_controls", LOCAL_OVERLAY);
+        link(modules, "util_debug_menu", "Debug Menu",
+                "A client-side debug readout.", PvpCategory.UTILITY, "debug_menu",
                 "Reads the launcher's own state, not the game's internals.");
-        add(modules, "util_list_players", "List Players",
-                "Lists nearby players with their distance.", PvpCategory.UTILITY, true,
+        link(modules, "util_list_players", "List Players",
+                "Lists nearby players with their distance.", PvpCategory.UTILITY, "list_players",
                 "Reads the peer feed; vanilla players are invisible to it.");
         add(modules, "util_third_person_nametag", "Third-Person Nametag",
                 "Shows your own nametag in third person.", PvpCategory.UTILITY, false,
@@ -528,20 +545,20 @@ public final class PvpModuleCatalog {
                 "Sends the same drop input a player would.");
         add(modules, "util_keep_sprint", "Keep Sprint",
                 "Keeps sprint after an action.", PvpCategory.UTILITY, false, CLIENT_HELPER);
-        add(modules, "util_key_strokes_cfg", "Keybind Config",
-                "Rebinds the launcher's own keys.", PvpCategory.UTILITY, true, LOCAL_OVERLAY);
-        add(modules, "util_theme", "UI Theme",
-                "Chooses the launcher's theme.", PvpCategory.UTILITY, true, LOCAL_OVERLAY);
+        link(modules, "util_key_strokes_cfg", "Keybind Config",
+                "Rebinds the launcher's own keys.", PvpCategory.UTILITY, "mod_menu", LOCAL_OVERLAY);
+        link(modules, "util_theme", "UI Theme",
+                "Chooses the launcher's theme.", PvpCategory.UTILITY, "mod_menu", LOCAL_OVERLAY);
         add(modules, "util_screenshot", "Quick Screenshot",
                 "Saves a screenshot with one key.", PvpCategory.UTILITY, false, LOCAL_OVERLAY);
-        add(modules, "util_recorder", "Clip Recorder",
-                "Records a clip of recent play.", PvpCategory.UTILITY, true,
+        link(modules, "util_recorder", "Clip Recorder",
+                "Records a clip of recent play.", PvpCategory.UTILITY, "mod_menu",
                 "Records your own screen; needs the platform capture consent.");
-        add(modules, "util_voice_chat", "Voice Chat",
-                "Talks to nearby launcher users.", PvpCategory.UTILITY, true,
+        link(modules, "util_voice_chat", "Voice Chat",
+                "Talks to nearby launcher users.", PvpCategory.UTILITY, "voice_chat",
                 "Works between launcher users over LAN or a relay; not with vanilla players.");
-        add(modules, "util_mod_hub", "Mod Hub",
-                "Browses and installs community content.", PvpCategory.UTILITY, true,
+        link(modules, "util_mod_hub", "Mod Hub",
+                "Browses and installs community content.", PvpCategory.UTILITY, "mod_menu",
                 "Modrinth content is overwhelmingly Java Edition; Bedrock hits are rare.");
         add(modules, "util_auto_totem", "Auto Totem",
                 "Keeps a totem in the offhand slot.", PvpCategory.UTILITY, false,
@@ -598,14 +615,14 @@ public final class PvpModuleCatalog {
         add(modules, "world_death_waypoint", "Death Waypoint",
                 "Marks where you last died.", PvpCategory.WORLD, false,
                 "Needs the local-player feed for your position.");
-        add(modules, "world_trajectory", "Trajectory Prediction",
-                "Predicts a projectile arc from your aim.", PvpCategory.WORLD, true,
+        link(modules, "world_trajectory", "Trajectory Prediction",
+                "Predicts a projectile arc from your aim.", PvpCategory.WORLD, "trajectory_prediction",
                 "Predicts from your aim; it cannot see a projectile in flight.");
-        add(modules, "world_hit_prediction", "Hit Prediction",
-                "Draws a ghost box at a peer's predicted position.", PvpCategory.WORLD, true,
+        link(modules, "world_hit_prediction", "Hit Prediction",
+                "Draws a ghost box at a peer's predicted position.", PvpCategory.WORLD, "hit_prediction",
                 "Reads the peer feed; vanilla players are invisible to it.");
-        add(modules, "world_kill_effects", "Custom Kill Effects",
-                "Plays a particle burst on a credited kill.", PvpCategory.WORLD, true,
+        link(modules, "world_kill_effects", "Custom Kill Effects",
+                "Plays a particle burst on a credited kill.", PvpCategory.WORLD, "kill_effects",
                 "Credit is inferred, never a server-confirmed kill.");
         add(modules, "world_particle_off", "Particle Suppressor",
                 "Reduces particle density on your client.", PvpCategory.WORLD, false,
@@ -639,7 +656,28 @@ public final class PvpModuleCatalog {
 
     private static void add(List<Module> modules, String id, String name, String description,
                             PvpCategory category, boolean implemented, String scopeNote) {
-        modules.add(new Module(id, name, description, category, implemented, scopeNote));
+        modules.add(new Module(id, name, description, category, implemented, scopeNote, null));
+    }
+
+    /**
+     * Adds an entry that is a view of a module the launcher already ships, so its toggle drives the
+     * real module rather than a second copy.
+     */
+    private static void link(List<Module> modules, String id, String name, String description,
+                             PvpCategory category, String existingModId, String scopeNote) {
+        modules.add(new Module(id, name, description, category, true, scopeNote, existingModId));
+    }
+
+    /**
+     * Every module that is a view of a shipped module, keyed by its catalogue id, for the UI to wire
+     * a toggle to the real module.
+     */
+    public static java.util.Map<String, String> linksToExistingModules() {
+        java.util.Map<String, String> out = new java.util.LinkedHashMap<>();
+        for (Module m : MODULES) {
+            if (m.linksToExisting()) out.put(m.id, m.existingModId);
+        }
+        return out;
     }
 
     /** Every module, in declaration order (which is also the category order). */

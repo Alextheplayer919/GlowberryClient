@@ -91,7 +91,12 @@ public final class ModIds {
             HIT_TIMING, HITBOX);
 
     public static boolean isPvpModule(String modId) {
-        return modId != null && PVP_MODULES.contains(modId);
+        if (modId == null) return false;
+        if (PVP_MODULES.contains(modId)) return true;
+        // A PvP catalogue entry is part of the PvP section too, so the tab filter and the group
+        // header agree about it. The catalogue entries are appended last and are all in GROUP_PVP,
+        // so they stay one contiguous run.
+        return org.chimeramc.client.core.mods.pvp.PvpModuleCatalog.find(modId) != null;
     }
 
     /**
@@ -119,6 +124,12 @@ public final class ModIds {
      * Hit Prediction share that peer route and stay usable for the same reason.
      */
     public static boolean requiresGameData(String modId) {
+        // A PvP catalogue roadmap entry (one this build cannot drive) is badged by the same rule:
+        // it is listed for discoverability but must not present a switch that does nothing.
+        if (org.chimeramc.client.core.mods.pvp.PvpModuleCatalog.find(modId) != null
+                && !org.chimeramc.client.core.mods.pvp.PvpModuleCatalog.find(modId).implemented) {
+            return true;
+        }
         return ARMOR_HUD.equals(modId) || CRYSTAL_OPTIMIZER.equals(modId)
                 || TRAJECTORY_PREDICTION.equals(modId) || KILL_EFFECTS.equals(modId)
                 // These visual modules act on the game's rendered frame or its entity list, which

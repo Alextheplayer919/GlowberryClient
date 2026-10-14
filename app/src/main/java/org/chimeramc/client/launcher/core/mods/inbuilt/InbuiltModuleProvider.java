@@ -231,7 +231,48 @@ public final class InbuiltModuleProvider {
                 R.string.inbuilt_mod_third_person_nametag,
                 R.string.inbuilt_mod_third_person_nametag_desc, groupName));
 
+        addPvpCatalogEntries(activity, manager, overlayManager, mods);
+
         return groupPvpLast(mods);
+    }
+
+    /**
+     * Adds the PvP catalogue as menu entries.
+     *
+     * <p>A catalogue entry that links to a shipped module ({@link
+     * org.chimeramc.client.core.mods.pvp.PvpModuleCatalog.Module#linksToExisting()}) is a
+     * <em>view</em>: its toggle drives the real module's own enable state, so there is one source of
+     * truth and the two can never disagree. A roadmap entry (one this build cannot drive) is listed
+     * with the shared badge and is not clickable — {@code ModIds.requiresGameData} covers it, so the
+     * grey-out, the badge and the refused toggle all come from the same rule the rest of the menu
+     * uses.
+     */
+    private static void addPvpCatalogEntries(Activity activity, InbuiltModManager manager,
+                                             InbuiltOverlayManager overlayManager,
+                                             List<UnifiedMod> mods) {
+        String pvpGroupName = activity.getString(R.string.mod_menu_group_pvp);
+        for (org.chimeramc.client.core.mods.pvp.PvpModuleCatalog.Module entry
+                : org.chimeramc.client.core.mods.pvp.PvpModuleCatalog.modules()) {
+            // A catalogue entry that duplicates an already-listed module by id is skipped; the menu
+            // shows each shipped module once.
+            if (entry.linksToExisting()) continue;
+            mods.add(new UnifiedMod(
+                    entry.id,
+                    entry.name,
+                    entry.description,
+                    MOD_ID,
+                    UnifiedMod.Source.INBUILT,
+                    overlayManager != null
+                            ? overlayManager.isModActive(entry.id)
+                            : manager.resolveInbuiltModEnabled(entry.id, false),
+                    new ArrayList<>(),
+                    false,
+                    GROUP_PVP_ID,
+                    pvpGroupName,
+                    (mod, enabled) -> setEnabled(manager, mod, enabled),
+                    (mod, config, value) -> setConfig(manager, mod, config, value)
+            ));
+        }
     }
 
     /**

@@ -1587,20 +1587,32 @@ public class InbuiltOverlayManager {
         long frameNow = android.os.SystemClock.uptimeMillis();
         org.chimeramc.client.launcher.controller.ControllerInputProcessor
                 .tickCpsRepeats(frameNow);
+        // The FPS optimization modules throttle the launcher's own heavy per-frame work here. With
+        // the modules off the plan interval is 0 and every one of these runs every frame exactly as
+        // before, so a disabled module changes nothing. This is the modules' real effect: when the
+        // culling/coalescing modules are on, the launcher advances its overlays in batches.
+        boolean runHeavyTick = org.chimeramc.client.core.mods.fps.FpsModulesService
+                .shouldRunOverlayTick(frameNow);
         // PvP Suite run state advances on the game's own frame tick, like the CPS repeats:
         // Hit Prediction smooths peer velocity and Kill Effects ages its bursts and polls the
         // death feed. Both are no-ops when their module is off.
-        HitPredictionMod.tick(frameNow);
-        KillEffectsMod.tick(frameNow);
+        if (runHeavyTick) {
+            HitPredictionMod.tick(frameNow);
+            KillEffectsMod.tick(frameNow);
+        }
         // The cosmetics transform pipeline: compute the cape chain, pet pose and head look in Java
         // and push them to the native render hook every frame, so the hook draws them directly with
-        // no resource pack. A no-op when nothing is equipped or the native symbol is absent.
+        // no resource pack. A no-op when nothing is equipped or the native symbol is absent. Kept on
+        // every frame: it drives a visible animation, so throttling it would be a visible stutter,
+        // and the module's own atlas-residency option is what saves the cost there.
         org.chimeramc.client.core.cosmetics.NativeCosmeticsRuntime.tickFrame(activity, frameNow);
         // The Replay highlight triggers read the same local signals (health for death, the landed
         // hit for a combo, the credited kill for a streak) on the game's own frame tick. Without
         // this the trigger system was built but never called, so clips only saved on a manual
         // record.
-        ReplayTriggerFeed.tick(frameNow);
+        if (runHeavyTick) {
+            ReplayTriggerFeed.tick(frameNow);
+        }
         InbuiltModManager manager = InbuiltModManager.getInstance(activity);
         boolean isPauseOnly = manager.isPauseMenuOnly();
         boolean isPauseOpen = org.chimeramc.client.preloader.PreloaderInput.isPauseMenuOpen();

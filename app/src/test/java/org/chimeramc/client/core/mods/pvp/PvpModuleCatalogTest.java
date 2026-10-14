@@ -91,4 +91,35 @@ public class PvpModuleCatalogTest {
         assertEquals(PvpCategory.UTILITY, PvpCategory.forModuleId(null));
         org.junit.Assert.assertNull(PvpModuleCatalog.find("does_not_exist"));
     }
+
+    @Test
+    public void implementedEntriesLinkToAShippedModuleOrAreListedAsRoadmap() {
+        // Every implemented entry either links to a shipped module (so its toggle drives the real
+        // one) or is a genuine standalone module. A roadmap entry must not be implemented.
+        for (PvpModuleCatalog.Module m : PvpModuleCatalog.modules()) {
+            if (m.implemented && m.linksToExisting()) {
+                assertNotNull("linked entry must name a module", m.existingModId);
+                assertFalse(m.existingModId.isEmpty());
+            }
+            if (!m.implemented) {
+                assertFalse("a roadmap entry must not link", m.linksToExisting());
+            }
+        }
+    }
+
+    @Test
+    public void aCatalogueIdNeverCollidesWithAShippedModuleId() {
+        // A catalogue id that equals a shipped ModIds value would make isPvpModule() classify the
+        // shipped module as PvP and split the PvP run. Every catalogue entry that stands for a
+        // shipped module must therefore use its own id and link to the shipped one.
+        java.util.Set<String> catalogueIds = new java.util.HashSet<>(PvpModuleCatalog.moduleIds());
+        for (String shipped : new String[]{"quick_drop", "zoom", "auto_sprint", "snaplook",
+                "cps_display", "fps_display", "hitbox", "hit_registration", "hit_timing"}) {
+            if (catalogueIds.contains(shipped)) {
+                PvpModuleCatalog.Module m = PvpModuleCatalog.find(shipped);
+                org.junit.Assert.fail("catalogue id collides with shipped module id: " + shipped
+                        + " (use a distinct id and link to it instead)");
+            }
+        }
+    }
 }

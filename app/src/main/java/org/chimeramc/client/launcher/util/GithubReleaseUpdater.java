@@ -119,6 +119,14 @@ public class GithubReleaseUpdater {
             // Skip the automatic update check while a session is running (Reduce Network Latency).
             return;
         }
+        // The tick-rate FPS module paces the launcher's own background polling: when it is on, an
+        // automatic check does not fire more often than the plan's background interval. This is the
+        // module's real effect on the host — it never suppresses the game, only the launcher's own
+        // requests. With the module off the interval is 0 and this is a no-op.
+        if (!org.chimeramc.client.core.mods.fps.FpsModulesService
+                .backgroundWorkAllowed(android.os.SystemClock.uptimeMillis())) {
+            return;
+        }
         String url = String.format(GITHUB_LATEST_API, owner, repo);
         Request request = new Request.Builder().url(url).build();
         client.newCall(request).enqueue(new Callback() {
