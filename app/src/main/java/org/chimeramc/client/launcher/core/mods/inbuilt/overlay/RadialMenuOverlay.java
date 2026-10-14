@@ -131,7 +131,67 @@ public class RadialMenuOverlay {
         wmParams.token = activity.getWindow().getDecorView().getWindowToken();
         windowManager.addView(overlayView, wmParams);
         isShowing = true;
+        // A pad-opened wheel enters controller-cursor mode: the cursor appears at the hub and the
+        // stick drives it. Touch still works and hides the cursor on the first tap.
+        menuView.post(() -> menuView.enableControllerCursor());
     }
+
+    /**
+     * Hands one controller key to the open wheel.
+     *
+     * @return true when the wheel consumed the press (so the game must not also act on it)
+     */
+    public boolean handleControllerKey(int keyCode, boolean down) {
+        if (!isShowing || menuView == null || !down) return false;
+        switch (keyCode) {
+            case android.view.KeyEvent.KEYCODE_BUTTON_A:
+            case android.view.KeyEvent.KEYCODE_DPAD_CENTER:
+            case android.view.KeyEvent.KEYCODE_ENTER:
+                return menuView.controllerSelect();
+            case android.view.KeyEvent.KEYCODE_BUTTON_B:
+            case android.view.KeyEvent.KEYCODE_BACK:
+                return menuView.controllerBack();
+            case android.view.KeyEvent.KEYCODE_BUTTON_X:
+                return menuView.controllerPinHoveredChip();
+            case android.view.KeyEvent.KEYCODE_DPAD_LEFT:
+                menuView.focusNextSector(-1);
+                return true;
+            case android.view.KeyEvent.KEYCODE_DPAD_RIGHT:
+                menuView.focusNextSector(1);
+                return true;
+            case android.view.KeyEvent.KEYCODE_BUTTON_R1:
+                menuView.cycleChip(1);
+                return true;
+            case android.view.KeyEvent.KEYCODE_BUTTON_L1:
+                menuView.cycleChip(-1);
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Hands one analogue stick frame to the open wheel.
+     *
+     * @return true when the wheel consumed it (the game must not also move the camera)
+     */
+    public boolean handleControllerMotion(android.view.MotionEvent event) {
+        if (!isShowing || menuView == null) return false;
+        float rx = event.getAxisValue(android.view.MotionEvent.AXIS_Z);
+        float ry = event.getAxisValue(android.view.MotionEvent.AXIS_RZ);
+        float lx = event.getAxisValue(android.view.MotionEvent.AXIS_X);
+        float ly = event.getAxisValue(android.view.MotionEvent.AXIS_Y);
+        boolean precision = Math.hypot(lx, ly) > 0.5f;
+        boolean fast = event.getButtonState() != 0;
+        long now = android.os.SystemClock.uptimeMillis();
+        float dt = lastStickMs == 0L ? 1f / 60f : Math.min(0.1f, (now - lastStickMs) / 1000f);
+        lastStickMs = now;
+        float deadZone = CursorController.DEFAULT_DEAD_ZONE;
+        float curve = CursorController.DEFAULT_CURVE_EXPONENT;
+        return menuView.handleControllerStick(rx, ry, dt, precision, fast, deadZone, curve);
+    }
+
+    private long lastStickMs;
 
     private void dispatch(Sector sector) {
         if (destinations == null) return;
