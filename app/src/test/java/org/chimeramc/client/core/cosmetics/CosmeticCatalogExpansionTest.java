@@ -159,4 +159,26 @@ public class CosmeticCatalogExpansionTest {
                     CosmeticCatalog.CapePattern.SOLID, i / 16f, i / 16f, base, 0xFFFFFFFF));
         }
     }
+
+    @Test
+    public void everyNonSolidPatternActuallyVariesTheCloth() {
+        // A pattern that degenerated to a flat fill would make a column of capes look identical, so
+        // each weave is checked on its own rather than only in aggregate. The new weaves (diagonal,
+        // plaid, ombre, scales, runes, emblem) are the ones most likely to collapse by mistake.
+        int base = 0xFF6236E8;
+        int accent = 0xFFFFD86B;
+        for (CosmeticCatalog.CapePattern pattern : CosmeticCatalog.CapePattern.values()) {
+            if (pattern == CosmeticCatalog.CapePattern.SOLID
+                    || pattern == CosmeticCatalog.CapePattern.OPTIFINE) {
+                continue;
+            }
+            java.util.Set<Integer> seen = new java.util.HashSet<>();
+            for (int i = 0; i < 24; i++) {
+                for (int j = 0; j < 24; j++) {
+                    seen.add(CapePatterns.colorAt(pattern, i / 24f, j / 24f, base, accent));
+                }
+            }
+            assertTrue(pattern + " must vary the cloth, not be a flat fill", seen.size() > 1);
+        }
+    }
 }
