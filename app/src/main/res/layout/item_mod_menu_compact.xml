@@ -86,19 +86,12 @@
 
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/mod_card_status"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:minHeight="22dp"
-                android:layout_marginStart="5dp"
-                android:background="@drawable/bg_mod_status_disabled"
-                android:gravity="center"
-                android:minWidth="48dp"
-                android:paddingStart="7dp"
-                android:paddingEnd="7dp"
-                android:textSize="9sp"
-                android:textStyle="bold" />
+            <org.chimeramc.client.ui.components.UiSwitchView
+                android:id="@+id/mod_card_switch"
+                android:layout_width="36dp"
+                android:layout_height="20dp"
+                android:layout_marginStart="6dp"
+                android:contentDescription="@string/mod_status_disabled" />
 
             <ImageButton
                 android:id="@+id/mod_card_config"
