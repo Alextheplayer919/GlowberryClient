@@ -142,76 +142,6 @@
                     android:paddingStart="14dp"
                     android:paddingEnd="14dp">
 
-                    <TextView
-                        android:id="@+id/vip_tab_general"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginEnd="8dp"
-                        android:defaultFocusHighlightEnabled="false"
-                        android:drawableStart="@drawable/ic_modules"
-                        android:drawablePadding="8dp"
-                        android:drawableTint="@color/ui_text_secondary"
-                        android:gravity="center_vertical"
-                        android:minHeight="34dp"
-                        android:paddingStart="14dp"
-                        android:paddingEnd="16dp"
-                        android:text="@string/vip_tab_general"
-                        android:textColor="@color/ui_text_secondary"
-                        android:textSize="13sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/vip_tab_replay"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginEnd="8dp"
-                        android:defaultFocusHighlightEnabled="false"
-                        android:drawableStart="@drawable/ic_replay"
-                        android:drawablePadding="8dp"
-                        android:drawableTint="@color/ui_text_secondary"
-                        android:gravity="center_vertical"
-                        android:minHeight="34dp"
-                        android:paddingStart="14dp"
-                        android:paddingEnd="16dp"
-                        android:text="@string/vip_tab_replay"
-                        android:textColor="@color/ui_text_secondary"
-                        android:textSize="13sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/vip_tab_controller"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginEnd="8dp"
-                        android:defaultFocusHighlightEnabled="false"
-                        android:drawableStart="@drawable/ic_controller"
-                        android:drawablePadding="8dp"
-                        android:drawableTint="@color/ui_text_secondary"
-                        android:gravity="center_vertical"
-                        android:minHeight="34dp"
-                        android:paddingStart="14dp"
-                        android:paddingEnd="16dp"
-                        android:text="@string/vip_tab_controller"
-                        android:textColor="@color/ui_text_secondary"
-                        android:textSize="13sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/vip_tab_keyboard"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:defaultFocusHighlightEnabled="false"
-                        android:drawableStart="@drawable/ic_keyboard"
-                        android:drawablePadding="8dp"
-                        android:drawableTint="@color/ui_text_secondary"
-                        android:gravity="center_vertical"
-                        android:minHeight="34dp"
-                        android:paddingStart="14dp"
-                        android:paddingEnd="16dp"
-                        android:text="@string/vip_tab_keyboard"
-                        android:textColor="@color/ui_text_secondary"
-                        android:textSize="13sp"
-                        android:textStyle="bold" />
                 </LinearLayout>
 
                 <View
@@ -382,6 +312,37 @@
                      one feature. -->
                 <FrameLayout
                     android:id="@+id/vip_replay_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:visibility="gone" />
+
+                <!-- Shared pages hosted by the VIP shell, so VIP = normal menu + extras. -->
+                <FrameLayout
+                    android:id="@+id/vip_voice_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:visibility="gone" />
+
+                <FrameLayout
+                    android:id="@+id/vip_packs_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:visibility="gone" />
+
+                <FrameLayout
+                    android:id="@+id/vip_cosmetics_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:visibility="gone" />
+
+                <FrameLayout
+                    android:id="@+id/vip_hud_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:visibility="gone" />
+
+                <FrameLayout
+                    android:id="@+id/vip_settings_view"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:visibility="gone" />

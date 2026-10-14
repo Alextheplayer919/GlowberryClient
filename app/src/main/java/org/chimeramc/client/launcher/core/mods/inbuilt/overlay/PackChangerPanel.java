@@ -28,7 +28,7 @@ import java.util.List;
  * re-read after every toggle. It writes the same {@code global_resource_packs.json} the game
  * reads, through {@link InGamePackChanger}.
  */
-final class PackChangerPanel {
+public final class PackChangerPanel {
 
     private final Activity activity;
     private final boolean compact;
@@ -36,7 +36,7 @@ final class PackChangerPanel {
     private final LinearLayout listColumn;
     private TextView statusLine;
 
-    PackChangerPanel(Activity activity, boolean compact) {
+    public PackChangerPanel(Activity activity, boolean compact) {
         this.activity = activity;
         this.compact = compact;
 
@@ -70,7 +70,7 @@ final class PackChangerPanel {
         rebuild();
     }
 
-    View getView() {
+    public View getView() {
         return root;
     }
 
