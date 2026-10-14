@@ -284,11 +284,7 @@ public final class CosmeticsDiagnosticsReport {
     }
 
     private static String backendText(int backend) {
-        switch (backend) {
-            case 1: return "GLES";
-            case 2: return "Vulkan (GLES unavailable)";
-            default: return "unknown";
-        }
+        return RenderBackend.label(RenderBackend.fromNativeCode(backend));
     }
 
     private static String errorText(int error) {
