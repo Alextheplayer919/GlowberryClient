@@ -535,16 +535,52 @@ public class RadialMenuView extends View {
     /**
      * Enables controller-cursor mode: a cursor appears at the hub and the stick drives it.
      * Called when the wheel is opened by the controller bind.
+     *
+     * <p>The wheel is enabled from a post on the overlay window, which can run before the view has
+     * been measured. Creating the cursor with a 1x1 viewport there clamped it to a single pixel and
+     * it could never move — the "controller cursor does not work" report. The viewport is therefore
+     * kept in step with the real size in {@link #onSizeChanged}, and the cursor is centred the first
+     * time a usable size arrives rather than being pinned at the top-left corner.
      */
     public void enableControllerCursor() {
-        if (cursor == null) {
-            cursor = new CursorController(Math.max(1, getWidth()), Math.max(1, getHeight()), density);
-        } else {
-            cursor.setViewport(Math.max(1, getWidth()), Math.max(1, getHeight()));
-            cursor.centre();
-        }
         cursorVisible = true;
+        applyCursorViewport(true);
         invalidate();
+    }
+
+    /**
+     * Creates or updates the cursor for the current view size.
+     *
+     * @param centreNow true to recentre the cursor (a fresh open); false to only fix the viewport
+     *                  (a rotation/resize must not yank the cursor back to the middle)
+     */
+    private void applyCursorViewport(boolean centreNow) {
+        int w = getWidth();
+        int h = getHeight();
+        if (w <= 0 || h <= 0) return; // Not laid out yet; onSizeChanged will run.
+        if (cursor == null) {
+            cursor = new CursorController(w, h, density);
+        } else {
+            cursor.setViewport(w, h);
+            if (centreNow) cursor.centre();
+        }
+    }
+
+    @Override
+    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+        super.onSizeChanged(w, h, oldw, oldh);
+        // The first real size arrives after the overlay's post; without this the cursor kept the
+        // 1x1 viewport it was created with and never moved.
+        if (cursor != null) {
+            cursor.setViewport(Math.max(1, w), Math.max(1, h));
+            if (oldw == 0 || oldh == 0) cursor.centre();
+        }
+        invalidate();
+    }
+
+    /** True when the view is laid out far enough for the cursor to move meaningfully. */
+    private boolean cursorViewportUsable() {
+        return getWidth() > 1 && getHeight() > 1;
     }
 
     /** Hides the cursor (a touch, or the wheel closing). */
@@ -565,7 +601,13 @@ public class RadialMenuView extends View {
      */
     public boolean handleControllerStick(float rawX, float rawY, float dt, boolean precision,
                                          boolean fast, float deadZone, float curveExponent) {
-        if (cursor == null) return false;
+        // A stick frame can arrive before the overlay's post enabled the cursor (or before layout),
+        // so create it here too rather than returning early — the earlier early-return is part of
+        // why the cursor never appeared.
+        if (cursor == null) {
+            applyCursorViewport(true);
+            if (cursor == null) return false; // Still not laid out; nothing sensible to move.
+        }
         cursorVisible = true;
         float[] shaped = new float[2];
         CursorController.shape(rawX, rawY, deadZone, curveExponent, shaped);

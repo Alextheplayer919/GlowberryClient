@@ -120,6 +120,21 @@ public class CursorControllerTest {
     }
 
     @Test
+    public void aOnePixelViewportTrapsTheCursorAndARealViewportFreesIt() {
+        // The bug: the wheel enabled its cursor from a post that ran before layout, so the controller
+        // was created with a 1x1 viewport and clamped to a single pixel. A stick push could not move
+        // it. This pins the failure mode and the fix (setViewport to the real size).
+        CursorController trapped = new CursorController(1f, 1f, 1f);
+        trapped.update(1f, 0f, 1f, false, false, 900f);
+        assertEquals(1f, trapped.x(), EPS); // Still pinned at the single pixel.
+
+        trapped.setViewport(1000f, 600f);
+        trapped.centre();
+        trapped.update(1f, 0f, 1f, false, false, 900f);
+        assertTrue("after the viewport is fixed the cursor moves", trapped.x() > 500f);
+    }
+
+    @Test
     public void aZeroOrNegativeDeltaDoesNothing() {
         CursorController c = cursor();
         c.update(1f, 0f, 0f, false, false, 900f);
