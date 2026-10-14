@@ -95,6 +95,19 @@ final class CosmeticsDiagnosticsDialog {
         cubeNote.setTextColor(TEXT_SECONDARY);
         root.addView(cubeNote);
 
+        // The live render debug overlay toggle: prints the native draw values on screen (refreshed
+        // once a second) so the draw path can be watched in third person without leaving the game.
+        final CheckBox renderDebug = new CheckBox(activity);
+        renderDebug.setText(R.string.cosmetics_diagnostics_live_overlay);
+        renderDebug.setTextColor(TEXT_PRIMARY);
+        renderDebug.setTextSize(13f);
+        renderDebug.setChecked(manager.isRenderDebugOverlayEnabled());
+        renderDebug.setOnCheckedChangeListener((button, checked) -> {
+            manager.setRenderDebugOverlayEnabled(checked);
+            reportView.setText(CosmeticsDiagnosticsReport.readLive(activity));
+        });
+        root.addView(renderDebug);
+
         // The third-person hint: in first person the game does not render the local player model,
         // so a hook inside the player-render path is never called for you and cosmetics anchored to
         // it are never drawn. This is the single most common "nothing shows" cause.

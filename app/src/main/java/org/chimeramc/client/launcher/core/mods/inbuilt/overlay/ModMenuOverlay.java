@@ -290,6 +290,7 @@ public class ModMenuOverlay {
 
             windowManager.addView(overlayView, wmParams);
             isShowing = true;
+            maybeAttachRenderDebugOverlay();
 
             // Start the stats strip tick. Only while the menu is open, so the FPS/battery read
             // costs nothing during ordinary play.
@@ -326,6 +327,7 @@ public class ModMenuOverlay {
         rootView.addView(overlayView, params);
         isShowing = true;
         wmParams = null;
+        maybeAttachRenderDebugOverlay();
 
         overlayView.setAlpha(0f);
         overlayView.animate().alpha(1f).setDuration(220).start();
@@ -424,6 +426,25 @@ public class ModMenuOverlay {
         }
     }
 
+
+    /**
+     * Attaches the live render debug overlay when the player turned it on, so the native draw
+     * values can be watched in third person. Off by default; a no-op then.
+     */
+    private void maybeAttachRenderDebugOverlay() {
+        try {
+            InbuiltModManager manager = InbuiltModManager.getInstance(activity);
+            if (manager == null || !manager.isRenderDebugOverlayEnabled()) return;
+            if (overlayView instanceof FrameLayout) {
+                renderDebugOverlay = RenderDebugOverlay.attach(activity, (FrameLayout) overlayView);
+                if (renderDebugOverlay != null) renderDebugOverlay.start();
+            }
+        } catch (Throwable ignored) {
+            // A debug overlay must never block the menu.
+        }
+    }
+
+    private RenderDebugOverlay renderDebugOverlay;
 
     private void setupViews() {
         // The overlay tree is re-inflated on every show(), so any panel that was attached to the
@@ -1893,6 +1914,10 @@ public class ModMenuOverlay {
         if (!isShowing || overlayView == null) return;
 
         handler.removeCallbacks(statsTick);
+        if (renderDebugOverlay != null) {
+            renderDebugOverlay.stop();
+            renderDebugOverlay = null;
+        }
         if (replayPanel != null) replayPanel.onHidden();
         // Collapse any open cosmetics dropdown before the tree is removed; a spinner's list is a
         // separate window and would otherwise stay floating over the game after the menu closes.

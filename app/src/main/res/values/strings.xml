@@ -978,6 +978,7 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="crash_report_share_title">Share crash report</string>
     <string name="crash_report_none">No crash report found.</string>
     <string name="third_person_hint">Switch to third person to see cosmetics — in first person the game does not render your player model.</string>
+    <string name="cosmetics_diagnostics_live_overlay">Show live render debug overlay</string>
     <string name="vip_controller_step_failed">Controller settings step failed — see diagnostics</string>
     <string name="vip_hud_editor_hint">Drag your HUD overlays to reposition them, then save or reset from the launcher\u2019s HUD editor. Tap the modules tab to return.</string>
     <string name="vip_settings_hint">Mod menu settings (notifications, pause-menu-only, keybinds) live in the launcher\u2019s Settings tab.</string>
