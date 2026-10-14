@@ -15,6 +15,8 @@ public class InbuiltModManager {
     private static final String PREFS_NAME = "inbuilt_mods_prefs";
     private static final String KEY_AUTOSPRINT_KEY = "autosprint_key";
     private static final String KEY_OVERLAY_BUTTON_SIZE_PREFIX = "overlay_button_size_";
+    /** Namespace for the generic module config accessors (the FPS optimization modules). */
+    private static final String KEY_MOD_CONFIG_PREFIX = "mod_config_";
     private static final String KEY_OVERLAY_OPACITY_PREFIX = "overlay_opacity_";
     private static final String KEY_MOD_MENU_ENABLED = "mod_menu_enabled";
     private static final String KEY_NOTIFICATIONS_ENABLED = "notifications_enabled";
@@ -161,6 +163,32 @@ public class InbuiltModManager {
             }
         }
         return instance;
+    }
+
+    /**
+     * Reads a module config value as an int, or {@code fallback} when it was never stored.
+     *
+     * <p>A generic accessor for modules whose options are not each backed by a dedicated getter
+     * (the FPS optimization modules). The key is namespaced with the module-config prefix so it
+     * cannot collide with a dedicated preference.
+     */
+    public int getModConfigInt(String key, int fallback) {
+        return prefs.getInt(KEY_MOD_CONFIG_PREFIX + key, fallback);
+    }
+
+    /** Stores a module config int value. */
+    public void setModConfigInt(String key, int value) {
+        prefs.edit().putInt(KEY_MOD_CONFIG_PREFIX + key, value).apply();
+    }
+
+    /** Reads a module config value as a boolean, or {@code fallback} when it was never stored. */
+    public boolean getModConfigBool(String key, boolean fallback) {
+        return prefs.getBoolean(KEY_MOD_CONFIG_PREFIX + key, fallback);
+    }
+
+    /** Stores a module config boolean value. */
+    public void setModConfigBool(String key, boolean value) {
+        prefs.edit().putBoolean(KEY_MOD_CONFIG_PREFIX + key, value).apply();
     }
 
     public int getAutoSprintKeybind() {

@@ -36,6 +36,14 @@ public final class ModIds {
     public static final String HIT_PREDICTION = "hit_prediction";
     public static final String KILL_EFFECTS = "kill_effects";
 
+    // --- FPS optimization modules (host-side performance, filed under the General tab) --------
+    /** HyperSpatial Vertex Culling & Occlusion Matrix (host-side visibility/batching). */
+    public static final String HYPERSPATIAL_CULL = "hyperspatial_cull";
+    /** Advanced Vertical Rendering & Draw-Call Coalescing (host-side batching). */
+    public static final String VERTICAL_RENDER_COALESCE = "vertical_render_coalesce";
+    /** Intelligent Tick-Rate & Animation Predictor (host-side tick throttling). */
+    public static final String TICK_RATE_PREDICTOR = "tick_rate_predictor";
+
     // --- Visual / HUD / Misc modules (the mod-panel list) ------------------------------------
 
     /** Brightens the world by removing the dark overlay, a full-bright visual. */

@@ -163,6 +163,17 @@ public final class InbuiltModuleProvider {
         mods.add(create(activity, manager, overlayManager, ModIds.KILL_EFFECTS,
                 R.string.inbuilt_mod_kill_effects, R.string.inbuilt_mod_kill_effects_desc,
                 groupName));
+        // FPS optimization modules: host-side performance only. They reduce the launcher's own work
+        // and never touch the game's renderer, so no switch here promises a frame rate.
+        mods.add(create(activity, manager, overlayManager, ModIds.HYPERSPATIAL_CULL,
+                R.string.inbuilt_mod_hyperspatial_cull,
+                R.string.inbuilt_mod_hyperspatial_cull_desc, groupName));
+        mods.add(create(activity, manager, overlayManager, ModIds.VERTICAL_RENDER_COALESCE,
+                R.string.inbuilt_mod_vertical_render_coalesce,
+                R.string.inbuilt_mod_vertical_render_coalesce_desc, groupName));
+        mods.add(create(activity, manager, overlayManager, ModIds.TICK_RATE_PREDICTOR,
+                R.string.inbuilt_mod_tick_rate_predictor,
+                R.string.inbuilt_mod_tick_rate_predictor_desc, groupName));
         mods.add(create(activity, manager, overlayManager, ModIds.AIM_SETTINGS,
                 R.string.inbuilt_mod_aim_settings, R.string.inbuilt_mod_aim_settings_desc,
                 groupName));
@@ -252,7 +263,10 @@ public final class InbuiltModuleProvider {
                 || ModIds.REACH_INDICATOR.equals(id) || ModIds.TRAJECTORY_PREDICTION.equals(id)
                 || ModIds.HIT_PREDICTION.equals(id) || ModIds.KILL_EFFECTS.equals(id)
                 || ModIds.OFFHAND.equals(id)
-                || ModIds.CROSSHAIR.equals(id);
+                || ModIds.CROSSHAIR.equals(id)
+                || ModIds.HYPERSPATIAL_CULL.equals(id)
+                || ModIds.VERTICAL_RENDER_COALESCE.equals(id)
+                || ModIds.TICK_RATE_PREDICTOR.equals(id);
         // Combat modules get their own PvP section so the tab is a real destination, not just a
         // filter over the inbuilt list. They remain inbuilt modules, so the Inbuilt filter and
         // the "Inbuilt" grouping still find them.
@@ -294,6 +308,9 @@ public final class InbuiltModuleProvider {
         }
         if (ModIds.OFFHAND.equals(modId)) {
             return createOffhandConfigSchema(context, mod);
+        }
+        if (org.chimeramc.client.core.mods.fps.FpsModuleCatalog.isFpsModule(modId)) {
+            return createFpsConfigSchema(context, mod);
         }
         boolean hotbar = ModIds.HOTBAR_SLOT.equals(mod.getId());
         if (!hotbar && !ModIds.GYRO.equals(mod.getId())) return null;
@@ -472,6 +489,63 @@ public final class InbuiltModuleProvider {
      * only works from the peer feed this build can actually reach, so the dialog says what it can
      * and cannot see rather than leaving the limit to read as a broken feature.
      */
+    private static RuntimeConfigSchema createFpsConfigSchema(Context context, UnifiedMod mod) {
+        org.chimeramc.client.core.mods.fps.FpsModuleCatalog.Module module =
+                org.chimeramc.client.core.mods.fps.FpsModuleCatalog.find(mod.getId());
+        if (module == null) return null;
+        try {
+            JSONArray categories = new JSONArray();
+            JSONArray nodes = new JSONArray();
+            categories.put(configCategory(context, "main", R.string.mod_config_category_culling));
+            categories.put(configCategory(context, "batching", R.string.mod_config_category_batching));
+            categories.put(configCategory(context, "memory", R.string.mod_config_category_memory));
+            categories.put(configCategory(context, "timing", R.string.mod_config_category_timing));
+            categories.put(configCategory(context, "prediction", R.string.mod_config_category_prediction));
+            categories.put(configCategory(context, "network", R.string.mod_config_category_network));
+
+            nodes.put(scopeNoteNode(context, mod, R.string.fps_modules_scope_note, "main"));
+
+            int index = 0;
+            for (org.chimeramc.client.core.mods.fps.FpsModuleCatalog.Option option : module.options) {
+                // Distribute the options across the categories so the dialog is not one long column;
+                // the exact split is presentation only and every option is always present.
+                String category = fpsCategoryFor(option.key, index++);
+                JSONObject node = new JSONObject()
+                        .put("id", option.key)
+                        .put("key", option.key)
+                        .put("category", category)
+                        .put("title", option.label)
+                        .put("type", option.isToggle() ? "toggle" : "slider")
+                        .put("default_value", option.defaultValue)
+                        .put("min_value", String.valueOf(option.min))
+                        .put("max_value", String.valueOf(option.max))
+                        .put("description", option.description);
+                nodes.put(node);
+            }
+            return RuntimeConfigSchema.parse(new JSONObject().put("version", 2)
+                    .put("default_category", "main")
+                    .put("categories", categories).put("nodes", nodes).toString());
+        } catch (JSONException e) {
+            throw new IllegalStateException("Unable to build FPS module config schema", e);
+        }
+    }
+
+    /** A presentation-only category for an FPS option key. Every option is always included. */
+    private static String fpsCategoryFor(String key, int index) {
+        if (key.startsWith("tr_")) {
+            return key.contains("net") || key.contains("packet") || key.contains("coalesce")
+                    ? "network" : (key.contains("prediction") || key.contains("predict")
+                    ? "prediction" : "timing");
+        }
+        if (key.startsWith("vc_")) {
+            return key.contains("gc") || key.contains("pool") || key.contains("prealloc")
+                    || key.contains("cache") || key.contains("recycle") || key.contains("buffer")
+                    ? "memory" : "batching";
+        }
+        // The culling module: a rough split between visibility (main) and batching, by index.
+        return index % 5 == 4 ? "batching" : "main";
+    }
+
     private static RuntimeConfigSchema createPvpSuiteConfigSchema(Context context, UnifiedMod mod) {
         String modId = mod.getId();
         try {
@@ -649,6 +723,9 @@ public final class InbuiltModuleProvider {
         if (ModIds.TRAJECTORY_PREDICTION.equals(modId)) return R.string.trajectory_prediction_scope_note;
         if (ModIds.HIT_PREDICTION.equals(modId)) return R.string.hit_prediction_scope_note;
         if (ModIds.KILL_EFFECTS.equals(modId)) return R.string.kill_effects_scope_note;
+        if (org.chimeramc.client.core.mods.fps.FpsModuleCatalog.isFpsModule(modId)) {
+            return R.string.fps_modules_scope_note;
+        }
         return 0;
     }
 
@@ -1048,6 +1125,26 @@ public final class InbuiltModuleProvider {
                     "true", "", "",
                     String.valueOf(manager.isVoiceNametagIconEnabled())));
         }
+        if (org.chimeramc.client.core.mods.fps.FpsModuleCatalog.isFpsModule(modId)) {
+            // The FPS options come straight from the catalogue, so the dialog, the defaults and the
+            // stored values read one source. A missing stored value reads the catalogue default.
+            org.chimeramc.client.core.mods.fps.FpsModuleCatalog.Module module =
+                    org.chimeramc.client.core.mods.fps.FpsModuleCatalog.find(modId);
+            for (org.chimeramc.client.core.mods.fps.FpsModuleCatalog.Option option : module.options) {
+                if (option.isToggle()) {
+                    boolean current = manager.getModConfigBool(option.key,
+                            Boolean.parseBoolean(option.defaultValue));
+                    configs.add(config(option.key, option.label, UnifiedMod.ConfigType.TOGGLE,
+                            option.defaultValue, "", "", String.valueOf(current)));
+                } else {
+                    int def = Integer.parseInt(option.defaultValue);
+                    int current = manager.getModConfigInt(option.key, def);
+                    configs.add(config(option.key, option.label, UnifiedMod.ConfigType.SLIDER_INT,
+                            option.defaultValue, String.valueOf(option.min),
+                            String.valueOf(option.max), String.valueOf(current)));
+                }
+            }
+        }
         return configs;
     }
 
@@ -1084,6 +1181,10 @@ public final class InbuiltModuleProvider {
     private static void setConfig(InbuiltModManager manager, UnifiedMod mod, UnifiedMod.ConfigEntry config,
                                   String value) {
         if (ModIds.HOTBAR_SLOT.equals(mod.getId()) && setHotbarSlotConfig(manager, config.key, value)) return;
+        if (org.chimeramc.client.core.mods.fps.FpsModuleCatalog.isFpsModule(mod.getId())) {
+            setFpsConfig(manager, mod, config.key, value);
+            return;
+        }
         switch (config.key) {
             case CFG_OVERLAY_SIZE:
                 manager.setOverlayButtonSize(mod.getId(), parseInt(value, manager.getOverlayButtonSize(mod.getId())));
@@ -1324,6 +1425,32 @@ public final class InbuiltModuleProvider {
             org.chimeramc.client.core.voice.VoiceChatModule module =
                     org.chimeramc.client.core.voice.VoiceChatModule.peek();
             if (module != null) module.applyConfig(manager);
+        }
+    }
+
+    /**
+     * Stores an FPS module option. The type is taken from the catalogue, so a toggle key can never be
+     * written as an int (or the reverse) — the exact class-cast-on-read bug the settings backup
+     * restore guards against.
+     */
+    private static void setFpsConfig(InbuiltModManager manager, UnifiedMod mod, String key,
+                                     String value) {
+        org.chimeramc.client.core.mods.fps.FpsModuleCatalog.Option option = null;
+        org.chimeramc.client.core.mods.fps.FpsModuleCatalog.Module module =
+                org.chimeramc.client.core.mods.fps.FpsModuleCatalog.find(mod.getId());
+        if (module != null) {
+            for (org.chimeramc.client.core.mods.fps.FpsModuleCatalog.Option candidate : module.options) {
+                if (candidate.key.equals(key)) {
+                    option = candidate;
+                    break;
+                }
+            }
+        }
+        if (option == null) return;
+        if (option.isToggle()) {
+            manager.setModConfigBool(key, parseBoolean(value));
+        } else {
+            manager.setModConfigInt(key, parseInt(value, Integer.parseInt(option.defaultValue)));
         }
     }
 
