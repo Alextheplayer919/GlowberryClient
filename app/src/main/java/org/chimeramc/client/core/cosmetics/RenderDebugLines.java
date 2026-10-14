@@ -59,11 +59,7 @@ public final class RenderDebugLines {
     }
 
     private static String backend(int v) {
-        switch (v) {
-            case 1: return "GLES";
-            case 2: return "Vulkan";
-            default: return "unknown";
-        }
+        return RenderBackend.label(RenderBackend.fromNativeCode(v));
     }
 
     private static String mask(int v) {

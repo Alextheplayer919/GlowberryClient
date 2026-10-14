@@ -99,6 +99,47 @@ public final class CapePatterns {
                 if ((dx <= 0.12f && dy <= 0.3f) || (dy <= 0.12f && dx <= 0.3f)) return accent;
                 return base;
             }
+            case DIAGONAL: {
+                // A right-leaning stripe: the cell index runs with (u + v), so the bands lean.
+                int d = (int) ((u * 10f + v * 16f) * 0.5f);
+                return (d % 4 == 0) ? accent : base;
+            }
+            case PLAID: {
+                boolean warp = ((int) (u * 10)) % 5 == 0;
+                boolean weft = ((int) (v * 16)) % 6 == 0;
+                if (warp && weft) return shade(accent, 0.75f);
+                if (warp || weft) return accent;
+                return base;
+            }
+            case OMBRE:
+                // The shoulders are the lit end; the hem is the darkest.
+                return lerp(shade(accent, 0.55f), base, clamp01(v));
+            case SCALES: {
+                int row = (int) (v * 12f);
+                // Offset every other row by half a scale so the rows interlock like fish scales.
+                float uu = u * 8f + (row % 2 == 0 ? 0f : 0.5f);
+                float cell = uu - (float) Math.floor(uu);
+                // A scale is a shallow arc: the cell's upper edge is the accent.
+                return (cell > 0.5f || v * 12f - row > 0.6f) ? base : accent;
+            }
+            case RUNES: {
+                // A column of small marks down the centre: a blocky rune every few rows.
+                if (u < 0.4f || u > 0.6f) return base;
+                int mark = (int) (v * 8f);
+                boolean inMark = v * 8f - mark < 0.55f;
+                int col = (int) ((u - 0.4f) / 0.2f * 4f);
+                int glyph = (mark * 7 + col * 3) % 5;
+                boolean ink = inMark && (glyph == 0 || glyph == 2 || (glyph == 4 && col % 2 == 0));
+                return ink ? accent : base;
+            }
+            case EMBLEM: {
+                float dx = Math.abs(u - 0.5f);
+                float dy = Math.abs(v - 0.5f);
+                // A diamond emblem: the union of a centre cross and a ring of ticks.
+                if (dx + dy < 0.34f) return shade(accent, 0.8f);
+                if (dx + dy < 0.44f) return accent;
+                return base;
+            }
             default:
                 return base;
         }

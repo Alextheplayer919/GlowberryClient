@@ -62,6 +62,10 @@ public final class PlaytimeManager {
         // re-evaluates so the FPS optimizer's quiet window starts with the game.
         FpsOptimizationService.setLowMemory(false);
         FpsOptimizationService.apply();
+        // The three FPS optimization modules reduce the launcher's own work for this session. They
+        // never touch the game's renderer; the plan is derived from the module switches and their
+        // option values, so a switch's effect is a testable function (FpsPolicy), not a hidden one.
+        org.chimeramc.client.core.mods.fps.FpsModulesService.apply(true);
     }
 
     public static void heartbeat() {

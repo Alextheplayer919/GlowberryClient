@@ -49,12 +49,19 @@ public final class CosmeticsPanel {
         final String label;
         final Runnable apply;
         final boolean equipped;
+        /** The cape to render as a thumbnail, or null for a card that has no visual. */
+        final CosmeticCatalog.Cape cape;
 
         Card(String id, String label, boolean equipped, Runnable apply) {
+            this(id, label, equipped, apply, null);
+        }
+
+        Card(String id, String label, boolean equipped, Runnable apply, CosmeticCatalog.Cape cape) {
             this.id = id;
             this.label = label;
             this.equipped = equipped;
             this.apply = apply;
+            this.cape = cape;
         }
     }
 
@@ -298,11 +305,41 @@ public final class CosmeticsPanel {
         bg.setStroke(dp(1), card.equipped ? getAccent() : UiTokens.STROKE_HAIRLINE);
         cardView.setBackground(bg);
 
+        // The cape is shown, not named: a thumbnail of the back of the cloth, so a player can see
+        // what a cape looks like without equipping it. The name sits underneath, on its own line.
+        if (card.cape != null) {
+            android.widget.ImageView thumb = new android.widget.ImageView(activity);
+            int thumbHeight = dp(64);
+            int thumbWidth = Math.max(dp(28), (int) (thumbHeight * org.chimeramc.client.core
+                    .cosmetics.CapeThumbnail.ASPECT));
+            LinearLayout.LayoutParams thumbParams =
+                    new LinearLayout.LayoutParams(thumbWidth, thumbHeight);
+            thumbParams.gravity = Gravity.CENTER_HORIZONTAL;
+            thumb.setLayoutParams(thumbParams);
+            thumb.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+            // A rounded frame around the swatch, so each cape reads as its own separate tile and the
+            // bitmap's square corners do not poke out of the rounded card.
+            GradientDrawable frame = new GradientDrawable();
+            frame.setShape(GradientDrawable.RECTANGLE);
+            frame.setCornerRadius(dp(8));
+            frame.setColor(UiTokens.BG_SURFACE_HOVER);
+            frame.setStroke(dp(1), UiTokens.STROKE_HAIRLINE);
+            thumb.setBackground(frame);
+            thumb.setClipToOutline(true);
+            android.graphics.Bitmap bmp = capeThumbnailBitmap(card.cape, thumbWidth, thumbHeight);
+            if (bmp != null) {
+                thumb.setImageBitmap(bmp);
+            }
+            cardView.addView(thumb);
+        }
+
         TextView name = new TextView(activity);
         name.setText(card.label);
         name.setTextSize(12f);
         name.setTextColor(UiTokens.TEXT_PRIMARY);
         name.setMaxLines(2);
+        name.setGravity(Gravity.CENTER_HORIZONTAL);
+        name.setPadding(0, dp(6), 0, 0);
         name.setEllipsize(android.text.TextUtils.TruncateAt.END);
         cardView.addView(name);
 
@@ -310,6 +347,7 @@ public final class CosmeticsPanel {
         state.setText(card.equipped ? R.string.closet_state_equipped : R.string.closet_state_owned);
         state.setTextSize(UiTokens.TEXT_SECTION);
         state.setAllCaps(true);
+        state.setGravity(Gravity.CENTER_HORIZONTAL);
         state.setTextColor(card.equipped ? getAccent() : UiTokens.TEXT_SECONDARY);
         state.setPadding(0, dp(4), 0, 0);
         cardView.addView(state);
@@ -321,6 +359,25 @@ public final class CosmeticsPanel {
         });
         DynamicAnim.applyPressScale(cardView);
         return cardView;
+    }
+
+    /**
+     * Renders a cape's back into a bitmap for the grid. Returns null on any allocation failure so a
+     * card without a thumbnail still renders (its name is the fallback), rather than the whole grid
+     * failing.
+     */
+    private android.graphics.Bitmap capeThumbnailBitmap(CosmeticCatalog.Cape cape, int width,
+                                                        int height) {
+        if (width <= 0 || height <= 0) return null;
+        try {
+            int[] pixels = new int[width * height];
+            org.chimeramc.client.core.cosmetics.CapeThumbnail.render(
+                    cape, width, height, pixels, UiTokens.BG_SURFACE);
+            return android.graphics.Bitmap.createBitmap(pixels, width, height,
+                    android.graphics.Bitmap.Config.ARGB_8888);
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     private List<Card> cardsFor(Category c) {
@@ -369,7 +426,7 @@ public final class CosmeticsPanel {
                 store.setEquippedCape(cape.id);
                 preview.setCape(cape);
                 onCosmeticChanged();
-            }));
+            }, cape));
         }
     }
 

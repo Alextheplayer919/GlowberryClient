@@ -43,6 +43,11 @@ public final class CosmeticsDiagnosticsReport {
         public int glBackend = 0;
         public boolean eglContextCurrent;
         public boolean hookInstalled;
+        /**
+         * True while the deferred hook install is still waiting for the game runtime to come up
+         * (armed but not yet run). Distinguishes "waiting" from "failed" in the report.
+         */
+        public boolean hookInstallPending;
         /** Render ticks seen this session, or -1 when the renderer has not run. */
         public int framesSeen = -1;
         public boolean rendererDrawable;
@@ -100,6 +105,11 @@ public final class CosmeticsDiagnosticsReport {
         }
         in.rendererDrawable = NativeCosmeticsFeed.isRendererDrawable();
         in.drawsThisSession = NativeCosmeticsFeed.drawCount();
+        try {
+            in.hookInstallPending =
+                    org.chimeramc.client.core.mods.ModManager.isGameHookInstallPending();
+        } catch (Throwable ignored) {
+        }
         in.debugCubeArmed = PreloaderInput.isDebugCubeEnabled();
         try {
             in.skinCaptured = PreloaderInput.nativeHasCapturedSkin();
@@ -184,7 +194,7 @@ public final class CosmeticsDiagnosticsReport {
 
         b.append("Native library loaded: ").append(yesNo(v.nativeLoaded)).append('\n');
         b.append("Player-render slot: ").append(slotText(v)).append('\n');
-        b.append("Hook installed: ").append(yesNo(v.hookInstalled)).append('\n');
+        b.append("Hook installed: ").append(hookText(v)).append('\n');
         b.append("Frames seen: ").append(countText(v.framesSeen)).append('\n');
         b.append("Renderer drawable: ").append(yesNo(v.rendererDrawable)).append('\n');
         b.append("GL backend: ").append(backendText(v.glBackend)).append('\n');
@@ -246,6 +256,16 @@ public final class CosmeticsDiagnosticsReport {
         return value ? "yes" : "no";
     }
 
+    /**
+     * The hook-install line. "waiting for the render context" is distinct from a plain "no": the
+     * install is deferred to the game's frame tick, so an armed-but-not-yet-run state is expected
+     * briefly and must not read as a failure.
+     */
+    private static String hookText(Inputs v) {
+        if (v.hookInstalled) return "yes";
+        return v.hookInstallPending ? "waiting for the render context" : "no";
+    }
+
     private static String countText(int value) {
         return value < 0 ? "unknown" : Integer.toString(value);
     }
@@ -264,11 +284,7 @@ public final class CosmeticsDiagnosticsReport {
     }
 
     private static String backendText(int backend) {
-        switch (backend) {
-            case 1: return "GLES";
-            case 2: return "Vulkan (GLES unavailable)";
-            default: return "unknown";
-        }
+        return RenderBackend.label(RenderBackend.fromNativeCode(backend));
     }
 
     private static String errorText(int error) {

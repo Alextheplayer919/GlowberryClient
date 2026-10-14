@@ -125,6 +125,22 @@ public class CosmeticsDiagnosticsReportTest {
     }
 
     @Test
+    public void theHookLineDistinguishesWaitingFromFailed() {
+        CosmeticsDiagnosticsReport.Inputs pending = fullInputs();
+        pending.hookInstalled = false;
+        pending.hookInstallPending = true;
+        assertTrue(CosmeticsDiagnosticsReport.format(pending)
+                .contains("Hook installed: waiting for the render context"));
+
+        CosmeticsDiagnosticsReport.Inputs failed = fullInputs();
+        failed.hookInstalled = false;
+        failed.hookInstallPending = false;
+        assertTrue(CosmeticsDiagnosticsReport.format(failed).contains("Hook installed: no"));
+
+        assertTrue(CosmeticsDiagnosticsReport.format(fullInputs()).contains("Hook installed: yes"));
+    }
+
+    @Test
     public void theLocalKeyIsStableAndNamed() {
         assertEquals("local", NativeCosmeticsBridge.LOCAL_PLAYER_ID);
         assertEquals(NativeCosmeticsBridge.keyFor("local"), NativeCosmeticsBridge.localKey());

@@ -38,6 +38,18 @@ public final class CosmeticCatalog {
         WAVE,
         CAMO,
         STAR,
+        /** Diagonal stripes, leaning right. */
+        DIAGONAL,
+        /** Two crossing stripe families, a woven plaid. */
+        PLAID,
+        /** A horizontal ombre from a dark hem to the lit shoulders. */
+        OMBRE,
+        /** Overlapping fish scales, row-offset. */
+        SCALES,
+        /** A column of small rune marks down the centre. */
+        RUNES,
+        /** A bold emblem centred on the back. */
+        EMBLEM,
         /**
          * The classic all-black Optifine cape with its "OF" monogram. Only ever used by the two
          * built-in Optifine capes; the "OF" text is drawn by {@link CapeTexturePainter} and the
@@ -327,19 +339,32 @@ public final class CosmeticCatalog {
      * "Emberdusk" and "Rosewood" do not share a pattern's nickname.
      */
     private static final String[][] CAPE_PATTERN_NAMES = {
-            // SOLID              VERTICAL              HORIZONTAL           GRADIENT            SPLIT                GRID                   CHECKER               CHEVRON              HORIZON              WAVE                  CAMO                STAR
-            {"Chimera Cape", "Violet Tapestry", "Amethyst Ribbon", "Twilight Aurora", "Starburst Regalia", "Arcane Lattice", "Chequered Sigil", "Violet Chevron", "Eventide Horizon", "Violet Riptide", "Wilds of Chimera", "Celestial Chimera"},
-            {"Umbral Sovereign", "Nightfall Tapestry", "Onyx Ribbon", "Voidlight Aurora", "Eclipse Starburst", "Obsidian Lattice", "Shadow Chequer", "Nightfall Chevron", "Dusk Horizon", "Umbral Riptide", "Hollow Wilds", "Starless Celestial"},
-            {"Fluxweave Cape", "Magenta Tapestry", "Neon Ribbon", "Pulse Aurora", "Static Starburst", "Circuit Lattice", "Overload Chequer", "Neon Chevron", "Signal Horizon", "Magenta Riptide", "Charged Wilds", "Neon Celestial"},
-            {"Wildwood Cape", "Thicket Tapestry", "Vine Ribbon", "Dawnleaf Aurora", "Canopy Starburst", "Bramble Lattice", "Mossy Chequer", "Thicket Chevron", "Greenwood Horizon", "Riverbed Riptide", "Deep Wilds", "Starlit Canopy"},
-            {"Emberdusk Cape", "Cinder Tapestry", "Scarlet Ribbon", "Sunset Aurora", "Bonfire Starburst", "Coalbed Lattice", "Cinder Chequer", "Scarlet Chevron", "Smoke Horizon", "Lavafall Riptide", "Scorched Wilds", "Ember Celestial"},
-            {"Abyssal Cape", "Trench Tapestry", "Current Ribbon", "Depth Aurora", "Kraken Starburst", "Coral Lattice", "Undertow Chequer", "Current Chevron", "Deepwater Horizon", "Undertow Riptide", "Drowned Wilds", "Abyssal Celestial"},
-            {"Gilded Cape", "Goldleaf Tapestry", "Bullion Ribbon", "Sunburst Aurora", "Midas Starburst", "Filigree Lattice", "Gilded Chequer", "Goldleaf Chevron", "Golden Horizon", "Bullion Riptide", "Auric Wilds", "Gilded Celestial"},
-            {"Obsidian Cape", "Slate Tapestry", "Steel Ribbon", "Ashfall Aurora", "Iron Starburst", "Graphite Lattice", "Slate Chequer", "Steel Chevron", "Ashen Horizon", "Coldiron Riptide", "Bleak Wilds", "Obsidian Celestial"},
-            {"Rosewood Cape", "Petal Tapestry", "Blossom Ribbon", "Rosegold Aurora", "Camellia Starburst", "Petalwork Lattice", "Rose Chequer", "Blossom Chevron", "Roseate Horizon", "Petal Riptide", "Blooming Wilds", "Rosewood Celestial"},
-            {"Tidal Cape", "Reef Tapestry", "Foam Ribbon", "Lagoon Aurora", "Seafoam Starburst", "Coralweave Lattice", "Tidal Chequer", "Reef Chevron", "Seabound Horizon", "Lagoon Riptide", "Shoreline Wilds", "Tidal Celestial"},
-            {"Amethyst Cape", "Crystal Tapestry", "Geode Ribbon", "Dusk Aurora", "Prism Starburst", "Crystalline Lattice", "Amethyst Chequer", "Geode Chevron", "Violet Horizon", "Prism Riptide", "Cavern Wilds", "Amethyst Celestial"},
-            {"Creeping Cape", "Vine Tapestry", "Spore Ribbon", "Fuse Aurora", "Creeper Starburst", "Mossy Lattice", "Spore Chequer", "Vine Chevron", "Blast Horizon", "Sporefall Riptide", "Overgrown Wilds", "Creeping Celestial"}
+            // SOLID              VERTICAL              HORIZONTAL            GRADIENT             SPLIT                 GRID                  CHECKER              CHEVRON              HORIZON               WAVE                  CAMO                  STAR
+            {"Chimera Cape", "Violet Banner", "Amethyst Ladder", "Twilight Fade", "Violet Sunder", "Arcane Weave", "Chequered Sigil", "Violet Arrowhead", "Eventide Line", "Violet Riptide", "Wilds of Chimera", "Celestial Chimera",
+             // DIAGONAL              PLAID                  OMBRE                 SCALES                RUNES                 EMBLEM
+             "Violet Sash", "Chimera Tartan", "Violet Fadeout", "Violet Scalecoat", "Arcanist Runes", "Chimera Signet"},
+            {"Umbral Sovereign", "Nightfall Banner", "Onyx Ladder", "Voidlight Fade", "Eclipse Sunder", "Obsidian Weave", "Shadow Chequer", "Nightfall Arrowhead", "Dusk Line", "Umbral Riptide", "Hollow Wilds", "Starless Celestial",
+             "Umbral Sash", "Gravekeeper Tartan", "Void Ombre", "Onyx Scalecoat", "Occultist Runes", "Void Sigil"},
+            {"Fluxweave Cape", "Magenta Banner", "Neon Ladder", "Pulse Fade", "Flux Sunder", "Circuit Weave", "Overload Chequer", "Neon Arrowhead", "Signal Line", "Magenta Riptide", "Charged Wilds", "Neon Celestial",
+             "Static Sash", "Overclock Tartan", "Neon Ombre", "Pulse Scalecoat", "Hexweaver Runes", "Flux Sigil"},
+            {"Wildwood Cape", "Thicket Banner", "Vine Ladder", "Dawnleaf Fade", "Canopy Sunder", "Bramble Weave", "Mossy Chequer", "Thicket Arrowhead", "Greenwood Line", "Riverbed Riptide", "Deep Wilds", "Starlit Canopy",
+             "Fern Sash", "Druid Tartan", "Mossbank Ombre", "Bramble Scalecoat", "Druid Runes", "Wildwood Signet"},
+            {"Emberdusk Cape", "Cinder Banner", "Scarlet Ladder", "Sunset Fade", "Bonfire Sunder", "Coalbed Weave", "Cinder Chequer", "Scarlet Arrowhead", "Smoke Line", "Lavafall Riptide", "Scorched Wilds", "Ember Celestial",
+             "Cinder Sash", "Pyromancer Tartan", "Ember Ombre", "Cinder Scalecoat", "Pyromancer Runes", "Ember Sigil"},
+            {"Abyssal Cape", "Trench Banner", "Current Ladder", "Depth Fade", "Kraken Sunder", "Coral Weave", "Undertow Chequer", "Current Arrowhead", "Deepwater Line", "Undertow Riptide", "Drowned Wilds", "Abyssal Celestial",
+             "Tidal Sash", "Drowned Tartan", "Abyssal Ombre", "Kraken Scalecoat", "Tidecaller Runes", "Kraken Sigil"},
+            {"Gilded Cape", "Goldleaf Banner", "Bullion Ladder", "Sunburst Fade", "Midas Sunder", "Filigree Weave", "Gilded Chequer", "Goldleaf Arrowhead", "Golden Line", "Bullion Riptide", "Auric Wilds", "Gilded Celestial",
+             "Gold Sash", "Midas Tartan", "Goldleaf Ombre", "Gilt Scalecoat", "Archmage Runes", "Midas Seal"},
+            {"Obsidian Cape", "Slate Banner", "Steel Ladder", "Ashfall Fade", "Iron Sunder", "Graphite Weave", "Slate Chequer", "Steel Arrowhead", "Ashen Line", "Coldiron Riptide", "Bleak Wilds", "Obsidian Celestial",
+             "Coldiron Sash", "Iron Tartan", "Slate Ombre", "Steel Scalecoat", "Grey Dean Runes", "Iron Sigil"},
+            {"Rosewood Cape", "Petal Banner", "Blossom Ladder", "Rosegold Fade", "Camellia Sunder", "Petalwork Weave", "Rose Chequer", "Blossom Arrowhead", "Roseate Line", "Petal Riptide", "Blooming Wilds", "Rosewood Celestial",
+             "Rose Sash", "Camellia Tartan", "Rose Ombre", "Petal Scalecoat", "Gardener Runes", "Rose Emblem"},
+            {"Tidal Cape", "Reef Banner", "Foam Ladder", "Lagoon Fade", "Seafoam Sunder", "Coralweave Weave", "Tidal Chequer", "Reef Arrowhead", "Seabound Line", "Lagoon Riptide", "Shoreline Wilds", "Tidal Celestial",
+             "Reef Sash", "Beachcomber Tartan", "Lagoon Ombre", "Coral Scalecoat", "Reef Glyphs", "Tidal Sigil"},
+            {"Amethyst Cape", "Crystal Banner", "Geode Ladder", "Dusk Fade", "Prism Sunder", "Crystalline Weave", "Amethyst Chequer", "Geode Arrowhead", "Violet Line", "Prism Riptide", "Cavern Wilds", "Amethyst Celestial",
+             "Geode Sash", "Prospector Tartan", "Amethyst Ombre", "Prism Scalecoat", "Prospector Runes", "Amethyst Sigil"},
+            {"Creeping Cape", "Vine Banner", "Spore Ladder", "Fuse Fade", "Creeper Sunder", "Mossy Weave", "Spore Chequer", "Vine Arrowhead", "Blast Line", "Sporefall Riptide", "Overgrown Wilds", "Creeping Celestial",
+             "Spore Sash", "Overgrowth Tartan", "Moss Ombre", "Thorn Scalecoat", "Hexer Runes", "Creeper Sigil"}
     };
 
     /**

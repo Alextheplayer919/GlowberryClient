@@ -331,6 +331,25 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         updateFavoriteView(modHolder, favoriteStates.getOrDefault(mod.getStableKey(), false));
         updateUnavailableView(modHolder, mod);
 
+        // The switch is the state control: a smooth slide rather than a tapped status pill. It is
+        // set without animating on bind (a recycled view must not slide from the previous item's
+        // state), and it is the one control that both shows and changes the state.
+        if (modHolder.switchView != null) {
+            modHolder.switchView.setAccent(theme.accent());
+            modHolder.switchView.setInteractive(available);
+            modHolder.switchView.setChecked(isEnabled, false);
+            modHolder.switchView.setOnCheckedChangeListener(null);
+            modHolder.switchView.setOnCheckedChangeListener(checked -> {
+                if (!available) return;
+                toggleStates.put(mod.getStableKey(), checked);
+                updateStatusView(modHolder, checked, true);
+                updateAccentBar(modHolder, mod.getGroupId(), checked);
+                org.chimeramc.client.ui.animation.ModToggleAnim.play(
+                        modHolder.icon, mod.getId(), checked);
+                if (listener != null) listener.onToggle(mod, checked);
+            });
+        }
+
         View.OnClickListener toggleClick = v -> {
             // A module that cannot do its job must not look toggleable. The label says why, and
             // the click is dropped instead of flipping a switch that changes nothing on screen.
@@ -345,6 +364,9 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             toggleStates.put(mod.getStableKey(), newState);
             updateStatusView(modHolder, newState, true);
             updateAccentBar(modHolder, mod.getGroupId(), newState);
+            if (modHolder.switchView != null) {
+                modHolder.switchView.setChecked(newState, true);
+            }
             // Per-icon behaviour on flip, not a generic bounce: Armor HUD "equips", the Voice mic
             // pulses. Only modules with distinct iconography animate; the rest fall through.
             org.chimeramc.client.ui.animation.ModToggleAnim.play(
@@ -355,7 +377,7 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         };
 
         modHolder.itemView.setOnClickListener(toggleClick);
-        modHolder.statusText.setOnClickListener(toggleClick);
+        if (modHolder.statusText != null) modHolder.statusText.setOnClickListener(toggleClick);
         modHolder.icon.setOnClickListener(toggleClick);
         DynamicAnim.applyPressScale(modHolder.itemView);
 
@@ -437,21 +459,8 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
 
     private void updateStatusView(ModViewHolder holder, boolean enabled,
                                   boolean available) {
-        float density = holder.statusText.getResources().getDisplayMetrics().density;
-        if (enabled) {
-            holder.statusText.setText(R.string.mod_status_enabled);
-            holder.statusText.setTextColor(theme.accent());
-            GradientDrawable pill = new GradientDrawable();
-            pill.setShape(GradientDrawable.RECTANGLE);
-            pill.setCornerRadius(12f * density);
-            pill.setColor(theme.accentFill(46));
-            pill.setStroke((int) density, theme.accent());
-            holder.statusText.setBackground(pill);
-        } else {
-            holder.statusText.setText(R.string.mod_status_disabled);
-            holder.statusText.setTextColor(UiTokens.TEXT_SECONDARY);
-            holder.statusText.setBackgroundResource(R.drawable.bg_mod_status_disabled);
-        }
+        // The layout is now a switch, not a pill: there is no status TextView. The switch's own
+        // state is the indicator, so this only keeps the card's surface in step.
         updateCardState(holder, enabled, available);
     }
 
@@ -470,7 +479,6 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         holder.itemView.setAlpha(available ? 1f : 0.55f);
         holder.itemView.setEnabled(available);
         holder.itemView.setClickable(available);
-        holder.statusText.setEnabled(available);
         holder.icon.setAlpha(!available ? 0.5f : (enabled ? 1f : 0.8f));
         holder.name.setTextColor(!available ? UiTokens.TEXT_DISABLED
                 : (enabled ? UiTokens.TEXT_PRIMARY : UiTokens.blend(UiTokens.TEXT_PRIMARY,
@@ -559,17 +567,18 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         ImageButton configBtn;
         TextView unavailableText;
         View accentBar;
+        org.chimeramc.client.ui.components.UiSwitchView switchView;
 
         ModViewHolder(View itemView) {
             super(itemView);
             icon = itemView.findViewById(R.id.mod_card_icon);
             name = itemView.findViewById(R.id.mod_card_name);
-            statusText = itemView.findViewById(R.id.mod_card_status);
             groupText = itemView.findViewById(R.id.mod_card_group);
             favoriteBtn = itemView.findViewById(R.id.mod_card_favorite);
             configBtn = itemView.findViewById(R.id.mod_card_config);
             unavailableText = itemView.findViewById(R.id.mod_card_unavailable);
             accentBar = itemView.findViewById(R.id.mod_card_accent);
+            switchView = itemView.findViewById(R.id.mod_card_switch);
         }
     }
 }

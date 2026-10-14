@@ -36,6 +36,14 @@ public final class ModIds {
     public static final String HIT_PREDICTION = "hit_prediction";
     public static final String KILL_EFFECTS = "kill_effects";
 
+    // --- FPS optimization modules (host-side performance, filed under the General tab) --------
+    /** HyperSpatial Vertex Culling & Occlusion Matrix (host-side visibility/batching). */
+    public static final String HYPERSPATIAL_CULL = "hyperspatial_cull";
+    /** Advanced Vertical Rendering & Draw-Call Coalescing (host-side batching). */
+    public static final String VERTICAL_RENDER_COALESCE = "vertical_render_coalesce";
+    /** Intelligent Tick-Rate & Animation Predictor (host-side tick throttling). */
+    public static final String TICK_RATE_PREDICTOR = "tick_rate_predictor";
+
     // --- Visual / HUD / Misc modules (the mod-panel list) ------------------------------------
 
     /** Brightens the world by removing the dark overlay, a full-bright visual. */
@@ -83,7 +91,12 @@ public final class ModIds {
             HIT_TIMING, HITBOX);
 
     public static boolean isPvpModule(String modId) {
-        return modId != null && PVP_MODULES.contains(modId);
+        if (modId == null) return false;
+        if (PVP_MODULES.contains(modId)) return true;
+        // A PvP catalogue entry is part of the PvP section too, so the tab filter and the group
+        // header agree about it. The catalogue entries are appended last and are all in GROUP_PVP,
+        // so they stay one contiguous run.
+        return org.chimeramc.client.core.mods.pvp.PvpModuleCatalog.find(modId) != null;
     }
 
     /**
@@ -111,6 +124,12 @@ public final class ModIds {
      * Hit Prediction share that peer route and stay usable for the same reason.
      */
     public static boolean requiresGameData(String modId) {
+        // A PvP catalogue roadmap entry (one this build cannot drive) is badged by the same rule:
+        // it is listed for discoverability but must not present a switch that does nothing.
+        if (org.chimeramc.client.core.mods.pvp.PvpModuleCatalog.find(modId) != null
+                && !org.chimeramc.client.core.mods.pvp.PvpModuleCatalog.find(modId).implemented) {
+            return true;
+        }
         return ARMOR_HUD.equals(modId) || CRYSTAL_OPTIMIZER.equals(modId)
                 || TRAJECTORY_PREDICTION.equals(modId) || KILL_EFFECTS.equals(modId)
                 // These visual modules act on the game's rendered frame or its entity list, which

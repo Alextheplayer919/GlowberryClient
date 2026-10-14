@@ -100,6 +100,8 @@ public class ModManager {
     private static native boolean nativeLoadMod(String libPath, String modRootPath, Mod modObj);
     private static native void nativeEnableLoadedMods();
     private static native void nativeDisableAndUnloadLoadedMods();
+    private static native boolean nativePumpGameHookInstall();
+    private static native boolean nativeIsGameHookInstallPending();
 
     public static ModManager getInstance() {
         ModManager result = instance;
@@ -166,6 +168,37 @@ public class ModManager {
             nativeEnableLoadedMods();
         } catch (UnsatisfiedLinkError e) {
             Log.e(TAG, "Failed to invoke nativeEnableLoadedMods", e);
+        }
+    }
+
+    /**
+     * Runs the deferred native hook install if the game runtime is up.
+     *
+     * <p>The hooks used to install from {@link #enableLoadedMods()}, which the game activity reaches
+     * in {@code onCreate} before the engine's graphics backend has initialised; the RTTI/vtable
+     * resolution then saw a partially mapped module and bailed, which is the diagnostics report's
+     * "Hook installed: no". The install is deferred to the game's own frame tick, so this is called
+     * from {@code MinecraftActivity.tick()} every frame. It is a single native atomic load once the
+     * install has run, so the per-frame cost is negligible.
+     *
+     * @return true once the install has run (installed or given up)
+     */
+    public static boolean pumpGameHookInstall() {
+        if (!ensurePreloaderLoaded()) return false;
+        try {
+            return nativePumpGameHookInstall();
+        } catch (UnsatisfiedLinkError e) {
+            return false;
+        }
+    }
+
+    /** True while the deferred hook install is still waiting for the runtime (diagnostics). */
+    public static boolean isGameHookInstallPending() {
+        if (!ensurePreloaderLoaded()) return false;
+        try {
+            return nativeIsGameHookInstallPending();
+        } catch (UnsatisfiedLinkError e) {
+            return false;
         }
     }
 
