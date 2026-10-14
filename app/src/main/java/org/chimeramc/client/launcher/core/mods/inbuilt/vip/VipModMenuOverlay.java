@@ -103,7 +103,11 @@ public class VipModMenuOverlay {
     private TextView modeBadge;
     private LinearLayout tabBar;
     /** One tab view per page, built in code from the shared registry. */
-    private final java.util.Map<ModMenuPage, TextView> tabViews = new java.util.EnumMap<>(ModMenuPage.class);
+    private final java.util.Map<ModMenuPage, android.widget.FrameLayout> tabViews =
+            new java.util.EnumMap<>(ModMenuPage.class);
+    /** The icon inside each rail tile, so selection can tint it without re-walking the tile. */
+    private final java.util.Map<ModMenuPage, android.widget.ImageView> tabIcons =
+            new java.util.EnumMap<>(ModMenuPage.class);
     private View generalView;
     private FrameLayout controllerView;
     private FrameLayout keyboardView;
@@ -532,29 +536,43 @@ public class VipModMenuOverlay {
         if (tabBar == null) return;
         tabBar.removeAllViews();
         tabViews.clear();
+        tabIcons.clear();
         int size = (int) (UiTokens.RAIL_BUTTON * density());
         int gap = (int) (8 * density());
         for (final ModMenuPage page : ModMenuPage.vipPages()) {
-            TextView tab = new TextView(activity);
-            tab.setText("");
-            tab.setGravity(android.view.Gravity.CENTER);
-            tab.setCompoundDrawablesRelativeWithIntrinsicBounds(page.getIconRes(), 0, 0, 0);
-            tab.setCompoundDrawableTintList(ColorStateList.valueOf(theme.textSecondary()));
-            // Icon-only: the title lives in the content description (accessibility) and in a
-            // long-press tooltip, so a screen reader and a curious finger both get the name.
-            tab.setContentDescription(activity.getString(page.getTitleRes()));
+            // A FrameLayout with a centred ImageView, not a TextView with a compound drawable.
+            // A compound drawable is positioned against the (empty) text line box, so an icon-only
+            // button drifted a few dp off centre — the "icons are off by a few inches" report. A
+            // centred ImageView in a fixed-size tile is exactly centred at every icon and density.
+            android.widget.FrameLayout tile = new android.widget.FrameLayout(activity);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(size, size);
             lp.bottomMargin = gap;
-            tab.setLayoutParams(lp);
-            tab.setOnClickListener(v -> selectTabSafe(page));
-            tab.setOnLongClickListener(v -> {
+            tile.setLayoutParams(lp);
+            tile.setClickable(true);
+            tile.setFocusable(false);
+            tile.setContentDescription(activity.getString(page.getTitleRes()));
+
+            android.widget.ImageView icon = new android.widget.ImageView(activity);
+            int iconSize = (int) (22 * density());
+            android.widget.FrameLayout.LayoutParams iconLp =
+                    new android.widget.FrameLayout.LayoutParams(iconSize, iconSize);
+            iconLp.gravity = Gravity.CENTER;
+            icon.setLayoutParams(iconLp);
+            icon.setImageResource(page.getIconRes());
+            icon.setColorFilter(theme.textSecondary());
+            tile.addView(icon);
+
+            tile.setOnClickListener(v -> selectTabSafe(page));
+            tile.setOnLongClickListener(v -> {
                 android.widget.Toast.makeText(activity, page.getTitleRes(),
                         android.widget.Toast.LENGTH_SHORT).show();
                 return true;
             });
-            tabBar.addView(tab);
-            tabViews.put(page, tab);
+            tabBar.addView(tile);
+            tabViews.put(page, tile);
+            tabIcons.put(page, icon);
         }
+        updateTabSelection();
     }
 
     /** The rail has no sliding indicator; selection is the filled accent button. No-op kept for
@@ -563,7 +581,7 @@ public class VipModMenuOverlay {
         // Intentionally empty: the icon-only rail shows selection by fill, not by an indicator.
     }
 
-    private TextView tabView(ModMenuPage page) {
+    private android.widget.FrameLayout tabView(ModMenuPage page) {
         return tabViews.get(page);
     }
 
@@ -720,12 +738,14 @@ public class VipModMenuOverlay {
     /** The rail button: filled accent with a white icon when selected, plain secondary otherwise. */
     private void updateTabSelection() {
         int radius = (int) (UiTokens.RADIUS_CARD * density());
-        for (java.util.Map.Entry<ModMenuPage, TextView> e : tabViews.entrySet()) {
-            TextView view = e.getValue();
+        for (java.util.Map.Entry<ModMenuPage, android.widget.FrameLayout> e : tabViews.entrySet()) {
+            android.widget.FrameLayout view = e.getValue();
             if (view == null) continue;
             boolean selected = e.getKey() == activeTab;
-            int iconColor = selected ? 0xFFFFFFFF : theme.textSecondary();
-            view.setCompoundDrawableTintList(ColorStateList.valueOf(iconColor));
+            android.widget.ImageView icon = tabIcons.get(e.getKey());
+            if (icon != null) {
+                icon.setColorFilter(selected ? 0xFFFFFFFF : theme.textSecondary());
+            }
             GradientDrawable bg = new GradientDrawable();
             bg.setShape(GradientDrawable.RECTANGLE);
             bg.setCornerRadius(radius);
