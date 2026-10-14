@@ -78,7 +78,17 @@ public final class ModCategory {
     /** True when a module name contains the (case-insensitive) query, for the search box. */
     public static boolean matchesQuery(UnifiedMod mod, String query) {
         if (query == null || query.trim().isEmpty()) return true;
-        if (mod == null || mod.getName() == null) return false;
-        return mod.getName().toLowerCase(Locale.ROOT).contains(query.trim().toLowerCase(Locale.ROOT));
+        if (mod == null) return false;
+        String q = query.trim().toLowerCase(Locale.ROOT);
+        // Search the name, the description and the category, so "zoom", "camera" or "pvp" all
+        // find the module the player means.
+        return contains(mod.getName(), q)
+                || contains(mod.getDescription(), q)
+                || contains(mod.getGroupName(), q)
+                || contains(mod.getGroupId(), q);
+    }
+
+    private static boolean contains(String haystack, String lowerQuery) {
+        return haystack != null && haystack.toLowerCase(Locale.ROOT).contains(lowerQuery);
     }
 }

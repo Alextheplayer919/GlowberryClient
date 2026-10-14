@@ -40,6 +40,11 @@ import org.chimeramc.client.core.mods.inbuilt.model.ModAvailability;
 import org.chimeramc.client.core.mods.inbuilt.overlay.ControllerProfileEditor;
 import org.chimeramc.client.core.mods.inbuilt.overlay.InbuiltOverlayManager;
 import org.chimeramc.client.core.mods.inbuilt.overlay.ModConfigView;
+import org.chimeramc.client.core.mods.inbuilt.overlay.ModMenuGuard;
+import org.chimeramc.client.core.mods.inbuilt.overlay.ModMenuPage;
+import org.chimeramc.client.core.mods.inbuilt.overlay.CosmeticsPanel;
+import org.chimeramc.client.core.mods.inbuilt.overlay.PackChangerPanel;
+import org.chimeramc.client.core.mods.inbuilt.overlay.VoicePanel;
 import org.chimeramc.client.core.mods.inbuilt.overlay.ModMenuNavigation;
 import org.chimeramc.client.core.replay.ReplayPanel;
 import org.chimeramc.client.launcher.controller.ControllerInputProcessor;
@@ -96,18 +101,23 @@ public class VipModMenuOverlay {
 
     private FrameLayout container;
     private TextView modeBadge;
-    private TextView tabGeneral;
-    private TextView tabReplay;
-    private TextView tabController;
-    private TextView tabKeyboard;
-    private View tabIndicator;
-    private View tabBar;
+    private LinearLayout tabBar;
+    /** One tab view per page, built in code from the shared registry. */
+    private final java.util.Map<ModMenuPage, TextView> tabViews = new java.util.EnumMap<>(ModMenuPage.class);
     private View generalView;
     private FrameLayout controllerView;
     private FrameLayout keyboardView;
     private FrameLayout replayView;
+    private FrameLayout voiceView;
+    private FrameLayout packsView;
+    private FrameLayout cosmeticsView;
+    private FrameLayout hudView;
+    private FrameLayout settingsView;
     private View configView;
     private ReplayPanel replayPanel;
+    private VoicePanel voicePanel;
+    private PackChangerPanel packChangerPanel;
+    private CosmeticsPanel cosmeticsPanel;
 
     private RecyclerView recycler;
     private VipModuleAdapter adapter;
@@ -142,7 +152,7 @@ public class VipModMenuOverlay {
     private final List<UnifiedMod> allMods = new ArrayList<>();
     private final List<UnifiedMod> visibleMods = new ArrayList<>();
 
-    private VipTab activeTab = VipTab.GENERAL;
+    private ModMenuPage activeTab = ModMenuPage.GENERAL;
     private VipInputMode.Mode inputMode = VipInputMode.Mode.KEYBOARD;
     private long nextAxisNavMs;
     private long shownAtMs;
@@ -189,18 +199,18 @@ public class VipModMenuOverlay {
      * that has no dedicated surface (CLOSET, HUD) opens the module list, which is where those
      * modules live. Safe to call when the menu is already open: it just switches section.
      */
-    public void showSection(VipTab tab) {
+    public void showSection(ModMenuPage page) {
         if (!isShowing) {
             show();
         }
         if (isShowing) {
-            selectTabSafe(tab == null ? VipTab.GENERAL : tab);
+            selectTabSafe(page == null ? ModMenuPage.GENERAL : page);
         }
     }
 
     /** Opens the menu on the module list, the surface the radial MODS sector points at. */
     public void showModuleList() {
-        showSection(VipTab.GENERAL);
+        showSection(ModMenuPage.GENERAL);
     }
 
     /** Opens or closes from the in-game bind. */
@@ -308,19 +318,24 @@ public class VipModMenuOverlay {
         // The overlay tree is inflated fresh on every show, so any panel built against the previous
         // tree must not be carried over.
         replayPanel = null;
+        voicePanel = null;
+        packChangerPanel = null;
+        cosmeticsPanel = null;
+        tabViews.clear();
         container = overlayView.findViewById(R.id.vip_menu_container);
         modeBadge = overlayView.findViewById(R.id.vip_mode_badge);
-        tabGeneral = overlayView.findViewById(R.id.vip_tab_general);
-        tabReplay = overlayView.findViewById(R.id.vip_tab_replay);
-        tabController = overlayView.findViewById(R.id.vip_tab_controller);
-        tabKeyboard = overlayView.findViewById(R.id.vip_tab_keyboard);
-        tabIndicator = overlayView.findViewById(R.id.vip_tab_indicator);
         tabBar = overlayView.findViewById(R.id.vip_tab_bar);
         generalView = overlayView.findViewById(R.id.vip_general_view);
         controllerView = overlayView.findViewById(R.id.vip_controller_view);
         keyboardView = overlayView.findViewById(R.id.vip_keyboard_view);
         replayView = overlayView.findViewById(R.id.vip_replay_view);
+        voiceView = overlayView.findViewById(R.id.vip_voice_view);
+        packsView = overlayView.findViewById(R.id.vip_packs_view);
+        cosmeticsView = overlayView.findViewById(R.id.vip_cosmetics_view);
+        hudView = overlayView.findViewById(R.id.vip_hud_view);
+        settingsView = overlayView.findViewById(R.id.vip_settings_view);
         configView = overlayView.findViewById(R.id.vip_config_view);
+        buildTabBar();
 
         recycler = overlayView.findViewById(R.id.vip_mods_recycler);
         searchInput = overlayView.findViewById(R.id.vip_search_input);
@@ -426,15 +441,15 @@ public class VipModMenuOverlay {
             });
         }
 
-        tabGeneral.setOnClickListener(v -> selectTabSafe(VipTab.GENERAL));
-        tabReplay.setOnClickListener(v -> selectTabSafe(VipTab.REPLAY));
-        tabController.setOnClickListener(v -> selectTabSafe(VipTab.CONTROLLER));
-        tabKeyboard.setOnClickListener(v -> selectTabSafe(VipTab.KEYBOARD));
         ImageButton close = overlayView.findViewById(R.id.vip_close);
         close.setOnClickListener(v -> hide());
 
-        for (View v : new View[]{tabGeneral, tabReplay, tabController, tabKeyboard, close,
-                searchClear, modeBadge}) {
+        java.util.List<View> pressTargets = new java.util.ArrayList<>();
+        pressTargets.addAll(tabViews.values());
+        pressTargets.add(close);
+        pressTargets.add(searchClear);
+        pressTargets.add(modeBadge);
+        for (View v : pressTargets) {
             if (v != null) DynamicAnim.applyPressScale(v);
         }
 
@@ -512,61 +527,124 @@ public class VipModMenuOverlay {
                 .start();
     }
 
-    private void moveIndicator(VipTab tab, boolean animate) {
-        TextView target = tabView(tab);
-        if (target == null || tabBar == null || tabIndicator == null) return;
-        int width = tabIndicator.getWidth();
-        if (width == 0) width = (int) (60 * density());
-        float center = target.getLeft() + target.getWidth() / 2f;
-        float targetX = Math.max(0f, center - width / 2f);
-        if (!animate) {
-            tabIndicator.setTranslationX(targetX);
-            return;
-        }
-        tabIndicator.animate()
-                .translationX(targetX)
-                .setDuration(260)
-                .setInterpolator(new DecelerateInterpolator(1.6f))
-                .start();
-    }
-
-    private TextView tabView(VipTab tab) {
-        switch (tab) {
-            case REPLAY:
-                return tabReplay;
-            case CONTROLLER:
-                return tabController;
-            case KEYBOARD:
-                return tabKeyboard;
-            case GENERAL:
-            default:
-                return tabGeneral;
+    /** Builds the icon-only sidebar rail from the shared page registry (VIP = normal + extras). */
+    private void buildTabBar() {
+        if (tabBar == null) return;
+        tabBar.removeAllViews();
+        tabViews.clear();
+        int size = (int) (UiTokens.RAIL_BUTTON * density());
+        int gap = (int) (8 * density());
+        for (final ModMenuPage page : ModMenuPage.vipPages()) {
+            TextView tab = new TextView(activity);
+            tab.setText("");
+            tab.setGravity(android.view.Gravity.CENTER);
+            tab.setCompoundDrawablesRelativeWithIntrinsicBounds(page.getIconRes(), 0, 0, 0);
+            tab.setCompoundDrawableTintList(ColorStateList.valueOf(theme.textSecondary()));
+            // Icon-only: the title lives in the content description (accessibility) and in a
+            // long-press tooltip, so a screen reader and a curious finger both get the name.
+            tab.setContentDescription(activity.getString(page.getTitleRes()));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(size, size);
+            lp.bottomMargin = gap;
+            tab.setLayoutParams(lp);
+            tab.setOnClickListener(v -> selectTabSafe(page));
+            tab.setOnLongClickListener(v -> {
+                android.widget.Toast.makeText(activity, page.getTitleRes(),
+                        android.widget.Toast.LENGTH_SHORT).show();
+                return true;
+            });
+            tabBar.addView(tab);
+            tabViews.put(page, tab);
         }
     }
 
-    private void selectTab(VipTab tab) {
-        activeTab = tab;
+    /** The rail has no sliding indicator; selection is the filled accent button. No-op kept for
+     *  callers that still ask to move it. */
+    private void moveIndicator(ModMenuPage page, boolean animate) {
+        // Intentionally empty: the icon-only rail shows selection by fill, not by an indicator.
+    }
+
+    private TextView tabView(ModMenuPage page) {
+        return tabViews.get(page);
+    }
+
+    /** The content host for a page, or null when the page is VIP-only (built in code). */
+    private View hostFor(ModMenuPage page) {
+        switch (page) {
+            case GENERAL: return generalView;
+            case VOICE: return voiceView;
+            case PACKS: return packsView;
+            case COSMETICS: return cosmeticsView;
+            case HUD_EDITOR: return hudView;
+            case REPLAY: return replayView;
+            case SETTINGS: return settingsView;
+            case CONTROLLER: return controllerView;
+            case KEYBOARD: return keyboardView;
+            default: return null;
+        }
+    }
+
+    private void selectTab(ModMenuPage page) {
+        activeTab = page;
         updateTabSelection();
-        moveIndicator(tab, true);
-
-        generalView.setVisibility(tab == VipTab.GENERAL ? View.VISIBLE : View.GONE);
-        controllerView.setVisibility(tab == VipTab.CONTROLLER ? View.VISIBLE : View.GONE);
-        keyboardView.setVisibility(tab == VipTab.KEYBOARD ? View.VISIBLE : View.GONE);
-        replayView.setVisibility(tab == VipTab.REPLAY ? View.VISIBLE : View.GONE);
+        moveIndicator(page, true);
         configView.setVisibility(View.GONE);
 
-        View shown = tab == VipTab.GENERAL ? generalView
-                : tab == VipTab.REPLAY ? replayView
-                : tab == VipTab.CONTROLLER ? controllerView : keyboardView;
-        if (tab == VipTab.REPLAY) {
-            ensureReplayPanel();
-            replayPanel.setGamepadDetected(inputMode == VipInputMode.Mode.CONTROLLER);
-            replayPanel.onShown();
+        // Hide every host, then show the active one.
+        for (ModMenuPage p : ModMenuPage.vipPages()) {
+            View host = hostFor(p);
+            if (host != null) host.setVisibility(p == page ? View.VISIBLE : View.GONE);
+        }
+
+        // Build the page's content on entry (the panels are cheap and rebuilt against the live
+        // state), then run its onShow hook. Each build is guarded so one bad page cannot take the
+        // game down.
+        View shown = hostFor(page);
+        if (page == ModMenuPage.REPLAY) {
+            ModMenuGuard.run("page.replay", () -> {
+                ensureReplayPanel();
+                if (replayPanel != null) {
+                    replayPanel.setGamepadDetected(inputMode == VipInputMode.Mode.CONTROLLER);
+                    replayPanel.onShown();
+                }
+            });
         } else if (replayPanel != null) {
             replayPanel.onHidden();
         }
-        crossfade(shown);
-        if (tab == VipTab.GENERAL && adapter != null) {
+        if (page == ModMenuPage.VOICE) {
+            ModMenuGuard.run("page.voice", this::ensureVoicePanel);
+        }
+        if (page == ModMenuPage.PACKS) {
+            ModMenuGuard.run("page.packs", this::ensurePacksPanel);
+        }
+        if (page == ModMenuPage.COSMETICS) {
+            ModMenuGuard.run("page.cosmetics", this::ensureCosmeticsPanel);
+        } else if (cosmeticsPanel != null) {
+            cosmeticsPanel.onHidden();
+        }
+        if (page == ModMenuPage.HUD_EDITOR) {
+            ModMenuGuard.run("page.hud", this::buildHudEditorPage);
+        } else {
+            // Leaving the HUD editor page turns edit mode off, the same exit the touch menu uses.
+            InbuiltOverlayManager overlayManager = InbuiltOverlayManager.getInstance();
+            if (overlayManager != null) {
+                try {
+                    overlayManager.setHudEditorMode(false);
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+        if (page == ModMenuPage.SETTINGS) {
+            ModMenuGuard.run("page.settings", this::buildSettingsPage);
+        }
+        if (page == ModMenuPage.CONTROLLER) {
+            ModMenuGuard.run("page.controller", this::refreshControllerSection);
+        }
+        if (page == ModMenuPage.KEYBOARD) {
+            ModMenuGuard.run("page.keyboard", this::refreshKeyboardSection);
+        }
+
+        if (shown != null) crossfade(shown);
+        if (page == ModMenuPage.GENERAL && adapter != null) {
             adapter.clearFocus();
         }
     }
@@ -578,18 +656,81 @@ public class VipModMenuOverlay {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
     }
 
-    /** One tab is accented and bold; the rest are muted. */
+    private void ensureVoicePanel() {
+        if (voiceView == null) return;
+        voiceView.removeAllViews();
+        voicePanel = new VoicePanel(activity, false);
+        voiceView.addView(voicePanel.getView(), new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+    }
+
+    private void ensurePacksPanel() {
+        if (packsView == null) return;
+        packsView.removeAllViews();
+        packChangerPanel = new PackChangerPanel(activity, false);
+        packsView.addView(packChangerPanel.getView(), new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+    }
+
+    private void ensureCosmeticsPanel() {
+        if (cosmeticsView == null) return;
+        if (cosmeticsPanel == null) {
+            cosmeticsPanel = new CosmeticsPanel(activity, false);
+            cosmeticsView.addView(cosmeticsPanel.getView(), new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        }
+        cosmeticsPanel.onShown();
+    }
+
+    /**
+     * The HUD editor page: the same "drag your overlays, save or reset" surface the touch menu
+     * exposes, hosted in the VIP shell. Reached from the sidebar like any other page.
+     */
+    private void buildHudEditorPage() {
+        if (hudView == null) return;
+        hudView.removeAllViews();
+        InbuiltOverlayManager manager = InbuiltOverlayManager.getInstance();
+        if (manager != null) {
+            // Same behaviour as the touch menu's HUD editor: enter edit mode so the overlays become
+            // draggable, and the same exit (turning the mode off) happens when the page is left.
+            manager.setHudEditorMode(true);
+        }
+        TextView hint = new TextView(activity);
+        hint.setText(R.string.vip_hud_editor_hint);
+        hint.setTextColor(theme.textSecondary());
+        hint.setTextSize(13f);
+        hint.setPadding((int) (16 * density()), (int) (16 * density()),
+                (int) (16 * density()), 0);
+        hudView.addView(hint);
+    }
+
+    /** The Settings page: the mod-menu's own settings (notifications, pause-menu-only, binds). */
+    private void buildSettingsPage() {
+        if (settingsView == null) return;
+        settingsView.removeAllViews();
+        TextView hint = new TextView(activity);
+        hint.setText(R.string.vip_settings_hint);
+        hint.setTextColor(theme.textSecondary());
+        hint.setTextSize(13f);
+        hint.setPadding((int) (16 * density()), (int) (16 * density()),
+                (int) (16 * density()), 0);
+        settingsView.addView(hint);
+    }
+
+    /** The rail button: filled accent with a white icon when selected, plain secondary otherwise. */
     private void updateTabSelection() {
-        for (VipTab tab : VipTab.values()) {
-            TextView view = tabView(tab);
+        int radius = (int) (UiTokens.RADIUS_CARD * density());
+        for (java.util.Map.Entry<ModMenuPage, TextView> e : tabViews.entrySet()) {
+            TextView view = e.getValue();
             if (view == null) continue;
-            boolean selected = tab == activeTab;
-            int color = selected ? theme.accent() : theme.textSecondary();
-            view.setTextColor(color);
-            view.setAlpha(selected ? 1f : 0.85f);
-            view.setTypeface(null, selected ? Typeface.BOLD : Typeface.NORMAL);
-            view.setCompoundDrawableTintList(ColorStateList.valueOf(color));
-            view.setBackground(selected ? activity.getDrawable(R.drawable.bg_vip_tab_selected) : null);
+            boolean selected = e.getKey() == activeTab;
+            int iconColor = selected ? 0xFFFFFFFF : theme.textSecondary();
+            view.setCompoundDrawableTintList(ColorStateList.valueOf(iconColor));
+            GradientDrawable bg = new GradientDrawable();
+            bg.setShape(GradientDrawable.RECTANGLE);
+            bg.setCornerRadius(radius);
+            bg.setColor(selected ? theme.accent() : 0x00000000);
+            view.setBackground(bg);
         }
     }
 
@@ -604,24 +745,20 @@ public class VipModMenuOverlay {
 
         // Opening a section is where the Modules tab used to die: the Controller and Keyboard
         // builders run here and a single bad profile/illustration lookup would propagate out of
-        // show() and crash the game. Each is isolated so the module grid -- the tab's real content
-        // -- always comes up even if one sub-mode cannot be built.
-        selectTabSafe(VipTab.defaultFor(inputMode));
-        try {
-            refreshControllerSection();
-        } catch (Throwable ignored) {
-        }
-        try {
-            refreshKeyboardSection();
-        } catch (Throwable ignored) {
-        }
+        // show() and crash the game. Each is isolated via ModMenuGuard so the failure is recorded
+        // for the diagnostics report (with its class, message and first 12 frames) instead of
+        // killing the process, and the module grid -- the tab's real content -- still comes up.
+        selectTabSafe(ModMenuPage.defaultForInput(controller));
+        ModMenuGuard.run("refreshControllerSection", this::refreshControllerSection);
+        ModMenuGuard.run("refreshKeyboardSection", this::refreshKeyboardSection);
     }
 
     /** Runs {@link #selectTab} without letting a section-build failure escape into the game. */
-    private void selectTabSafe(VipTab tab) {
+    private void selectTabSafe(ModMenuPage page) {
         try {
-            selectTab(tab);
-        } catch (Throwable ignored) {
+            selectTab(page == null ? ModMenuPage.GENERAL : page);
+        } catch (Throwable t) {
+            ModMenuGuard.record("selectTab:" + page, t, SystemClock.uptimeMillis());
             // The tab indicator or a section host failed; fall back to making the General (module)
             // section visible directly, since that is the one surface a controller user needs.
             if (generalView != null) generalView.setVisibility(View.VISIBLE);
@@ -837,28 +974,44 @@ public class VipModMenuOverlay {
 
         ControllerType type = hasPad ? ControllerType.from(gamepad) : ControllerType.XBOX;
         if (type == null) type = ControllerType.XBOX;
-        controllerIllustration.setType(type);
-        controllerTypeText.setText(type.getDisplayName());
+        // Each step is isolated so one bad widget (the illustration, a chip, a slider) cannot take
+        // down the whole section -- or the game. Failures land in the diagnostics report.
+        final ControllerType resolvedType = type;
+        ModMenuGuard.run("controller.setType", () -> {
+            controllerIllustration.setType(resolvedType);
+            controllerTypeText.setText(resolvedType.getDisplayName());
+        });
 
         if (profileManager == null) return;
-        List<ControllerProfile> profiles = profileManager.getProfiles(type);
-        int activeSlot = profileManager.getActiveSlot(type);
-        String name = profiles.isEmpty() ? "Default"
-                : profiles.get(Math.min(activeSlot, profiles.size() - 1)).getName();
-        controllerStatusText.setText(activity.getString(
-                R.string.vip_controller_active_profile) + ": " + name);
-
-        InbuiltModManager modManager = InbuiltModManager.getInstance(activity);
-        controllerIllustration.clearConfirmed();
-        if (modManager != null) {
-            String region = controllerIllustration.regionIdForKey(
-                    modManager.getModMenuControllerBind());
-            if (region != null) controllerIllustration.setRegionConfirmed(region, true);
-        }
-
-        rebuildProfileChips(type, profiles, activeSlot);
-        rebuildStickSliders(type, profiles, activeSlot);
-        ensureFullEditorButton(type);
+        final ControllerType sectionType = resolvedType;
+        ModMenuGuard.run("controller.status", () -> {
+            List<ControllerProfile> profiles = profileManager.getProfiles(sectionType);
+            int activeSlot = profileManager.getActiveSlot(sectionType);
+            String name = profiles.isEmpty() ? "Default"
+                    : profiles.get(Math.min(activeSlot, profiles.size() - 1)).getName();
+            controllerStatusText.setText(activity.getString(
+                    R.string.vip_controller_active_profile) + ": " + name);
+        });
+        ModMenuGuard.run("controller.bindGlow", () -> {
+            InbuiltModManager modManager = InbuiltModManager.getInstance(activity);
+            controllerIllustration.clearConfirmed();
+            if (modManager != null) {
+                String region = controllerIllustration.regionIdForKey(
+                        modManager.getModMenuControllerBind());
+                if (region != null) controllerIllustration.setRegionConfirmed(region, true);
+            }
+        });
+        ModMenuGuard.run("controller.chips", () -> {
+            List<ControllerProfile> profiles = profileManager.getProfiles(sectionType);
+            int activeSlot = profileManager.getActiveSlot(sectionType);
+            rebuildProfileChips(sectionType, profiles, activeSlot);
+        });
+        ModMenuGuard.run("controller.sliders", () -> {
+            List<ControllerProfile> profiles = profileManager.getProfiles(sectionType);
+            int activeSlot = profileManager.getActiveSlot(sectionType);
+            rebuildStickSliders(sectionType, profiles, activeSlot);
+        });
+        ModMenuGuard.run("controller.fullEditorButton", () -> ensureFullEditorButton(sectionType));
     }
 
     /**
@@ -882,10 +1035,14 @@ public class VipModMenuOverlay {
         button.setBackground(bg);
         DynamicAnim.applyPressScale(button);
         button.setOnClickListener(v -> {
-            if (profileEditor == null) {
-                profileEditor = new ControllerProfileEditor(activity, profileManager);
-            }
-            profileEditor.show(type, saved -> refreshControllerSection());
+            boolean ok = ModMenuGuard.run("openFullControllerEditor", () -> {
+                if (profileEditor == null) {
+                    profileEditor = new ControllerProfileEditor(activity, profileManager);
+                }
+                profileEditor.show(type, saved -> ModMenuGuard.run(
+                        "refreshControllerSection(after edit)", this::refreshControllerSection));
+            });
+            if (!ok) toastGuardFailure();
         });
         controllerSliders.addView(button);
         fullEditorButton = button;
@@ -953,7 +1110,13 @@ public class VipModMenuOverlay {
 
     private void persistProfile(ControllerType type, int slot, ControllerProfile profile) {
         if (profileManager == null) return;
-        profileManager.saveProfiles(type, profileManager.getProfiles(type));
+        // Save the edited object, not a fresh read from prefs. `getProfiles` deserialises new
+        // objects each call, so saving that list wrote the *unmodified* profiles back and a slider
+        // change was applied to the running processor but never persisted.
+        java.util.List<ControllerProfile> profiles =
+                org.chimeramc.client.launcher.controller.ControllerProfileList
+                        .replaceAt(profileManager.getProfiles(type), slot, profile);
+        profileManager.saveProfiles(type, profiles);
         profileManager.setActiveSlot(type, slot);
         ControllerInputProcessor.setActiveProfile(type, profile);
         ControllerInputProcessor.reload(activity);
@@ -1153,10 +1316,10 @@ public class VipModMenuOverlay {
         }
         switch (keyCode) {
             case KeyEvent.KEYCODE_BUTTON_L1:
-                selectTab(activeTab.previous());
+                selectTab(ModMenuPage.vipPrevious(activeTab));
                 return true;
             case KeyEvent.KEYCODE_BUTTON_R1:
-                selectTab(activeTab.next());
+                selectTab(ModMenuPage.vipNext(activeTab));
                 return true;
             case KeyEvent.KEYCODE_BUTTON_START:
                 if (configView.getVisibility() == View.VISIBLE) {
@@ -1174,10 +1337,10 @@ public class VipModMenuOverlay {
             default:
                 break;
         }
-        if (activeTab == VipTab.REPLAY) {
+        if (activeTab == ModMenuPage.REPLAY) {
             return handleReplayKey(keyCode);
         }
-        if (activeTab != VipTab.GENERAL || configView.getVisibility() == View.VISIBLE
+        if (activeTab != ModMenuPage.GENERAL || configView.getVisibility() == View.VISIBLE
                 || adapter == null) {
             return false;
         }
@@ -1232,7 +1395,7 @@ public class VipModMenuOverlay {
     public boolean handleControllerMotion(MotionEvent event) {
         if (!isShowing || adapter == null) return false;
         if (controllerIllustration != null) controllerIllustration.handleMotionEvent(event);
-        if (activeTab != VipTab.GENERAL || configView.getVisibility() == View.VISIBLE) return false;
+        if (activeTab != ModMenuPage.GENERAL || configView.getVisibility() == View.VISIBLE) return false;
         float axisX = event.getAxisValue(MotionEvent.AXIS_X);
         float axisY = event.getAxisValue(MotionEvent.AXIS_Y);
         if (Math.abs(axisX) < NAV_AXIS_THRESHOLD && Math.abs(axisY) < NAV_AXIS_THRESHOLD) {
@@ -1320,5 +1483,18 @@ public class VipModMenuOverlay {
 
     private float density() {
         return activity.getResources().getDisplayMetrics().density;
+    }
+
+    /**
+     * Shows a short toast after a guarded menu step fails, so the failure is visible to the player
+     * (and the diagnostics report carries the details) instead of the screen silently doing nothing.
+     */
+    private void toastGuardFailure() {
+        try {
+            android.widget.Toast.makeText(activity, R.string.vip_controller_step_failed,
+                    android.widget.Toast.LENGTH_SHORT).show();
+        } catch (Throwable ignored) {
+            // A toast failure must never be the thing that breaks the menu.
+        }
     }
 }

@@ -106,6 +106,18 @@ public class ModCategoryTest {
     }
 
     @Test
+    public void searchAlsoMatchesTheDescriptionAndCategory() {
+        // The spec: the search filters by name, description and category.
+        UnifiedMod mod = new UnifiedMod(ModIds.ZOOM, "Zoom", "Hold to zoom in smoothly.",
+                "inbuilt", UnifiedMod.Source.INBUILT, false, Collections.emptyList(), false,
+                "visual", "Visual", (m, e) -> { }, (m, c, v) -> { }, null);
+        assertTrue("a word from the description must match",
+                ModCategory.matchesQuery(mod, "smoothly"));
+        assertTrue("the category name must match", ModCategory.matchesQuery(mod, "visual"));
+        assertFalse(ModCategory.matchesQuery(mod, "fire"));
+    }
+
+    @Test
     public void aNullTabOrModuleIsSafe() {
         assertTrue(ModCategory.matches(null, mod(ModIds.ZOOM, "Zoom"), Collections.emptySet()));
         assertFalse(ModCategory.matches(ModCategory.Tab.VISUALS, null, Collections.emptySet()));

@@ -58,7 +58,7 @@ public final class NativeCosmeticsRuntime {
         // player's real Minecraft skin, read from the game's own image loader. Fail-closed: with no
         // native capture it returns null and the imported/applied/Steve chain renders instead.
         try {
-            GameSkinFeed.install();
+            GameSkinFeed.install(context);
         } catch (Throwable ignored) {
         }
         syncEquipped(context);

@@ -1178,6 +1178,14 @@ public class InbuiltOverlayManager {
      */
     public boolean handleMenuControllerKey(int rawKeyCode, int action) {
         if (modMenuButton == null) return false;
+        // The radial wheel owns controller input while it is open, so the stick drives the cursor
+        // and no button reaches the game (no camera spin, no attacks).
+        org.chimeramc.client.core.mods.inbuilt.overlay.RadialMenuOverlay wheel =
+                modMenuButton.getRadialMenuOverlay();
+        if (wheel != null && wheel.isShowing()) {
+            return wheel.handleControllerKey(rawKeyCode,
+                    action == android.view.KeyEvent.ACTION_DOWN);
+        }
         // The VIP Mod Menu (Screen B) owns controller input while it is open; Screen A (the touch
         // menu) only sees keys when it is the one showing. The two are never open at once.
         org.chimeramc.client.core.mods.inbuilt.vip.VipModMenuOverlay vip =
@@ -1195,6 +1203,12 @@ public class InbuiltOverlayManager {
     /** Hands analogue stick movement to the open Mod Menu, so the stick can move the selection. */
     public boolean handleMenuControllerMotion(android.view.MotionEvent event) {
         if (modMenuButton == null) return false;
+        // The radial wheel takes the stick first while it is open.
+        org.chimeramc.client.core.mods.inbuilt.overlay.RadialMenuOverlay wheel =
+                modMenuButton.getRadialMenuOverlay();
+        if (wheel != null && wheel.isShowing() && wheel.handleControllerMotion(event)) {
+            return true;
+        }
         org.chimeramc.client.core.mods.inbuilt.vip.VipModMenuOverlay vip =
                 modMenuButton.getVipMenuOverlay();
         if (vip != null && vip.isShowing() && vip.handleControllerMotion(event)) {

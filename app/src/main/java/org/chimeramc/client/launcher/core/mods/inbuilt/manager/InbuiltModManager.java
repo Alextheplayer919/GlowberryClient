@@ -109,6 +109,7 @@ public class InbuiltModManager {
     private static final String KEY_COSMETIC_SYNC_ENABLED = "cosmetic_sync_enabled";
     private static final String KEY_COSMETIC_VFX_ENABLED = "cosmetic_vfx_enabled";
     private static final String KEY_COSMETIC_DEBUG_CUBE = "cosmetic_debug_cube";
+    private static final String KEY_RENDER_DEBUG_OVERLAY = "render_debug_overlay";
     private static final String KEY_COSMETIC_MANUAL_PEER = "cosmetic_sync_manual_peer";
     private static final String KEY_COSMETIC_CLOUD_TOPIC = "cosmetic_sync_cloud_topic";
     private static final int DEFAULT_AIM_SMOOTHING = 40;
@@ -976,6 +977,18 @@ public class InbuiltModManager {
         } catch (Throwable ignored) {
             // A build without the native symbol simply never draws it.
         }
+    }
+
+    /**
+     * Whether the live cosmetics-render debug overlay is shown in the Mod Menu, so the native draw
+     * values can be watched in third person. Off by default.
+     */
+    public boolean isRenderDebugOverlayEnabled() {
+        return prefs.getBoolean(KEY_RENDER_DEBUG_OVERLAY, false);
+    }
+
+    public void setRenderDebugOverlayEnabled(boolean enabled) {
+        prefs.edit().putBoolean(KEY_RENDER_DEBUG_OVERLAY, enabled).apply();
     }
 
     /**

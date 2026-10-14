@@ -53,7 +53,7 @@ import java.util.List;
  * advertised in the directory and a would-be joiner declines a full room. See
  * {@link VoiceChannelCapacity}.
  */
-final class VoicePanel {
+public final class VoicePanel {
 
     private final Activity activity;
     private final InbuiltModManager manager;
@@ -78,7 +78,7 @@ final class VoicePanel {
 
     private boolean createPrivate;
 
-    VoicePanel(Activity activity, boolean compact) {
+    public VoicePanel(Activity activity, boolean compact) {
         this.activity = activity;
         this.compact = compact;
         this.manager = InbuiltModManager.getInstance(activity);
@@ -97,12 +97,12 @@ final class VoicePanel {
         refresh();
     }
 
-    View getView() {
+    public View getView() {
         return root;
     }
 
     /** Re-reads the live state, so the panel reflects a channel joined from the launcher too. */
-    void refresh() {
+    public void refresh() {
         VoiceChatModule module = VoiceChatModule.peek();
         boolean running = module != null && module.isRunning();
 

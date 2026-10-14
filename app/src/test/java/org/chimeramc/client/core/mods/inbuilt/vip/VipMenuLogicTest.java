@@ -7,6 +7,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import org.chimeramc.client.core.mods.inbuilt.overlay.ModMenuNavigation;
+import org.chimeramc.client.core.mods.inbuilt.overlay.ModMenuPage;
 import org.junit.Test;
 
 /**
@@ -33,35 +34,31 @@ public class VipMenuLogicTest {
     // ---- tab order ----------------------------------------------------------
 
     @Test
-    public void declarationOrderIsTheTabOrder() {
-        assertEquals(VipTab.GENERAL, VipTab.values()[0]);
-        assertEquals(VipTab.REPLAY, VipTab.values()[1]);
-        assertEquals(VipTab.CONTROLLER, VipTab.values()[2]);
-        assertEquals(VipTab.KEYBOARD, VipTab.values()[3]);
+    public void declarationOrderIsTheVipTabOrder() {
+        java.util.List<ModMenuPage> vip = ModMenuPage.vipPages();
+        assertEquals(ModMenuPage.GENERAL, vip.get(0));
+        assertEquals(ModMenuPage.VOICE, vip.get(1));
+        assertEquals(ModMenuPage.CONTROLLER, vip.get(vip.size() - 2));
+        assertEquals(ModMenuPage.KEYBOARD, vip.get(vip.size() - 1));
     }
 
     @Test
     public void shouldersWrapInBothDirections() {
-        assertEquals(VipTab.REPLAY, VipTab.GENERAL.next());
-        assertEquals(VipTab.CONTROLLER, VipTab.REPLAY.next());
-        assertEquals(VipTab.KEYBOARD, VipTab.CONTROLLER.next());
-        assertEquals(VipTab.GENERAL, VipTab.KEYBOARD.next());
-
-        assertEquals(VipTab.KEYBOARD, VipTab.GENERAL.previous());
-        assertEquals(VipTab.REPLAY, VipTab.CONTROLLER.previous());
-        assertEquals(VipTab.GENERAL, VipTab.REPLAY.previous());
-        assertEquals(VipTab.CONTROLLER, VipTab.KEYBOARD.previous());
+        assertEquals(ModMenuPage.VOICE, ModMenuPage.vipNext(ModMenuPage.GENERAL));
+        assertEquals(ModMenuPage.GENERAL, ModMenuPage.vipNext(ModMenuPage.KEYBOARD));
+        assertEquals(ModMenuPage.KEYBOARD, ModMenuPage.vipPrevious(ModMenuPage.GENERAL));
+        assertEquals(ModMenuPage.GENERAL, ModMenuPage.vipPrevious(ModMenuPage.VOICE));
     }
 
     @Test
     public void theDefaultTabMatchesTheInput() {
-        assertEquals(VipTab.CONTROLLER, VipTab.defaultFor(VipInputMode.Mode.CONTROLLER));
-        assertEquals(VipTab.KEYBOARD, VipTab.defaultFor(VipInputMode.Mode.KEYBOARD));
+        assertEquals(ModMenuPage.CONTROLLER, ModMenuPage.defaultForInput(true));
+        assertEquals(ModMenuPage.KEYBOARD, ModMenuPage.defaultForInput(false));
     }
 
     @Test
     public void everyTabCarriesATitleAndAnIcon() {
-        for (VipTab tab : VipTab.values()) {
+        for (ModMenuPage tab : ModMenuPage.values()) {
             assertTrue("title for " + tab, tab.getTitleRes() != 0);
             assertTrue("icon for " + tab, tab.getIconRes() != 0);
         }

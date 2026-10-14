@@ -87,6 +87,13 @@ public class RadialMenuView extends View {
     private Sector highlighted = Sector.NONE;
     private int accent;
 
+    /** The controller cursor, non-null only while a pad is driving the wheel. */
+    private CursorController cursor;
+    /** The chip currently under the controller cursor, or -1. */
+    private int cursorChip = -1;
+    /** True while the cursor is visible (a touch hides it). */
+    private boolean cursorVisible;
+
     private float density;
 
     private Bitmap skinHead;
@@ -171,8 +178,10 @@ public class RadialMenuView extends View {
                     skin.bitmap.getPixels(headAtlas, 0, SkinModel.ATLAS_SIZE, 0, 0,
                             SkinModel.ATLAS_SIZE, SkinModel.ATLAS_SIZE);
                     headScene = new PreviewScene();
+                    // Head + body = a bust, so the hub shows the character rather than a cropped
+                    // head. The fit margin in drawHead3D keeps it inside the disc.
                     PreviewCharacterScene.addCharacter(headScene, headAtlas, SkinModel.ATLAS_SIZE,
-                            0f, 0f, "head");
+                            0f, 0f);
                 }
             }
         } catch (Throwable ignored) {
@@ -308,6 +317,29 @@ public class RadialMenuView extends View {
 
         // Chips.
         drawChips(canvas, getWidth(), getHeight(), alpha);
+        drawControllerCursor(canvas, alpha);
+    }
+
+    /** Draws the controller cursor: a 10dp disc with a 2dp white ring and a soft accent glow. */
+    private void drawControllerCursor(Canvas canvas, int alpha) {
+        if (!isCursorVisible()) return;
+        float cx = cursor.x();
+        float cy = cursor.y();
+        float r = 5f * density;
+        // Soft glow.
+        Paint glow = iconPaint;
+        glow.reset();
+        glow.setAntiAlias(true);
+        glow.setColor(UiTokens.withAlpha(accent, (int) (0x55 * (alpha / 255f))));
+        glow.setShadowLayer(6f * density, 0f, 0f,
+                UiTokens.withAlpha(accent, (int) (0x99 * (alpha / 255f))));
+        canvas.drawCircle(cx, cy, r, glow);
+        glow.clearShadowLayer();
+        // White ring, 2dp.
+        glow.setStyle(Paint.Style.STROKE);
+        glow.setStrokeWidth(2f * density);
+        glow.setColor(UiTokens.withAlpha(0xFFFFFFFF, alpha));
+        canvas.drawCircle(cx, cy, r, glow);
     }
 
     private void drawSector(Canvas canvas, float cx, float cy, float rInner, float rOuter,
@@ -383,14 +415,21 @@ public class RadialMenuView extends View {
         float iconSize = 24f * density;
         float labelSize = UiTokens.TEXT_CAPTION * density;
         labelPaint.setTextSize(labelSize);
+        // Centre the icon+label block vertically in the ring band: the block is iconSize tall plus a
+        // small gap plus the label, so its centre is the band radius and both halves sit around it.
+        float gap = 4f * density;
+        float blockHeight = iconSize + gap + labelSize;
+        float blockTop = -blockHeight / 2f;
+        float iconCenterY = blockTop + iconSize / 2f;
+        float labelBaselineY = blockTop + iconSize + gap + labelSize * 0.8f;
         for (Sector s : SECTORS) {
             double a = Math.toRadians(RadialWheelLayout.sectorCenterDegrees(s));
             float px = cx + (float) (Math.cos(a) * radius);
             float py = cy + (float) (Math.sin(a) * radius);
-            UiIcons.draw(canvas, iconPaint, iconFor(s), px, py - labelSize * 0.4f, iconSize,
+            UiIcons.draw(canvas, iconPaint, iconFor(s), px, py + iconCenterY, iconSize,
                     UiTokens.withAlpha(UiTokens.TEXT_PRIMARY, alpha), density);
             labelPaint.setColor(UiTokens.withAlpha(UiTokens.TEXT_PRIMARY, alpha));
-            canvas.drawText(sectorLabel(s), px, py + labelSize * 1.6f, labelPaint);
+            canvas.drawText(sectorLabel(s), px, py + labelBaselineY, labelPaint);
         }
     }
 
@@ -437,9 +476,11 @@ public class RadialMenuView extends View {
             }
         }
         headRaster.prepare(size, size, 0x00000000);
+        // Orbit the bust (head + body) around the chest and fit with a wide margin, so the head is
+        // never cropped at the disc edge.
         SkinModel.Camera cam = new SkinModel.Camera(headYawDeg, 8f, SkinModel.CAMERA_DISTANCE,
-                0f, 28f, 0f);
-        PreviewScene.Fit fit = headScene.fit(cam, size, size, 0.06f);
+                0f, 24f, 0f);
+        PreviewScene.Fit fit = headScene.fit(cam, size, size, 0.16f);
         headScene.render(headRaster, cam, fit);
         headBitmap.setPixels(headRaster.pixels(), 0, size, 0, 0, size, size);
         headClip.reset();
@@ -489,10 +530,193 @@ public class RadialMenuView extends View {
         }
     }
 
+    // --- Controller cursor ------------------------------------------------------------------
+
+    /**
+     * Enables controller-cursor mode: a cursor appears at the hub and the stick drives it.
+     * Called when the wheel is opened by the controller bind.
+     */
+    public void enableControllerCursor() {
+        if (cursor == null) {
+            cursor = new CursorController(Math.max(1, getWidth()), Math.max(1, getHeight()), density);
+        } else {
+            cursor.setViewport(Math.max(1, getWidth()), Math.max(1, getHeight()));
+            cursor.centre();
+        }
+        cursorVisible = true;
+        invalidate();
+    }
+
+    /** Hides the cursor (a touch, or the wheel closing). */
+    public void disableControllerCursor() {
+        cursorVisible = false;
+        cursorChip = -1;
+        invalidate();
+    }
+
+    public boolean isCursorVisible() {
+        return cursorVisible && cursor != null;
+    }
+
+    /**
+     * Feeds one frame of controller input.
+     *
+     * @return true when the wheel consumed it (so the caller must not forward it to the game)
+     */
+    public boolean handleControllerStick(float rawX, float rawY, float dt, boolean precision,
+                                         boolean fast, float deadZone, float curveExponent) {
+        if (cursor == null) return false;
+        cursorVisible = true;
+        float[] shaped = new float[2];
+        CursorController.shape(rawX, rawY, deadZone, curveExponent, shaped);
+        // Screen Y grows down; a pad's +Y is up, so negate so pushing up moves the cursor up.
+        cursor.setMagnetTarget(false, 0f, 0f);
+        cursor.update(shaped[0], -shaped[1], dt, precision, fast,
+                CursorController.DEFAULT_MAX_SPEED_DP);
+        // Magnetism: ease toward the sector icon or chip under the cursor.
+        applyCursorMagnetism();
+        updateCursorHighlight();
+        invalidate();
+        return true;
+    }
+
+    private void applyCursorMagnetism() {
+        float cx = centerX();
+        float cy = centerY();
+        float outer = outerRadius();
+        float inner = RadialWheelLayout.ringInnerRadius(outer);
+        float radius = (inner + outer) / 2f;
+        Sector s = RadialWheelLayout.sectorAtLinear(
+                cursor.x() - cx, cursor.y() - cy, inner, outer, RadialWheelLayout.GAP_DP * density);
+        if (RadialWheelLayout.isDestination(s)) {
+            double a = Math.toRadians(RadialWheelLayout.sectorCenterDegrees(s));
+            float ix = cx + (float) (Math.cos(a) * radius);
+            float iy = cy + (float) (Math.sin(a) * radius);
+            cursor.setMagnetTarget(true, ix, iy);
+        } else {
+            cursor.setMagnetTarget(false, 0f, 0f);
+        }
+    }
+
+    private void updateCursorHighlight() {
+        float cx = centerX();
+        float cy = centerY();
+        float outer = outerRadius();
+        float inner = RadialWheelLayout.ringInnerRadius(outer);
+        Sector s = RadialWheelLayout.sectorAtLinear(
+                cursor.x() - cx, cursor.y() - cy, inner, outer, RadialWheelLayout.GAP_DP * density);
+        setHighlight(s);
+        cursorChip = chipAt(cursor.x(), cursor.y(), getWidth(), getHeight());
+    }
+
+    /** The index of the chip under a point, or -1. Pure given the chip layout. */
+    int chipAt(float x, float y, int w, int h) {
+        int[] counts = chipClusterCounts();
+        float[][] centers = RadialWheelLayout.chipCenters(w, h, counts[0], counts[1], counts[2]);
+        for (int i = 0; i < chips.size() && i < centers.length; i++) {
+            String text = getContext().getString(chips.get(i).labelRes);
+            chipTextPaint.setTextSize(UiChip.LABEL_SP * density);
+            float cw = UiChip.width(chipTextPaint.measureText(text), density);
+            float ch = UiChip.HEIGHT_DP * density;
+            if (Math.abs(x - centers[i][0]) <= cw / 2f && Math.abs(y - centers[i][1]) <= ch / 2f) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * The SELECT button: activates the chip under the cursor if there is one, else the sector.
+     *
+     * @return true when something was activated
+     */
+    public boolean controllerSelect() {
+        if (cursor == null) return false;
+        if (cursorChip >= 0 && cursorChip < chips.size()) {
+            if (chipToggle != null) chipToggle.onChipToggled(chips.get(cursorChip).moduleId);
+            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+            invalidate();
+            return true;
+        }
+        float cx = centerX();
+        float cy = centerY();
+        float outer = outerRadius();
+        float inner = RadialWheelLayout.ringInnerRadius(outer);
+        Sector s = RadialWheelLayout.sectorAtLinear(
+                cursor.x() - cx, cursor.y() - cy, inner, outer, RadialWheelLayout.GAP_DP * density);
+        if (listener != null && RadialWheelLayout.isDestination(s)) {
+            listener.onSector(s);
+            return true;
+        }
+        return false;
+    }
+
+    /** The BACK button. */
+    public boolean controllerBack() {
+        if (listener != null) {
+            listener.onDismiss();
+            return true;
+        }
+        return false;
+    }
+
+    /** The PIN button: pin/unpin the hovered chip's module. Returns true when a chip was hit. */
+    public boolean controllerPinHoveredChip() {
+        if (cursorChip >= 0 && cursorChip < chips.size()) {
+            if (chipToggle != null) chipToggle.onChipToggled(chips.get(cursorChip).moduleId);
+            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+            invalidate();
+            return true;
+        }
+        return false;
+    }
+
+    /** Moves the cursor to a sector's icon (D-pad focus mode). Hides the free cursor. */
+    public void focusSector(Sector s) {
+        if (!RadialWheelLayout.isDestination(s)) return;
+        float cx = centerX();
+        float cy = centerY();
+        float outer = outerRadius();
+        float inner = RadialWheelLayout.ringInnerRadius(outer);
+        float radius = (inner + outer) / 2f;
+        double a = Math.toRadians(RadialWheelLayout.sectorCenterDegrees(s));
+        if (cursor == null) {
+            cursor = new CursorController(Math.max(1, getWidth()), Math.max(1, getHeight()), density);
+        }
+        cursor.setPosition(cx + (float) (Math.cos(a) * radius),
+                cy + (float) (Math.sin(a) * radius));
+        cursorVisible = false;
+        setHighlight(s);
+        invalidate();
+    }
+
+    /** The D-pad left/right: step through the sectors. */
+    public void focusNextSector(int direction) {
+        Sector[] order = {Sector.MODS, Sector.CLOSET, Sector.SETTINGS, Sector.HUD};
+        Sector current = highlighted;
+        int idx = 0;
+        for (int i = 0; i < order.length; i++) if (order[i] == current) idx = i;
+        int next = ((idx + direction) % order.length + order.length) % order.length;
+        focusSector(order[next]);
+        performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
+    }
+
+    /** The LB/RB: cycle the chips, selecting the module under the cursor. */
+    public void cycleChip(int direction) {
+        if (chips.isEmpty()) return;
+        int next = cursorChip < 0 ? 0 : (cursorChip + direction + chips.size()) % chips.size();
+        cursorChip = next;
+        invalidate();
+    }
+
     // --- Touch ------------------------------------------------------------------------------
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        // A touch hides the controller cursor: the two input methods never fight.
+        if (cursorVisible) {
+            disableControllerCursor();
+        }
         float cx = centerX();
         float cy = centerY();
         float outer = outerRadius();

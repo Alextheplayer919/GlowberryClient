@@ -301,9 +301,16 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
 
         modHolder.name.setText(mod.getName());
         if (modHolder.groupText != null) {
-            modHolder.groupText.setVisibility(item.showGroupLabel ? View.VISIBLE : View.GONE);
-            if (item.showGroupLabel) {
-                modHolder.groupText.setText(mod.getGroupName());
+            // The caption: the module's short description, or the group name when it has none.
+            String caption = mod.getDescription();
+            if (caption == null || caption.trim().isEmpty()) {
+                caption = item.showGroupLabel ? mod.getGroupName() : null;
+            }
+            if (caption != null && !caption.trim().isEmpty()) {
+                modHolder.groupText.setVisibility(View.VISIBLE);
+                modHolder.groupText.setText(caption);
+            } else {
+                modHolder.groupText.setVisibility(View.GONE);
             }
         }
 

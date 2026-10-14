@@ -103,16 +103,7 @@ public final class PlayerSkinProvider {
      * a cosmetics screen that crashes is worse than one showing a generic character.
      */
     public static SkinBitmap resolve(Context context) {
-        // 1. The game's own live skin, read through an engine hook when a provider is installed.
-        //    This is the "show my real Minecraft account skin" rung; until a native feed installs a
-        //    provider it returns null and the chain falls through, so nothing regresses.
-        SkinBitmap fromGame = GameSkinSource.read(context);
-        if (fromGame != null && fromGame.bitmap != null) {
-            return fromGame;
-        }
-
-        // 2. A skin the player explicitly set in the launcher wins over the applied pack, because
-        //    that is the one they told us they use.
+        // 1. A skin the player explicitly set in the launcher: an explicit override always wins.
         String custom = getCustomSkinPath(context);
         if (custom != null && !custom.isEmpty()) {
             Bitmap decoded = decodeFile(new File(custom));
@@ -121,7 +112,20 @@ public final class PlayerSkinProvider {
             }
         }
 
-        // 3. The applied skin pack's first texture.
+        // 2. The game's own live skin, read through an engine hook when a provider is installed.
+        SkinBitmap fromGame = GameSkinSource.read(context);
+        if (fromGame != null && fromGame.bitmap != null) {
+            return fromGame;
+        }
+
+        // 3. The cached last capture, so the launcher (which runs before the game) still shows the
+        //    real skin after the first session.
+        SkinBitmap cached = GameSkinFeed.readCachedStatic(context);
+        if (cached != null && cached.bitmap != null) {
+            return cached;
+        }
+
+        // 4. The applied skin pack's first texture.
         File applied = findAppliedSkinFile(context);
         if (applied != null) {
             Bitmap decoded = decodeFile(applied);
@@ -130,7 +134,7 @@ public final class PlayerSkinProvider {
             }
         }
 
-        // 4. No skin at all: show Steve, the standard character, rather than a grey stand-in. The
+        // 5. No skin at all: show Steve, the standard character, rather than a grey stand-in. The
         // shipped atlas is preferred (it is the exact skin the project uses), and the procedural
         // painter is the fallback when the asset cannot be read. The grey placeholder is only
         // reached if neither works.

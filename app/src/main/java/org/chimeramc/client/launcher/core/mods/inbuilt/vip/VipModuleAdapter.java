@@ -348,9 +348,15 @@ public class VipModuleAdapter extends RecyclerView.Adapter<RecyclerView.ViewHold
         boolean isAvailable = ModAvailability.isInteractive(mod.getId());
 
         modHolder.name.setText(mod.getName());
-        if (item.showGroup && mod.getGroupName() != null) {
+        // The caption line: the module's short description (one line, ellipsised by the layout).
+        // Falls back to the group name for a module that has no description yet.
+        String caption = mod.getDescription();
+        if (caption == null || caption.trim().isEmpty()) {
+            caption = item.showGroup ? mod.getGroupName() : null;
+        }
+        if (caption != null && !caption.trim().isEmpty()) {
             modHolder.group.setVisibility(View.VISIBLE);
-            modHolder.group.setText(mod.getGroupName());
+            modHolder.group.setText(caption);
         } else {
             modHolder.group.setVisibility(View.GONE);
         }

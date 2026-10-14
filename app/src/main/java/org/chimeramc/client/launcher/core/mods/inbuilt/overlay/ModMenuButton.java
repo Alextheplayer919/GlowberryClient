@@ -327,13 +327,13 @@ public class ModMenuButton {
                 @Override
                 public void openCloset() {
                     ensureVipMenu().showSection(
-                            org.chimeramc.client.core.mods.inbuilt.vip.VipTab.GENERAL);
+                            org.chimeramc.client.core.mods.inbuilt.overlay.ModMenuPage.GENERAL);
                 }
 
                 @Override
                 public void openSettings() {
                     ensureVipMenu().showSection(
-                            org.chimeramc.client.core.mods.inbuilt.vip.VipTab.GENERAL);
+                            org.chimeramc.client.core.mods.inbuilt.overlay.ModMenuPage.GENERAL);
                 }
 
                 @Override

@@ -95,6 +95,29 @@ final class CosmeticsDiagnosticsDialog {
         cubeNote.setTextColor(TEXT_SECONDARY);
         root.addView(cubeNote);
 
+        // The live render debug overlay toggle: prints the native draw values on screen (refreshed
+        // once a second) so the draw path can be watched in third person without leaving the game.
+        final CheckBox renderDebug = new CheckBox(activity);
+        renderDebug.setText(R.string.cosmetics_diagnostics_live_overlay);
+        renderDebug.setTextColor(TEXT_PRIMARY);
+        renderDebug.setTextSize(13f);
+        renderDebug.setChecked(manager.isRenderDebugOverlayEnabled());
+        renderDebug.setOnCheckedChangeListener((button, checked) -> {
+            manager.setRenderDebugOverlayEnabled(checked);
+            reportView.setText(CosmeticsDiagnosticsReport.readLive(activity));
+        });
+        root.addView(renderDebug);
+
+        // The third-person hint: in first person the game does not render the local player model,
+        // so a hook inside the player-render path is never called for you and cosmetics anchored to
+        // it are never drawn. This is the single most common "nothing shows" cause.
+        TextView thirdPerson = new TextView(activity);
+        thirdPerson.setText(R.string.third_person_hint);
+        thirdPerson.setTextSize(11f);
+        thirdPerson.setTextColor(TEXT_SECONDARY);
+        thirdPerson.setPadding(0, dp(activity, 6), 0, 0);
+        root.addView(thirdPerson);
+
         LinearLayout buttons = new LinearLayout(activity);
         buttons.setOrientation(LinearLayout.HORIZONTAL);
         buttons.setGravity(Gravity.END);
@@ -126,6 +149,38 @@ final class CosmeticsDiagnosticsDialog {
 
         root.addView(buttons);
 
+        // A dedicated Copy/Share for the last crash report, so a device crash trace can be sent
+        // without hunting through the full report.
+        LinearLayout crashButtons = new LinearLayout(activity);
+        crashButtons.setOrientation(LinearLayout.HORIZONTAL);
+        crashButtons.setGravity(Gravity.END);
+
+        Button copyCrash = new Button(activity);
+        copyCrash.setText(R.string.crash_report_copy);
+        copyCrash.setOnClickListener(v -> {
+            String crash = readLastCrash(activity);
+            if (crash.isEmpty()) {
+                Toast.makeText(activity, R.string.crash_report_none, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            copyToClipboard(activity, crash);
+            Toast.makeText(activity, R.string.crash_report_copied, Toast.LENGTH_SHORT).show();
+        });
+        crashButtons.addView(copyCrash);
+
+        Button shareCrash = new Button(activity);
+        shareCrash.setText(R.string.crash_report_share);
+        shareCrash.setOnClickListener(v -> {
+            String crash = readLastCrash(activity);
+            if (crash.isEmpty()) {
+                Toast.makeText(activity, R.string.crash_report_none, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            shareText(activity, crash, activity.getString(R.string.crash_report_share_title));
+        });
+        crashButtons.addView(shareCrash);
+        root.addView(crashButtons);
+
         new AlertDialog.Builder(activity)
                 .setTitle(R.string.cosmetics_diagnostics_title)
                 .setView(root)
@@ -146,15 +201,31 @@ final class CosmeticsDiagnosticsDialog {
     }
 
     private static void share(Activity activity, String text) {
+        shareText(activity, text, activity.getString(R.string.cosmetics_diagnostics_share_title));
+    }
+
+    /** Shares arbitrary text through the system chooser; a missing target is not an error. */
+    private static void shareText(Activity activity, String text, String chooserTitle) {
         try {
             Intent intent = new Intent(Intent.ACTION_SEND);
             intent.setType("text/plain");
-            intent.putExtra(Intent.EXTRA_SUBJECT, activity.getString(R.string.cosmetics_diagnostics_title));
+            intent.putExtra(Intent.EXTRA_SUBJECT, chooserTitle);
             intent.putExtra(Intent.EXTRA_TEXT, text);
-            activity.startActivity(Intent.createChooser(
-                    intent, activity.getString(R.string.cosmetics_diagnostics_share_title)));
+            activity.startActivity(Intent.createChooser(intent, chooserTitle));
         } catch (Throwable ignored) {
             // No share target is not an error worth surfacing.
+        }
+    }
+
+    /** Reads the most recent crash report text, or "" when there is none. Never throws. */
+    private static String readLastCrash(Activity activity) {
+        try {
+            org.chimeramc.client.core.crash.CrashReportStore.Report report =
+                    org.chimeramc.client.core.crash.CrashReportStore.readDir(
+                            org.chimeramc.client.util.LauncherStorage.getCrashLogsDir(activity));
+            return report.isPresent() ? report.text : "";
+        } catch (Throwable t) {
+            return "";
         }
     }
 

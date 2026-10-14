@@ -41,7 +41,7 @@ import java.util.List;
  * while the menu is open. Selecting a card equips it, publishes to the native registry and
  * re-advertises to peers, exactly as before.
  */
-final class CosmeticsPanel {
+public final class CosmeticsPanel {
 
     /** One catalogue entry as a card: a stable id, a label, and what picking it does. */
     private static final class Card {
@@ -84,7 +84,7 @@ final class CosmeticsPanel {
     private Category category = Category.CAPES;
     private final List<TextView> railButtons = new ArrayList<>();
 
-    CosmeticsPanel(Activity activity, boolean compact) {
+    public CosmeticsPanel(Activity activity, boolean compact) {
         this.activity = activity;
         this.compact = compact;
         this.store = new CosmeticStore(activity);
@@ -636,12 +636,12 @@ final class CosmeticsPanel {
         Toast.makeText(activity, activity.getString(res), Toast.LENGTH_SHORT).show();
     }
 
-    View getView() {
+    public View getView() {
         return root;
     }
 
     /** Stops the preview's animation. Kept for the ModMenuOverlay hide path. */
-    void onHidden() {
+    public void onHidden() {
         if (preview != null) preview.stopPreview();
     }
 
@@ -650,7 +650,7 @@ final class CosmeticsPanel {
      * skin change made since it was last open (an import, an applied pack, or the game's own skin
      * once a provider is installed) appears without reopening the menu.
      */
-    void onShown() {
+    public void onShown() {
         if (preview != null) {
             preview.refreshSkin();
             preview.startPreview();

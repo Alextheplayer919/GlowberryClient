@@ -126,113 +126,44 @@
                     android:tint="@color/ui_text_primary" />
             </LinearLayout>
 
-            <!-- Tab row with a sliding selection indicator -->
-            <FrameLayout
-                android:id="@+id/vip_tab_host"
+            <!-- Left icon-only sidebar + content. The rail is scrollable so it survives the
+                 landscape height limit; the content keeps the tall edge. -->
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:background="@color/ui_bg_surface">
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal">
 
-                <LinearLayout
-                    android:id="@+id/vip_tab_bar"
-                    android:layout_width="match_parent"
+                <ScrollView
+                    android:id="@+id/vip_tab_host"
+                    android:layout_width="56dp"
                     android:layout_height="match_parent"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingStart="14dp"
-                    android:paddingEnd="14dp">
+                    android:background="@color/ui_bg_surface"
+                    android:scrollbars="none"
+                    android:fillViewport="true">
 
-                    <TextView
-                        android:id="@+id/vip_tab_general"
-                        android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:id="@+id/vip_tab_bar"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginEnd="8dp"
-                        android:defaultFocusHighlightEnabled="false"
-                        android:drawableStart="@drawable/ic_modules"
-                        android:drawablePadding="8dp"
-                        android:drawableTint="@color/ui_text_secondary"
-                        android:gravity="center_vertical"
-                        android:minHeight="34dp"
-                        android:paddingStart="14dp"
-                        android:paddingEnd="16dp"
-                        android:text="@string/vip_tab_general"
-                        android:textColor="@color/ui_text_secondary"
-                        android:textSize="13sp"
-                        android:textStyle="bold" />
+                        android:gravity="center_horizontal"
+                        android:orientation="vertical"
+                        android:paddingTop="8dp"
+                        android:paddingBottom="8dp">
 
-                    <TextView
-                        android:id="@+id/vip_tab_replay"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginEnd="8dp"
-                        android:defaultFocusHighlightEnabled="false"
-                        android:drawableStart="@drawable/ic_replay"
-                        android:drawablePadding="8dp"
-                        android:drawableTint="@color/ui_text_secondary"
-                        android:gravity="center_vertical"
-                        android:minHeight="34dp"
-                        android:paddingStart="14dp"
-                        android:paddingEnd="16dp"
-                        android:text="@string/vip_tab_replay"
-                        android:textColor="@color/ui_text_secondary"
-                        android:textSize="13sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/vip_tab_controller"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginEnd="8dp"
-                        android:defaultFocusHighlightEnabled="false"
-                        android:drawableStart="@drawable/ic_controller"
-                        android:drawablePadding="8dp"
-                        android:drawableTint="@color/ui_text_secondary"
-                        android:gravity="center_vertical"
-                        android:minHeight="34dp"
-                        android:paddingStart="14dp"
-                        android:paddingEnd="16dp"
-                        android:text="@string/vip_tab_controller"
-                        android:textColor="@color/ui_text_secondary"
-                        android:textSize="13sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/vip_tab_keyboard"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:defaultFocusHighlightEnabled="false"
-                        android:drawableStart="@drawable/ic_keyboard"
-                        android:drawablePadding="8dp"
-                        android:drawableTint="@color/ui_text_secondary"
-                        android:gravity="center_vertical"
-                        android:minHeight="34dp"
-                        android:paddingStart="14dp"
-                        android:paddingEnd="16dp"
-                        android:text="@string/vip_tab_keyboard"
-                        android:textColor="@color/ui_text_secondary"
-                        android:textSize="13sp"
-                        android:textStyle="bold" />
-                </LinearLayout>
+                    </LinearLayout>
+                </ScrollView>
 
                 <View
-                    android:id="@+id/vip_tab_indicator"
-                    android:layout_width="60dp"
-                    android:layout_height="3dp"
-                    android:layout_gravity="bottom|start"
-                    android:layout_marginBottom="3dp"
-                    android:background="@drawable/bg_vip_tab_indicator" />
-            </FrameLayout>
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="@color/ui_stroke_hairline" />
+                    android:layout_width="1dp"
+                    android:layout_height="match_parent"
+                    android:background="@color/ui_stroke_hairline" />
 
             <!-- Section hosts -->
             <FrameLayout
                 android:id="@+id/vip_content"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
                 android:layout_weight="1">
 
                 <LinearLayout
@@ -386,6 +317,37 @@
                     android:layout_height="match_parent"
                     android:visibility="gone" />
 
+                <!-- Shared pages hosted by the VIP shell, so VIP = normal menu + extras. -->
+                <FrameLayout
+                    android:id="@+id/vip_voice_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:visibility="gone" />
+
+                <FrameLayout
+                    android:id="@+id/vip_packs_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:visibility="gone" />
+
+                <FrameLayout
+                    android:id="@+id/vip_cosmetics_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:visibility="gone" />
+
+                <FrameLayout
+                    android:id="@+id/vip_hud_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:visibility="gone" />
+
+                <FrameLayout
+                    android:id="@+id/vip_settings_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:visibility="gone" />
+
                 <!-- Module settings, opened from a card's gear. Kept inside the VIP shell so the
                      premium chrome (top bar, tabs) never disappears while configuring. -->
                 <FrameLayout
@@ -447,6 +409,7 @@
                     </LinearLayout>
                 </FrameLayout>
             </FrameLayout>
+            </LinearLayout>
         </LinearLayout>
     </FrameLayout>
 </FrameLayout>

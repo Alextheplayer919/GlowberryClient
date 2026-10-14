@@ -734,38 +734,38 @@ Migration must complete before GlowberryClient can continue.</string>
     
     <!-- Inbuilt Mods -->
     <string name="inbuilt_mod_quick_drop">Quick Drop</string>
-    <string name="inbuilt_mod_quick_drop_desc">Drop items quickly</string>
+    <string name="inbuilt_mod_quick_drop_desc">Drops the held item without opening the inventory.</string>
     <string name="inbuilt_mod_camera">Quick Perspective</string>
-    <string name="inbuilt_mod_camera_desc">Toggle camera view</string>
+    <string name="inbuilt_mod_camera_desc">Cycles the camera between first and third person.</string>
     <string name="inbuilt_mod_hud">Hide HUD</string>
-    <string name="inbuilt_mod_hud_desc">Hide hotbar and UI</string>
+    <string name="inbuilt_mod_hud_desc">Hides the hotbar and other on-screen UI.</string>
     <string name="inbuilt_mod_autosprint">Auto Sprint</string>
-    <string name="inbuilt_mod_autosprint_desc">Toggle sprint on/off</string>
+    <string name="inbuilt_mod_autosprint_desc">Keeps sprint held so you never stop running.</string>
     <string name="inbuilt_mod_chick_pet">Chick Pet</string>
-    <string name="inbuilt_mod_chick_pet_desc">A cute pixelated chick that walks around, sleeps, and runs when touched!</string>
+    <string name="inbuilt_mod_chick_pet_desc">Adds a small chick pet that follows you around.</string>
     <string name="inbuilt_mod_zoom">Zoom</string>
-    <string name="inbuilt_mod_zoom_desc">Hold to zoom in, like OptiFine zoom</string>
+    <string name="inbuilt_mod_zoom_desc">Hold the key to zoom in smoothly.</string>
     <string name="zoom_level_label">Zoom Level:</string>
     <string name="zoom_keybind_label">Zoom Keybind:</string>
     <string name="zoom_keybind_press">Press any key…</string>
     <string name="zoom_keybind_tap_to_change">Tap to change</string>
     <string name="inbuilt_mod_fps_display">FPS Display</string>
-    <string name="inbuilt_mod_fps_display_desc">Shows current frames per second</string>
+    <string name="inbuilt_mod_fps_display_desc">Shows your current frames per second.</string>
     <string name="inbuilt_mod_cps_display">CPS Display</string>
-    <string name="inbuilt_mod_cps_display_desc">Shows clicks per second</string>
+    <string name="inbuilt_mod_cps_display_desc">Shows your clicks per second.</string>
     <string name="inbuilt_mod_snaplook">Snaplook</string>
-    <string name="inbuilt_mod_snaplook_desc">Hold to quickly look behind you (third person front)</string>
+    <string name="inbuilt_mod_snaplook_desc">Hold to glance behind you without turning.</string>
     <string name="inbuilt_mod_virtual_cursor">Virtual Cursor</string>
-    <string name="inbuilt_mod_virtual_cursor_desc">Use a virtual trackpad to control the mouse</string>
+    <string name="inbuilt_mod_virtual_cursor_desc">Adds a virtual trackpad for mouse control.</string>
     <string name="virtual_cursor_enabled">Cursor enabled</string>
     <string name="virtual_cursor_disabled">Cursor disabled</string>
     <string name="cursor_sensitivity_label">Cursor Sensitivity:</string>
     <string name="inbuilt_mod_gyro">Gyro</string>
-    <string name="inbuilt_mod_gyro_desc">Use device gyroscope to control camera rotation</string>
+    <string name="inbuilt_mod_gyro_desc">Aims with your device tilt instead of the screen.</string>
     <string name="inbuilt_mod_pojav_controls">Pojav Controls</string>
-    <string name="inbuilt_mod_pojav_controls_desc">Replace Minecraft touch controls with fully customizable Pojav-style controls</string>
+    <string name="inbuilt_mod_pojav_controls_desc">Replaces the touch controls with custom ones.</string>
     <string name="inbuilt_mod_more_buttons">More Buttons</string>
-    <string name="inbuilt_mod_more_buttons_desc">Create custom on-screen buttons with single-key mappings and SVG icons</string>
+    <string name="inbuilt_mod_more_buttons_desc">Adds custom on-screen buttons you can map.</string>
     <string name="inbuilt_badge">INBUILT</string>
     <string name="autosprint_keybind_label">Auto Sprint Keybind:</string>
     <string name="autosprint_keybind_press">Press any key…</string>
@@ -832,33 +832,33 @@ Migration must complete before GlowberryClient can continue.</string>
 
     <!-- New visual / HUD / utility modules (mod-panel list). -->
     <string name="inbuilt_mod_fullbright">Fullbright</string>
-    <string name="inbuilt_mod_fullbright_desc">Brightens the world so caves and the night are visible without a torch.</string>
+    <string name="inbuilt_mod_fullbright_desc">Removes darkness in caves and at night.</string>
     <string name="inbuilt_mod_time_changer">Time Changer</string>
-    <string name="inbuilt_mod_time_changer_desc">Cycles the world time locally, so the sky changes on your screen only.</string>
+    <string name="inbuilt_mod_time_changer_desc">Changes the world time on your screen only.</string>
     <string name="inbuilt_mod_low_fire">Low Fire</string>
-    <string name="inbuilt_mod_low_fire_desc">Lowers the fire overlay so it does not block your view when burning.</string>
+    <string name="inbuilt_mod_low_fire_desc">Lowers the fire overlay so it blocks less view.</string>
     <string name="inbuilt_mod_block_outline">Block Outline</string>
-    <string name="inbuilt_mod_block_outline_desc">Draws a crisp outline around the block you are looking at.</string>
+    <string name="inbuilt_mod_block_outline_desc">Draws an outline around the block you look at.</string>
     <string name="inbuilt_mod_motion_blur">Motion Blur</string>
-    <string name="inbuilt_mod_motion_blur_desc">Adds a subtle screen blur while you move, for a smoother look.</string>
+    <string name="inbuilt_mod_motion_blur_desc">Adds a subtle motion blur while you move.</string>
     <string name="inbuilt_mod_saturation">Saturation</string>
-    <string name="inbuilt_mod_saturation_desc">Raises the colour saturation of the rendered frame.</string>
+    <string name="inbuilt_mod_saturation_desc">Raises the colour saturation of the frame.</string>
     <string name="inbuilt_mod_crosshair">Crosshair</string>
-    <string name="inbuilt_mod_crosshair_desc">A client-drawn crosshair with a choice of style and colour.</string>
+    <string name="inbuilt_mod_crosshair_desc">Draws a custom crosshair you can style.</string>
     <string name="inbuilt_mod_armor_view_bending">Armor View Bending</string>
-    <string name="inbuilt_mod_armor_view_bending_desc">Flattens the armor-bar bending so the HUD reads cleanly.</string>
+    <string name="inbuilt_mod_armor_view_bending_desc">Flattens the armor-bar bending on the HUD.</string>
     <string name="inbuilt_mod_projectile_scaler">Projectile Scaler</string>
-    <string name="inbuilt_mod_projectile_scaler_desc">Scales thrown projectiles up so they are easier to track.</string>
+    <string name="inbuilt_mod_projectile_scaler_desc">Scales thrown projectiles up to spot them.</string>
     <string name="inbuilt_mod_freecam">Freecam</string>
-    <string name="inbuilt_mod_freecam_desc">Detaches the camera from your player so you can look around freely.</string>
+    <string name="inbuilt_mod_freecam_desc">Detaches the camera so you can look around.</string>
     <string name="inbuilt_mod_tnt">Tnt</string>
-    <string name="inbuilt_mod_tnt_desc">A thin block-selection outline tuned for placing TNT.</string>
+    <string name="inbuilt_mod_tnt_desc">A thin block outline tuned for placing TNT.</string>
     <string name="inbuilt_mod_list_players">List Players</string>
-    <string name="inbuilt_mod_list_players_desc">Lists the players you can see, with their distance.</string>
+    <string name="inbuilt_mod_list_players_desc">Lists nearby players with their distance.</string>
     <string name="inbuilt_mod_debug_menu">Debug Menu</string>
-    <string name="inbuilt_mod_debug_menu_desc">A client-side readout of position, chunk, frame rate and loaded entities.</string>
+    <string name="inbuilt_mod_debug_menu_desc">Shows position, chunk, FPS and entity counts.</string>
     <string name="inbuilt_mod_third_person_nametag">Third Person Nametag</string>
-    <string name="inbuilt_mod_third_person_nametag_desc">Shows your own nametag in third person, which vanilla hides.</string>
+    <string name="inbuilt_mod_third_person_nametag_desc">Shows your nametag in third person.</string>
 
     <string name="mod_menu_group_external_ungrouped">Ungrouped External Mods</string>
     <string name="mod_menu_module_count">%1$d / %2$d</string>
@@ -972,6 +972,16 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="cosmetics_diagnostics_debug_cube">Draw test cube above local player</string>
     <string name="cosmetics_diagnostics_debug_cube_note">Draws one bright cube above your character in game, to prove the draw path. Whether it appears is unverified on device — screenshot it and report back.</string>
     <string name="cosmetics_diagnostics_note">This report describes the state of the native render path only. Whether cosmetics actually appear in game can only be confirmed by a device test.</string>
+    <string name="crash_report_copy">Copy last crash report</string>
+    <string name="crash_report_share">Share last crash report</string>
+    <string name="crash_report_copied">Crash report copied.</string>
+    <string name="crash_report_share_title">Share crash report</string>
+    <string name="crash_report_none">No crash report found.</string>
+    <string name="third_person_hint">Switch to third person to see cosmetics — in first person the game does not render your player model.</string>
+    <string name="cosmetics_diagnostics_live_overlay">Show live render debug overlay</string>
+    <string name="vip_controller_step_failed">Controller settings step failed — see diagnostics</string>
+    <string name="vip_hud_editor_hint">Drag your HUD overlays to reposition them, then save or reset from the launcher\u2019s HUD editor. Tap the modules tab to return.</string>
+    <string name="vip_settings_hint">Mod menu settings (notifications, pause-menu-only, keybinds) live in the launcher\u2019s Settings tab.</string>
     <string name="mod_menu_version">v1.0</string>
     <string name="mod_menu_enabled">Mod Menu enabled</string>
     <string name="mod_menu_disabled">Mod Menu disabled</string>
@@ -1562,7 +1572,7 @@ Migration must complete before GlowberryClient can continue.</string>
 
     <!-- Hotbar Slot -->
     <string name="inbuilt_mod_hotbar_slot">Hotbar Slot</string>
-    <string name="inbuilt_mod_hotbar_slot_desc">Adds separate 1–9 buttons for selecting hotbar slots</string>
+    <string name="inbuilt_mod_hotbar_slot_desc">Adds buttons for each hotbar slot.</string>
     <string name="hotbar_slot_content_description">Hotbar slot %1$d</string>
     <string name="mod_config_hotbar_item_icons">Use item icons from hotbar</string>
     <string name="mod_config_hotbar_slot_enabled">Show hotbar slot %1$d</string>
@@ -1571,7 +1581,7 @@ Migration must complete before GlowberryClient can continue.</string>
 
     <!-- Offhand -->
     <string name="inbuilt_mod_offhand">Offhand</string>
-    <string name="inbuilt_mod_offhand_desc">Open your inventory to fill the off-hand slot, or use the off-hand item with a button or keybind</string>
+    <string name="inbuilt_mod_offhand_desc">Opens the inventory to fill your off-hand slot.</string>
     <string name="mod_config_offhand_mode">Button action</string>
     <string name="mod_config_offhand_mode_labels">Open inventory,Use,Both</string>
     <string name="mod_config_offhand_inventory_key">Open-inventory key</string>
@@ -1609,7 +1619,7 @@ Migration must complete before GlowberryClient can continue.</string>
 
     <!-- Aim Settings -->
     <string name="inbuilt_mod_aim_settings">Aim Settings</string>
-    <string name="inbuilt_mod_aim_settings_desc">Tune how your look input is applied: smoothing, sensitivity, crosshair and haptic feedback</string>
+    <string name="inbuilt_mod_aim_settings_desc">Tune look smoothing, sensitivity and crosshair.</string>
     <string name="mod_config_aim_smoothing" formatted="false">Aim Smoothing (%)</string>
     <string name="mod_config_aim_crosshair">Show Crosshair</string>
     <string name="mod_config_aim_flash">Hit Flash Feedback</string>
@@ -1628,7 +1638,7 @@ Migration must complete before GlowberryClient can continue.</string>
 
     <!-- Armor HUD -->
     <string name="inbuilt_mod_armor_hud">Armor HUD</string>
-    <string name="inbuilt_mod_armor_hud_desc">Durability and enchantment readout for your armor, and optionally for your current target</string>
+    <string name="inbuilt_mod_armor_hud_desc">Shows armor durability for you and your target.</string>
     <string name="mod_config_armor_hud_show_target">Show Target Armor</string>
     <string name="mod_config_armor_hud_show_target_desc">Also read the armor of the entity you are looking at, where the game exposes it</string>
     <string name="mod_config_armor_hud_show_enchants">Show Enchantment Icons</string>
@@ -1643,7 +1653,7 @@ Migration must complete before GlowberryClient can continue.</string>
 
     <!-- Crystal Optimizer -->
     <string name="inbuilt_mod_crystal_optimizer">Crystal Optimizer</string>
-    <string name="inbuilt_mod_crystal_optimizer_desc">Finds the end-crystal spot that hurts your target most and you least</string>
+    <string name="inbuilt_mod_crystal_optimizer_desc">Marks the best end-crystal spot to place.</string>
     <string name="mod_config_crystal_min_self_hp" formatted="false">Min Self HP (half-hearts)</string>
     <string name="mod_config_crystal_min_self_hp_desc">Refuses a placement that would leave you below this health</string>
     <string name="mod_config_crystal_max_range" formatted="false">Max Placement Range (blocks)</string>
@@ -1663,7 +1673,7 @@ Migration must complete before GlowberryClient can continue.</string>
 
     <!-- Hit Registration -->
     <string name="inbuilt_mod_hit_registration">Hit Registration</string>
-    <string name="inbuilt_mod_hit_registration_desc">Shape controller look input so flicks track straight across the game tick</string>
+    <string name="inbuilt_mod_hit_registration_desc">Smooths look input so flicks track straight.</string>
     <string name="mod_config_hitreg_sensitivity" formatted="false">Look Sensitivity (%)</string>
     <string name="mod_config_hitreg_sensitivity_desc">Scales look input independently of the in-game option</string>
     <string name="mod_config_hitreg_smoothing" formatted="false">Swipe Smoothing (%)</string>
@@ -1677,7 +1687,7 @@ Migration must complete before GlowberryClient can continue.</string>
     <!-- Select Hit -->
     <string name="mod_config_scope_note_title">What this module does</string>
     <string name="inbuilt_mod_hit_timing">Select Hit</string>
-    <string name="inbuilt_mod_hit_timing_desc">Shows when your next hit will land so you stop spamming into the cooldown</string>
+    <string name="inbuilt_mod_hit_timing_desc">Shows when your next hit will land.</string>
     <string name="mod_config_hit_timing_cooldown_ms" formatted="false">Hit Window (ms)</string>
     <string name="mod_config_hit_timing_cooldown_ms_desc">How long after a hit further hits are discarded; match your version if the indicator feels early or late</string>
     <string name="mod_config_hit_timing_show_combo">Show Combo Count</string>
@@ -1688,7 +1698,7 @@ Migration must complete before GlowberryClient can continue.</string>
 
     <!-- Hitboxes -->
     <string name="inbuilt_mod_hitbox">Hitboxes</string>
-    <string name="inbuilt_mod_hitbox_desc">Draws entity boxes, the crit line, the best-combo box and your aim direction</string>
+    <string name="inbuilt_mod_hitbox_desc">Draws entity boxes and your aim direction.</string>
     <string name="mod_config_hitbox_show_players">Show Players</string>
     <string name="mod_config_hitbox_show_players_desc">Boxes, crit line and combo box for other players</string>
     <string name="mod_config_hitbox_show_mobs">Show Mobs</string>
@@ -1711,7 +1721,7 @@ Migration must complete before GlowberryClient can continue.</string>
 
     <!-- PvP Suite (V1.1): overlay-only visual modules, filed under the General tab -->
     <string name="inbuilt_mod_reach_indicator">Reach Indicator</string>
-    <string name="inbuilt_mod_reach_indicator_desc">Shows the distance to the player under your crosshair</string>
+    <string name="inbuilt_mod_reach_indicator_desc">Shows the distance to the player you aim at.</string>
     <string name="mod_config_reach_position">Position</string>
     <string name="mod_config_reach_position_desc">Where the distance readout sits on screen</string>
     <string name="mod_config_reach_position_below">Below crosshair</string>
@@ -1719,19 +1729,19 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="reach_indicator_scope_note">Reads other players running this launcher from the voice link, the same source the Hitboxes peer boxes use. Vanilla players and mobs cannot be measured, so nothing is shown rather than a guessed distance.</string>
 
     <string name="inbuilt_mod_trajectory_prediction">Trajectory Prediction</string>
-    <string name="inbuilt_mod_trajectory_prediction_desc">Predicts the flight arc of the arrow, ender pearl or snowball you are holding</string>
+    <string name="inbuilt_mod_trajectory_prediction_desc">Predicts the arc of the projectile you hold.</string>
     <string name="mod_config_trajectory_color">Arc Colour</string>
     <string name="mod_config_trajectory_color_desc">Colour of the dotted arc and its landing ring</string>
     <string name="trajectory_prediction_scope_note">Predicts where the projectile you are holding would fly from your current aim, using each item\'s own speed, drop and drag. It cannot see a projectile already in flight, and it draws nothing until a held-item feed is available.</string>
 
     <string name="inbuilt_mod_hit_prediction">Hit Prediction</string>
-    <string name="inbuilt_mod_hit_prediction_desc">Ghost box at where a moving player is about to be</string>
+    <string name="inbuilt_mod_hit_prediction_desc">Marks where a moving player will be next.</string>
     <string name="mod_config_hit_prediction_lookahead">Look-ahead (ms)</string>
     <string name="mod_config_hit_prediction_lookahead_desc">How far ahead the ghost box is placed; velocity is smoothed over the last five samples so the marker does not jitter</string>
     <string name="hit_prediction_scope_note">Draws a ghost box at another launcher user\'s predicted next position. It cannot make a hit land — the server decides that — and a player moving too fast for a straight-line guess gets no marker rather than a misleading one.</string>
 
     <string name="inbuilt_mod_kill_effects">Custom Kill Effects</string>
-    <string name="inbuilt_mod_kill_effects_desc">Client-side particle burst when you get a kill</string>
+    <string name="inbuilt_mod_kill_effects_desc">Plays a particle burst when you get a kill.</string>
     <string name="mod_config_kill_effect_style">Particle Style</string>
     <string name="mod_config_kill_effect_style_desc">Shape of the burst: an outward spark burst, a rising column, or an expanding ground ring</string>
     <string name="mod_config_kill_effect_color">Particle Colour</string>
@@ -1743,7 +1753,7 @@ Migration must complete before GlowberryClient can continue.</string>
 
     <!-- Proximity Voice Chat -->
     <string name="inbuilt_mod_voice_chat">Proximity Voice Chat</string>
-    <string name="inbuilt_mod_voice_chat_desc">Talk to other Glowberry users in the same world, volume falling off with distance, over LAN multicast with multiple channels</string>
+    <string name="inbuilt_mod_voice_chat_desc">Talk to nearby players over LAN voice chat.</string>
     <string name="mod_config_voice_range" formatted="false">Hearing Range (blocks)</string>
     <string name="mod_config_voice_range_desc">How far away another launcher user can still be heard; louder up close, silent at the edge</string>
     <string name="mod_config_voice_volume" formatted="false">Voice Volume (%)</string>
