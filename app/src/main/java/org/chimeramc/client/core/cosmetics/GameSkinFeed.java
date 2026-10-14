@@ -36,9 +36,16 @@ public final class GameSkinFeed implements GameSkinSource.Provider {
     }
 
     /** Installs the feed as the active provider. Idempotent. */
-    public static void install() {
+    public static void install(Context context) {
         if (instance == null) instance = new GameSkinFeed();
+        setAppContext(context);
         GameSkinSource.setProvider(instance);
+    }
+
+    /** Static access to the cached capture, for {@link PlayerSkinProvider.resolve}. */
+    public static PlayerSkinProvider.SkinBitmap readCachedStatic(Context context) {
+        if (instance == null) instance = new GameSkinFeed();
+        return instance.readCached(context);
     }
 
     /** Removes the feed and discards the native capture. */
@@ -55,11 +62,72 @@ public final class GameSkinFeed implements GameSkinSource.Provider {
         try {
             if (!PreloaderInput.nativeHasCapturedSkin()) return null;
             byte[] data = PreloaderInput.nativeReadCapturedSkin();
-            return decode(data);
+            PlayerSkinProvider.SkinBitmap skin = decode(data);
+            if (skin != null) {
+                // Cache the live capture, so the launcher (which runs before the game) can show the
+                // real skin after the first session.
+                cacheFrom(skin);
+            }
+            return skin;
         } catch (Throwable t) {
             // Fail-closed: a native read failure is "no skin", never a crash.
             return null;
         }
+    }
+
+    /**
+     * Reads the cached last capture, so the launcher shows the real skin before the game has run.
+     * Fail-closed: no cache, a corrupt cache or a decode failure returns null.
+     */
+    public PlayerSkinProvider.SkinBitmap readCached(Context context) {
+        if (context == null) return null;
+        try {
+            LocalSkinCache.Entry entry = LocalSkinCache.read(context.getFilesDir());
+            if (entry == null || entry.argb == null) return null;
+            Bitmap bitmap = Bitmap.createBitmap(entry.argb, entry.width, entry.height,
+                    Bitmap.Config.ARGB_8888);
+            return new PlayerSkinProvider.SkinBitmap(PlayerSkinProvider.normalise(bitmap),
+                    false, false, "Your Minecraft skin (last session)");
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /** Persists a decoded capture to the cache, keyed by the identity hash when one is known. */
+    private void cacheFrom(PlayerSkinProvider.SkinBitmap skin) {
+        try {
+            if (skin == null || skin.bitmap == null) return;
+            Context context = appContext;
+            if (context == null) return;
+            int w = skin.bitmap.getWidth();
+            int h = skin.bitmap.getHeight();
+            int[] argb = new int[w * h];
+            skin.bitmap.getPixels(argb, 0, w, 0, 0, w, h);
+            LocalSkinCache.Entry entry = new LocalSkinCache.Entry(w, h,
+                    SkinCaptureValidator.ArmModel.WIDE, "", System.currentTimeMillis(),
+                    identityHash(context), argb);
+            LocalSkinCache.write(context.getFilesDir(), entry);
+        } catch (Throwable ignored) {
+            // A cache write failure must never break the preview.
+        }
+    }
+
+    private static String identityHash(Context context) {
+        try {
+            org.chimeramc.client.core.mods.inbuilt.manager.InbuiltModManager manager =
+                    org.chimeramc.client.core.mods.inbuilt.manager.InbuiltModManager
+                            .getInstance(context);
+            return LocalSkinCache.identityHash(manager == null ? null : manager.getVoiceDeviceId());
+        } catch (Throwable t) {
+            return "";
+        }
+    }
+
+    private static Context appContext;
+
+    /** Sets the app context used for caching. Called on install. */
+    public static void setAppContext(Context context) {
+        appContext = context == null ? null : context.getApplicationContext();
     }
 
     /**
