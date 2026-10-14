@@ -104,7 +104,6 @@ public class VipModMenuOverlay {
     private LinearLayout tabBar;
     /** One tab view per page, built in code from the shared registry. */
     private final java.util.Map<ModMenuPage, TextView> tabViews = new java.util.EnumMap<>(ModMenuPage.class);
-    private View tabIndicator;
     private View generalView;
     private FrameLayout controllerView;
     private FrameLayout keyboardView;
@@ -325,7 +324,6 @@ public class VipModMenuOverlay {
         tabViews.clear();
         container = overlayView.findViewById(R.id.vip_menu_container);
         modeBadge = overlayView.findViewById(R.id.vip_mode_badge);
-        tabIndicator = overlayView.findViewById(R.id.vip_tab_indicator);
         tabBar = overlayView.findViewById(R.id.vip_tab_bar);
         generalView = overlayView.findViewById(R.id.vip_general_view);
         controllerView = overlayView.findViewById(R.id.vip_controller_view);
@@ -529,52 +527,40 @@ public class VipModMenuOverlay {
                 .start();
     }
 
-    /** Builds the icon+label tab bar from the shared page registry, so VIP = normal + extras. */
+    /** Builds the icon-only sidebar rail from the shared page registry (VIP = normal + extras). */
     private void buildTabBar() {
         if (tabBar == null) return;
         tabBar.removeAllViews();
         tabViews.clear();
+        int size = (int) (UiTokens.RAIL_BUTTON * density());
+        int gap = (int) (8 * density());
         for (final ModMenuPage page : ModMenuPage.vipPages()) {
             TextView tab = new TextView(activity);
-            tab.setText(page.getTitleRes());
-            tab.setTextSize(13f);
-            tab.setTypeface(null, Typeface.BOLD);
-            tab.setGravity(android.view.Gravity.CENTER_VERTICAL);
-            tab.setSingleLine(true);
-            tab.setMinHeight((int) (34 * density()));
-            int padH = (int) (14 * density());
-            tab.setPadding(padH, 0, padH, 0);
+            tab.setText("");
+            tab.setGravity(android.view.Gravity.CENTER);
             tab.setCompoundDrawablesRelativeWithIntrinsicBounds(page.getIconRes(), 0, 0, 0);
-            tab.setCompoundDrawablePadding((int) (8 * density()));
             tab.setCompoundDrawableTintList(ColorStateList.valueOf(theme.textSecondary()));
-            tab.setTextColor(theme.textSecondary());
+            // Icon-only: the title lives in the content description (accessibility) and in a
+            // long-press tooltip, so a screen reader and a curious finger both get the name.
             tab.setContentDescription(activity.getString(page.getTitleRes()));
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            lp.rightMargin = (int) (8 * density());
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(size, size);
+            lp.bottomMargin = gap;
             tab.setLayoutParams(lp);
             tab.setOnClickListener(v -> selectTabSafe(page));
+            tab.setOnLongClickListener(v -> {
+                android.widget.Toast.makeText(activity, page.getTitleRes(),
+                        android.widget.Toast.LENGTH_SHORT).show();
+                return true;
+            });
             tabBar.addView(tab);
             tabViews.put(page, tab);
         }
     }
 
+    /** The rail has no sliding indicator; selection is the filled accent button. No-op kept for
+     *  callers that still ask to move it. */
     private void moveIndicator(ModMenuPage page, boolean animate) {
-        TextView target = tabView(page);
-        if (target == null || tabBar == null || tabIndicator == null) return;
-        int width = tabIndicator.getWidth();
-        if (width == 0) width = (int) (60 * density());
-        float center = target.getLeft() + target.getWidth() / 2f;
-        float targetX = Math.max(0f, center - width / 2f);
-        if (!animate) {
-            tabIndicator.setTranslationX(targetX);
-            return;
-        }
-        tabIndicator.animate()
-                .translationX(targetX)
-                .setDuration(260)
-                .setInterpolator(new DecelerateInterpolator(1.6f))
-                .start();
+        // Intentionally empty: the icon-only rail shows selection by fill, not by an indicator.
     }
 
     private TextView tabView(ModMenuPage page) {
@@ -731,18 +717,20 @@ public class VipModMenuOverlay {
         settingsView.addView(hint);
     }
 
-    /** One tab is accented and bold; the rest are muted. */
+    /** The rail button: filled accent with a white icon when selected, plain secondary otherwise. */
     private void updateTabSelection() {
+        int radius = (int) (UiTokens.RADIUS_CARD * density());
         for (java.util.Map.Entry<ModMenuPage, TextView> e : tabViews.entrySet()) {
             TextView view = e.getValue();
             if (view == null) continue;
             boolean selected = e.getKey() == activeTab;
-            int color = selected ? theme.accent() : theme.textSecondary();
-            view.setTextColor(color);
-            view.setAlpha(selected ? 1f : 0.85f);
-            view.setTypeface(null, selected ? Typeface.BOLD : Typeface.NORMAL);
-            view.setCompoundDrawableTintList(ColorStateList.valueOf(color));
-            view.setBackground(selected ? activity.getDrawable(R.drawable.bg_vip_tab_selected) : null);
+            int iconColor = selected ? 0xFFFFFFFF : theme.textSecondary();
+            view.setCompoundDrawableTintList(ColorStateList.valueOf(iconColor));
+            GradientDrawable bg = new GradientDrawable();
+            bg.setShape(GradientDrawable.RECTANGLE);
+            bg.setCornerRadius(radius);
+            bg.setColor(selected ? theme.accent() : 0x00000000);
+            view.setBackground(bg);
         }
     }
 

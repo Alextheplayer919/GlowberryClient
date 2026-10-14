@@ -126,43 +126,44 @@
                     android:tint="@color/ui_text_primary" />
             </LinearLayout>
 
-            <!-- Tab row with a sliding selection indicator -->
-            <FrameLayout
-                android:id="@+id/vip_tab_host"
+            <!-- Left icon-only sidebar + content. The rail is scrollable so it survives the
+                 landscape height limit; the content keeps the tall edge. -->
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:background="@color/ui_bg_surface">
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:orientation="horizontal">
 
-                <LinearLayout
-                    android:id="@+id/vip_tab_bar"
-                    android:layout_width="match_parent"
+                <ScrollView
+                    android:id="@+id/vip_tab_host"
+                    android:layout_width="56dp"
                     android:layout_height="match_parent"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingStart="14dp"
-                    android:paddingEnd="14dp">
+                    android:background="@color/ui_bg_surface"
+                    android:scrollbars="none"
+                    android:fillViewport="true">
 
-                </LinearLayout>
+                    <LinearLayout
+                        android:id="@+id/vip_tab_bar"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_horizontal"
+                        android:orientation="vertical"
+                        android:paddingTop="8dp"
+                        android:paddingBottom="8dp">
+
+                    </LinearLayout>
+                </ScrollView>
 
                 <View
-                    android:id="@+id/vip_tab_indicator"
-                    android:layout_width="60dp"
-                    android:layout_height="3dp"
-                    android:layout_gravity="bottom|start"
-                    android:layout_marginBottom="3dp"
-                    android:background="@drawable/bg_vip_tab_indicator" />
-            </FrameLayout>
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="@color/ui_stroke_hairline" />
+                    android:layout_width="1dp"
+                    android:layout_height="match_parent"
+                    android:background="@color/ui_stroke_hairline" />
 
             <!-- Section hosts -->
             <FrameLayout
                 android:id="@+id/vip_content"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
                 android:layout_weight="1">
 
                 <LinearLayout
@@ -408,6 +409,7 @@
                     </LinearLayout>
                 </FrameLayout>
             </FrameLayout>
+            </LinearLayout>
         </LinearLayout>
     </FrameLayout>
 </FrameLayout>

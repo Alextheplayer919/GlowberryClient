@@ -178,8 +178,10 @@ public class RadialMenuView extends View {
                     skin.bitmap.getPixels(headAtlas, 0, SkinModel.ATLAS_SIZE, 0, 0,
                             SkinModel.ATLAS_SIZE, SkinModel.ATLAS_SIZE);
                     headScene = new PreviewScene();
+                    // Head + body = a bust, so the hub shows the character rather than a cropped
+                    // head. The fit margin in drawHead3D keeps it inside the disc.
                     PreviewCharacterScene.addCharacter(headScene, headAtlas, SkinModel.ATLAS_SIZE,
-                            0f, 0f, "head");
+                            0f, 0f);
                 }
             }
         } catch (Throwable ignored) {
@@ -413,14 +415,21 @@ public class RadialMenuView extends View {
         float iconSize = 24f * density;
         float labelSize = UiTokens.TEXT_CAPTION * density;
         labelPaint.setTextSize(labelSize);
+        // Centre the icon+label block vertically in the ring band: the block is iconSize tall plus a
+        // small gap plus the label, so its centre is the band radius and both halves sit around it.
+        float gap = 4f * density;
+        float blockHeight = iconSize + gap + labelSize;
+        float blockTop = -blockHeight / 2f;
+        float iconCenterY = blockTop + iconSize / 2f;
+        float labelBaselineY = blockTop + iconSize + gap + labelSize * 0.8f;
         for (Sector s : SECTORS) {
             double a = Math.toRadians(RadialWheelLayout.sectorCenterDegrees(s));
             float px = cx + (float) (Math.cos(a) * radius);
             float py = cy + (float) (Math.sin(a) * radius);
-            UiIcons.draw(canvas, iconPaint, iconFor(s), px, py - labelSize * 0.4f, iconSize,
+            UiIcons.draw(canvas, iconPaint, iconFor(s), px, py + iconCenterY, iconSize,
                     UiTokens.withAlpha(UiTokens.TEXT_PRIMARY, alpha), density);
             labelPaint.setColor(UiTokens.withAlpha(UiTokens.TEXT_PRIMARY, alpha));
-            canvas.drawText(sectorLabel(s), px, py + labelSize * 1.6f, labelPaint);
+            canvas.drawText(sectorLabel(s), px, py + labelBaselineY, labelPaint);
         }
     }
 
@@ -467,9 +476,11 @@ public class RadialMenuView extends View {
             }
         }
         headRaster.prepare(size, size, 0x00000000);
+        // Orbit the bust (head + body) around the chest and fit with a wide margin, so the head is
+        // never cropped at the disc edge.
         SkinModel.Camera cam = new SkinModel.Camera(headYawDeg, 8f, SkinModel.CAMERA_DISTANCE,
-                0f, 28f, 0f);
-        PreviewScene.Fit fit = headScene.fit(cam, size, size, 0.06f);
+                0f, 24f, 0f);
+        PreviewScene.Fit fit = headScene.fit(cam, size, size, 0.16f);
         headScene.render(headRaster, cam, fit);
         headBitmap.setPixels(headRaster.pixels(), 0, size, 0, 0, size, size);
         headClip.reset();
