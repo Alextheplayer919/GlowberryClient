@@ -730,6 +730,13 @@ class MinecraftActivity : MainActivity(), PojavControlsHost {
     }
 
     override fun tick() {
+        // The native hooks install here, not in onCreate. `tick()` is the game's own frame pump, so
+        // by now the graphics backend is up and libminecraftpe.so is fully mapped — the RTTI/vtable
+        // resolution the hook depends on sees a complete module, and the code patch runs on the same
+        // thread that calls the render entry rather than racing it. A single native atomic load once
+        // the install has run, so the steady-state cost is negligible. It runs before super.tick()
+        // so the hook exists before the frame it will observe renders.
+        ModManager.pumpGameHookInstall()
         super.tick()
         overlayManager?.tick()
     }
