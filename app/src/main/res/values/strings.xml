@@ -884,6 +884,16 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="vip_menu_subtitle">Premium in-game control</string>
     <!-- The touch Mod Menu's top-bar subtitle, matching the VIP shell's lockup. -->
     <string name="mod_menu_subtitle">In-game control</string>
+    <!-- Account skin lookup (Cosmetics panel). Off by default: it resolves the signed-in player's
+         real Bedrock skin from their XUID via a third-party service. -->
+    <string name="cosmetics_account_skin_on">Use my account skin: off — tap to fetch</string>
+    <string name="cosmetics_account_skin_off">Use my account skin: on — tap to stop</string>
+    <string name="cosmetics_account_skin_status_off">Account skin: off. The preview uses your imported or applied skin.</string>
+    <string name="cosmetics_account_skin_status_no_account">Account skin: no signed-in account. Sign in to resolve your skin.</string>
+    <string name="cosmetics_account_skin_status_fetching">Account skin: fetching… it appears on the next open.</string>
+    <string name="cosmetics_account_skin_status_ready">Account skin: ready — this is your own skin.</string>
+    <string name="cosmetics_account_skin_fetching">Fetching your account skin…</string>
+    <string name="cosmetics_account_skin_no_account">Sign in to a Microsoft account first.</string>
     <string name="vip_tab_general">General</string>
     <string name="vip_tab_controller">Controller</string>
     <string name="vip_tab_keyboard">Keyboard</string>

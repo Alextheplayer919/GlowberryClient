@@ -115,28 +115,90 @@ public class RadialWheelLayoutTest {
         assertEquals(Sector.NONE, RadialWheelLayout.sectorAtLinear(500f, 0f, 100f, 400f, 6f));
     }
 
+    // --- The enabled-module list ------------------------------------------------------------
+
     @Test
-    public void theThreeChipClustersNeverOverlapTheRingOrEachOther() {
-        int[][] screens = {{1920, 1080}, {1280, 720}, {2560, 1600}};
-        for (int[] screen : screens) {
+    public void theEnabledListIsOneCompactColumn() {
+        // At a natural count the list must read as a grouped stack: every row exactly one row pitch
+        // below the last, all sharing one right edge.
+        float density = 3f;
+        for (int[] screen : new int[][]{{1920, 1080}, {1280, 720}, {2560, 1600}, {800, 480}}) {
             int w = screen[0], h = screen[1];
-            float[][] centers = RadialWheelLayout.chipCenters(w, h, 2, 3, 1);
-            assertEquals(6, centers.length);
+            float[][] rows = RadialWheelLayout.enabledListCenters(w, h, 4, density);
+            assertEquals(4, rows.length);
+            float pitch = RadialWheelLayout.LIST_ROW_DP * density;
+            for (int i = 1; i < rows.length; i++) {
+                assertEquals("rows share one right edge", rows[0][0], rows[i][0], 1e-3f);
+                assertEquals("rows are one compact pitch apart", pitch,
+                        rows[i][1] - rows[i - 1][1], 1e-3f);
+            }
+            // The pitch must be no more than a row height plus a small gap: "too spaced out" was the
+            // old three-cluster spread (every 0.10 of the screen height).
+            assertTrue("row pitch is compact", pitch <= 30f * density);
+        }
+    }
+
+    @Test
+    public void theEnabledListStaysOnScreenAndClearOfTheRing() {
+        float density = 2f;
+        for (int[] screen : new int[][]{{1920, 1080}, {1280, 720}, {2560, 1600}, {800, 480}}) {
+            int w = screen[0], h = screen[1];
+            float[][] rows = RadialWheelLayout.enabledListCenters(w, h, 24, density);
             float outer = RadialWheelLayout.outerRadius(w, h);
             float cx = w / 2f, cy = h / 2f;
-            for (float[] c : centers) {
-                // The chip centre must sit outside the ring's outer radius.
-                float dist = (float) Math.hypot(c[0] - cx, c[1] - cy);
-                assertTrue("chip overlaps the ring at " + w + "x" + h, dist > outer * 0.95f);
+            for (float[] r : rows) {
+                assertTrue("row stays on screen (x)", r[0] > 0f && r[0] <= w);
+                assertTrue("row stays on screen (y)", r[1] >= 0f && r[1] <= h);
+                assertEquals("rows sit in one column", rows[0][0], r[0], 1e-3f);
+                // Rows must sit outside the inner edge of the ring band, not on top of a sector.
+                float dist = (float) Math.hypot(r[0] - cx, r[1] - cy);
+                assertTrue("column clears the ring at " + w + "x" + h, dist > outer * 0.55f);
             }
-            // No two chip centres closer than the chip height.
-            float chipH = 22f;
-            for (int i = 0; i < centers.length; i++) {
-                for (int j = i + 1; j < centers.length; j++) {
-                    float d = (float) Math.hypot(centers[i][0] - centers[j][0],
-                            centers[i][1] - centers[j][1]);
-                    assertTrue("chips overlap at " + w + "x" + h, d >= chipH);
-                }
+            // A long list is compressed, not allowed to overflow the bottom.
+            assertTrue("last row stays inside the view", rows[rows.length - 1][1] < h);
+            for (int i = 1; i < rows.length; i++) {
+                assertTrue("rows never overlap", rows[i][1] > rows[i - 1][1]);
+            }
+        }
+    }
+
+    @Test
+    public void anEmptyEnabledListHasNoRows() {
+        assertEquals(0, RadialWheelLayout.enabledListCenters(1000, 600, 0, 2f).length);
+        assertEquals(0, RadialWheelLayout.enabledListCenters(1000, 600, -3, 2f).length);
+    }
+
+    @Test
+    public void aSingleRowSitsCentredInTheBand() {
+        float[][] rows = RadialWheelLayout.enabledListCenters(1920, 1080, 1, 3f);
+        assertEquals(1, rows.length);
+        float mid = (RadialWheelLayout.LIST_BAND_TOP_FY + RadialWheelLayout.LIST_BAND_BOTTOM_FY) / 2f;
+        assertEquals(1080 * mid, rows[0][1], 1f);
+    }
+
+    @Test
+    public void theTwoColumnsSitOnOppositeSidesAndStayClearOfTheRing() {
+        // The wheel shows a quick-options column on the left and the enabled column on the right.
+        float density = 2f;
+        for (int[] screen : new int[][]{{1920, 1080}, {1280, 720}, {2560, 1600}, {800, 480}}) {
+            int w = screen[0], h = screen[1];
+            float[][] left = RadialWheelLayout.moduleListCenters(w, h, 4, density, false);
+            float[][] right = RadialWheelLayout.moduleListCenters(w, h, 4, density, true);
+            assertEquals(4, left.length);
+            assertEquals(4, right.length);
+            float outer = RadialWheelLayout.outerRadius(w, h);
+            float cx = w / 2f, cy = h / 2f;
+            for (int i = 0; i < 4; i++) {
+                assertTrue("left column is left of centre", left[i][0] < cx);
+                assertTrue("right column is right of centre", right[i][0] > cx);
+                // Both columns must sit outside the ring band so a row never lands on a sector.
+                assertTrue("left row clears the ring",
+                        Math.hypot(left[i][0] - cx, left[i][1] - cy) > outer * 0.55f);
+                assertTrue("right row clears the ring",
+                        Math.hypot(right[i][0] - cx, right[i][1] - cy) > outer * 0.55f);
+                // And neither runs off its own edge.
+                assertTrue(left[i][0] >= 0f);
+                assertTrue(right[i][0] <= w);
             }
         }
     }

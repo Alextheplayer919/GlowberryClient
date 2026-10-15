@@ -6,13 +6,22 @@ import android.graphics.RectF;
 
 /**
  * The shared quick-toggle chip: a 22dp pill with a 6dp status dot and a 10.5sp label. Used by the
- * radial wheel's floating clusters. The layout (width from a measured label) is pure and unit-tested.
+ * radial wheel's enabled-module list. The layout (width from a measured label) is pure and
+ * unit-tested.
  */
 public final class UiChip {
 
     public static final float HEIGHT_DP = 22f;
     public static final float DOT_DP = 6f;
     public static final float LABEL_SP = 10.5f;
+
+    /** Which edge of the chip {@code cx} anchors. */
+    public enum Align {
+        /** {@code cx} is the chip's centre. */
+        CENTER,
+        /** {@code cx} is the chip's right edge (used by the radial wheel's right-side list). */
+        RIGHT
+    }
 
     private UiChip() {
     }
@@ -31,9 +40,21 @@ public final class UiChip {
     /** Draws the chip centred on {@code (cx, cy)}. */
     public static void draw(Canvas c, Paint paint, Paint textPaint, float cx, float cy,
                             float labelWidthPx, String label, int accent, boolean on, float density) {
+        draw(c, paint, textPaint, cx, cy, labelWidthPx, label, accent, on, density, Align.CENTER);
+    }
+
+    /**
+     * Draws the chip with {@code cx} anchored per {@code align}.
+     *
+     * <p>The right-aligned form is what lets the radial wheel's enabled-module list read as a
+     * column: every row shares one right edge, so the labels line up regardless of their width.
+     */
+    public static void draw(Canvas c, Paint paint, Paint textPaint, float cx, float cy,
+                            float labelWidthPx, String label, int accent, boolean on, float density,
+                            Align align) {
         float w = width(labelWidthPx, density);
         float h = HEIGHT_DP * density;
-        float l = cx - w / 2f;
+        float l = align == Align.RIGHT ? cx - w : cx - w / 2f;
         float t = cy - h / 2f;
         float r = l + w;
         float b = t + h;

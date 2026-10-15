@@ -125,7 +125,15 @@ public final class PlayerSkinProvider {
             return cached;
         }
 
-        // 4. The applied skin pack's first texture.
+        // 4. The account lookup: the signed-in player's own Bedrock skin, resolved from their XUID.
+        //    Off by default (it sends the XUID to a third-party service), so it only runs when the
+        //    player enabled it in the Cosmetics panel; a failure falls through to the next rung.
+        Bitmap fromAccount = readAccountSkin(context);
+        if (fromAccount != null) {
+            return new SkinBitmap(fromAccount, false, false, "Your Minecraft account skin");
+        }
+
+        // 5. The applied skin pack's first texture.
         File applied = findAppliedSkinFile(context);
         if (applied != null) {
             Bitmap decoded = decodeFile(applied);
@@ -134,7 +142,7 @@ public final class PlayerSkinProvider {
             }
         }
 
-        // 5. No skin at all: show Steve, the standard character, rather than a grey stand-in. The
+        // 6. No skin at all: show Steve, the standard character, rather than a grey stand-in. The
         // shipped atlas is preferred (it is the exact skin the project uses), and the procedural
         // painter is the fallback when the asset cannot be read. The grey placeholder is only
         // reached if neither works.
@@ -161,6 +169,40 @@ public final class PlayerSkinProvider {
         } catch (java.io.IOException | RuntimeException e) {
             return null;
         }
+    }
+
+    /**
+     * The signed-in player's Bedrock skin, from the account lookup or its on-disk cache.
+     *
+     * <p>Cache first: the atlas fetched on a previous launch is re-read here without a request, so
+     * the launcher (which runs before the game) and the radial wheel show the real skin offline. A
+     * live fetch only happens when the lookup is enabled <em>and</em> there is no cached atlas. Any
+     * failure returns null and the caller continues down the chain.
+     *
+     * <p>Never blocks on the UI thread: the network path is only taken when the cache is empty, and
+     * even then the result is delivered by a background refresh (see
+     * {@link AccountSkinService#canLookup}). A missing cache therefore degrades to the next rung for
+     * the first frame and a later refresh fills it in.
+     */
+    private static Bitmap readAccountSkin(Context context) {
+        if (context == null) return null;
+        if (!AccountSkinService.isEnabled(context)) return null;
+        String xuid = AccountSkinService.activeXuid(context);
+        // 1. The cached PNG from a previous fetch, which the game's own capture never writes.
+        try {
+            AccountSkinCache.Entry entry = AccountSkinCache.read(context.getFilesDir());
+            if (entry != null && entry.png != null && entry.png.length > 0) {
+                Bitmap decoded = BitmapFactory.decodeByteArray(entry.png, 0, entry.png.length);
+                if (decoded != null) return normalise(decoded);
+            }
+        } catch (Throwable ignored) {
+        }
+        // 2. No cache: schedule a background fetch and return null now, so the caller does not block
+        //    on the network. The next resolve (e.g. when the panel is reopened) finds the cache.
+        if (xuid != null && AccountSkinService.canLookup(context)) {
+            AccountSkinService.refreshInBackground(context, xuid);
+        }
+        return null;
     }
 
     private static SharedPreferences prefs(Context context) {

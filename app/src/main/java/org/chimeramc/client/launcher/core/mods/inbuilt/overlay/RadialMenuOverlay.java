@@ -119,7 +119,14 @@ public class RadialMenuOverlay {
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.TYPE_APPLICATION_PANEL,
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                // FLAG_NOT_FOCUSABLE is load-bearing, not cosmetic. The wheel must never take window
+                // focus: a focusable overlay becomes the key/event target, so the Activity stops
+                // receiving the pad's motion events and the controller cursor has nothing to move
+                // on. The other overlays already carry this flag; the wheel did not, which is why
+                // the cursor appeared but never moved. The wheel drives itself from the events the
+                // Activity forwards to handleControllerKey/Motion, so it needs no focus of its own.
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                        | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
                         | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
                         | WindowManager.LayoutParams.FLAG_FULLSCREEN,
                 PixelFormat.TRANSLUCENT);
@@ -177,8 +184,11 @@ public class RadialMenuOverlay {
      */
     public boolean handleControllerMotion(android.view.MotionEvent event) {
         if (!isShowing || menuView == null) return false;
-        float rx = event.getAxisValue(android.view.MotionEvent.AXIS_Z);
-        float ry = event.getAxisValue(android.view.MotionEvent.AXIS_RZ);
+        // Resolve the right stick by trying each axis convention and taking the first that carries a
+        // deflection. Reading only AXIS_Z/AXIS_RZ meant a pad that reports its right stick on
+        // AXIS_RX/AXIS_RY (or AXIS_RZ/AXIS_RX) delivered an all-zero vector, so the cursor never
+        // moved. GamepadAxes owns that rule and is unit-tested.
+        GamepadAxes.Stick stick = GamepadAxes.read(event);
         float lx = event.getAxisValue(android.view.MotionEvent.AXIS_X);
         float ly = event.getAxisValue(android.view.MotionEvent.AXIS_Y);
         boolean precision = Math.hypot(lx, ly) > 0.5f;
@@ -188,8 +198,16 @@ public class RadialMenuOverlay {
         lastStickMs = now;
         float deadZone = CursorController.DEFAULT_DEAD_ZONE;
         float curve = CursorController.DEFAULT_CURVE_EXPONENT;
-        return menuView.handleControllerStick(rx, ry, dt, precision, fast, deadZone, curve);
+        lastStickSource = stick.source;
+        return menuView.handleControllerStick(stick.x, stick.y, dt, precision, fast, deadZone, curve);
     }
+
+    /** The axis convention the last stick frame used; reported by the diagnostics. */
+    public String lastControllerStickSource() {
+        return lastStickSource;
+    }
+
+    private String lastStickSource = "";
 
     private long lastStickMs;
 
@@ -218,14 +236,18 @@ public class RadialMenuOverlay {
         RadialMenuView view = menuView;
         menuView = null;
         if (view != null) view.playClose();
-        // Detach after the short close animation so the reverse plays rather than popping.
-        View overlay = overlayView;
-        if (overlay != null) {
-            overlay.postDelayed(this::detachQuietly, 120L);
-        } else {
-            detachQuietly();
-        }
+        // Detach after the short close animation so the reverse plays rather than popping. The
+        // callback is posted on the main Handler rather than on the View: a View's own postDelayed
+        // is queued behind attachment, so if the window was torn down by anything else first the
+        // callback never ran and the full-screen translucent window stayed attached — the frozen
+        // "white transparent overlay" over the game. A Handler post always runs.
+        mainHandler.removeCallbacks(detachRunnable);
+        mainHandler.postDelayed(detachRunnable, 120L);
     }
+
+    private final android.os.Handler mainHandler =
+            new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable detachRunnable = this::detachQuietly;
 
     private void detachQuietly() {
         View view = overlayView;
@@ -237,6 +259,13 @@ public class RadialMenuOverlay {
             }
         } catch (Exception ignored) {
             // Already detached or the token is gone; nothing to clean up.
+        }
+        // A second, unconditional attempt: removeViewImmediate can throw for a window the system
+        // has already detached, and a translucent MATCH_PARENT window that survives that is exactly
+        // the stuck overlay. A removeView of a non-attached view is a safe no-op.
+        try {
+            windowManager.removeView(view);
+        } catch (Exception ignored) {
         }
     }
 }
