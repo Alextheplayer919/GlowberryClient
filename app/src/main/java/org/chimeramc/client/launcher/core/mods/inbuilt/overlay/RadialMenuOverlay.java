@@ -119,7 +119,14 @@ public class RadialMenuOverlay {
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.TYPE_APPLICATION_PANEL,
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                // FLAG_NOT_FOCUSABLE is load-bearing, not cosmetic. The wheel must never take window
+                // focus: a focusable overlay becomes the key/event target, so the Activity stops
+                // receiving the pad's motion events and the controller cursor has nothing to move
+                // on. The other overlays already carry this flag; the wheel did not, which is why
+                // the cursor appeared but never moved. The wheel drives itself from the events the
+                // Activity forwards to handleControllerKey/Motion, so it needs no focus of its own.
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                        | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
                         | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
                         | WindowManager.LayoutParams.FLAG_FULLSCREEN,
                 PixelFormat.TRANSLUCENT);
@@ -177,8 +184,11 @@ public class RadialMenuOverlay {
      */
     public boolean handleControllerMotion(android.view.MotionEvent event) {
         if (!isShowing || menuView == null) return false;
-        float rx = event.getAxisValue(android.view.MotionEvent.AXIS_Z);
-        float ry = event.getAxisValue(android.view.MotionEvent.AXIS_RZ);
+        // Resolve the right stick by trying each axis convention and taking the first that carries a
+        // deflection. Reading only AXIS_Z/AXIS_RZ meant a pad that reports its right stick on
+        // AXIS_RX/AXIS_RY (or AXIS_RZ/AXIS_RX) delivered an all-zero vector, so the cursor never
+        // moved. GamepadAxes owns that rule and is unit-tested.
+        GamepadAxes.Stick stick = GamepadAxes.read(event);
         float lx = event.getAxisValue(android.view.MotionEvent.AXIS_X);
         float ly = event.getAxisValue(android.view.MotionEvent.AXIS_Y);
         boolean precision = Math.hypot(lx, ly) > 0.5f;
@@ -188,8 +198,16 @@ public class RadialMenuOverlay {
         lastStickMs = now;
         float deadZone = CursorController.DEFAULT_DEAD_ZONE;
         float curve = CursorController.DEFAULT_CURVE_EXPONENT;
-        return menuView.handleControllerStick(rx, ry, dt, precision, fast, deadZone, curve);
+        lastStickSource = stick.source;
+        return menuView.handleControllerStick(stick.x, stick.y, dt, precision, fast, deadZone, curve);
     }
+
+    /** The axis convention the last stick frame used; reported by the diagnostics. */
+    public String lastControllerStickSource() {
+        return lastStickSource;
+    }
+
+    private String lastStickSource = "";
 
     private long lastStickMs;
 
