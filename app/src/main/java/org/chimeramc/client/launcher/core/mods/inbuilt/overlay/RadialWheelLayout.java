@@ -130,42 +130,58 @@ public final class RadialWheelLayout {
         return best;
     }
 
-    // --- Chip clusters (pure layout) ---------------------------------------------------------
-
-    /** Cluster anchors as fractions of the view. Top-left 2, top-right 3, right-middle 1. */
-    public static final float CHIP_LEFT_FX = 0.14f;
-    public static final float CHIP_RIGHT_FX = 0.86f;
-    public static final float CHIP_TOP_FY = 0.14f;
-    public static final float CHIP_RIGHT_MID_FX = 0.92f;
-    public static final float CHIP_RIGHT_MID_FY = 0.60f;
-    public static final float CHIP_STEP_FY = 0.10f;
+    // --- Enabled-module list (pure layout) ---------------------------------------------------
 
     /**
-     * The centre points of every chip, in draw order. Pure so a test can assert no chip overlaps
-     * the ring or another chip at any screen size.
+     * The compact row pitch of the enabled-module list, in dp.
      *
-     * @return an array of {@code {x, y}} pairs; cluster order is top-left, top-right, right-middle.
+     * <p>The list lives on the right of the wheel and reads as one grouped stack, so the pitch is a
+     * row height (a 22dp chip plus a 4dp gap), not the wide vertical spread the old three-cluster
+     * layout used.
      */
-    public static float[][] chipCenters(int w, int h, int topLeftCount, int topRightCount,
-                                        int rightMidCount) {
-        int total = Math.max(0, topLeftCount) + Math.max(0, topRightCount)
-                + Math.max(0, rightMidCount);
-        float[][] out = new float[total][2];
-        int i = 0;
-        for (int k = 0; k < topLeftCount; k++) {
-            out[i][0] = w * CHIP_LEFT_FX;
-            out[i][1] = h * (CHIP_TOP_FY + k * CHIP_STEP_FY);
-            i++;
+    public static final float LIST_ROW_DP = 26f;
+    /** The list's vertical band as fractions of the view height; the column is centred in it. */
+    public static final float LIST_BAND_TOP_FY = 0.12f;
+    public static final float LIST_BAND_BOTTOM_FY = 0.90f;
+    /** The list's right inset from the view edge, in dp. */
+    public static final float LIST_RIGHT_INSET_DP = 12f;
+    /** The widest the list is allowed to be, as a fraction of the view width. */
+    public static final float LIST_MAX_WIDTH_FRACTION = 0.30f;
+
+    /**
+     * The centre points of the enabled-module rows, in draw order (top to bottom).
+     *
+     * <p>Pure so a test can assert the rows are compact (a single row pitch apart), stay clear of the
+     * wheel ring, and never run off the screen — the properties a screenshot cannot check. The column
+     * is vertically centred in the safe band and, if a very long list would overflow, the pitch is
+     * compressed so the last row still lands inside the band rather than off the bottom edge.
+     *
+     * @param w       view width in px
+     * @param h       view height in px
+     * @param count   number of rows
+     * @param density display density (dp -> px)
+     * @return an array of {@code {x, y}} pairs, one per row
+     */
+    public static float[][] enabledListCenters(int w, int h, int count, float density) {
+        int safe = Math.max(0, count);
+        float[][] out = new float[safe][2];
+        if (safe == 0) return out;
+        float x = w - LIST_RIGHT_INSET_DP * density;
+        float rowPitch = LIST_ROW_DP * density;
+        float bandTop = h * LIST_BAND_TOP_FY;
+        float bandBottom = h * LIST_BAND_BOTTOM_FY;
+        float columnHeight = safe <= 1 ? 0f : (safe - 1) * rowPitch;
+        float bandHeight = Math.max(rowPitch, bandBottom - bandTop);
+        // Compress the pitch only when the list cannot fit at its natural spacing.
+        if (columnHeight > bandHeight && safe > 1) {
+            rowPitch = bandHeight / (safe - 1);
+            columnHeight = bandHeight;
         }
-        for (int k = 0; k < topRightCount; k++) {
-            out[i][0] = w * CHIP_RIGHT_FX;
-            out[i][1] = h * (CHIP_TOP_FY + k * CHIP_STEP_FY);
-            i++;
-        }
-        for (int k = 0; k < rightMidCount; k++) {
-            out[i][0] = w * CHIP_RIGHT_MID_FX;
-            out[i][1] = h * (CHIP_RIGHT_MID_FY + k * CHIP_STEP_FY);
-            i++;
+        // Centre the column in the band.
+        float top = bandTop + (bandHeight - columnHeight) / 2f;
+        for (int i = 0; i < safe; i++) {
+            out[i][0] = x;
+            out[i][1] = top + i * rowPitch;
         }
         return out;
     }

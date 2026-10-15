@@ -56,15 +56,20 @@ public class RadialMenuView extends View {
     private static final Sector[] SECTORS =
             {Sector.MODS, Sector.CLOSET, Sector.SETTINGS, Sector.HUD};
 
+    /**
+     * One row of the enabled-module list.
+     *
+     * <p>The list shows the modules that are actually on, grouped top-to-bottom on the right, so the
+     * wheel tells the player what is active without opening the module grid. Selecting a row toggles
+     * its module, which is how the wheel switches things off again.
+     */
     private static final class Chip {
         final String moduleId;
-        final int labelRes;
-        final int cluster;  // 0 top-left, 1 top-right, 2 right-middle
+        final String label;
 
-        Chip(String moduleId, int labelRes, int cluster) {
+        Chip(String moduleId, String label) {
             this.moduleId = moduleId;
-            this.labelRes = labelRes;
-            this.cluster = cluster;
+            this.label = label == null ? "" : label;
         }
     }
 
@@ -105,19 +110,6 @@ public class RadialMenuView extends View {
     private Bitmap headBitmap;
     private float headYawDeg;
     private long headLastMs;
-    private final android.os.Handler headHandler =
-            new android.os.Handler(android.os.Looper.getMainLooper());
-    private final Runnable headTick = new Runnable() {
-        @Override
-        public void run() {
-            long now = android.os.SystemClock.uptimeMillis();
-            float dt = headLastMs == 0L ? 0f : (now - headLastMs) / 1000f;
-            headLastMs = now;
-            headYawDeg = (headYawDeg + 22f * Math.min(dt, 0.1f)) % 360f;
-            invalidate();
-            if (isAttachedToWindow()) headHandler.postDelayed(this, 40L);
-        }
-    };
 
     // --- Motion state -------------------------------------------------------------------------
 
@@ -157,13 +149,47 @@ public class RadialMenuView extends View {
     }
 
     private void buildChips() {
-        // Two top-left, three top-right, one right-middle — the reference cluster layout.
-        chips.add(new Chip("list_players", R.string.inbuilt_mod_list_players, 0));
-        chips.add(new Chip("debug_menu", R.string.inbuilt_mod_debug_menu, 0));
-        chips.add(new Chip("zoom", R.string.inbuilt_mod_zoom, 1));
-        chips.add(new Chip("fullbright", R.string.inbuilt_mod_fullbright, 1));
-        chips.add(new Chip("time_changer", R.string.inbuilt_mod_time_changer, 1));
-        chips.add(new Chip("third_person_nametag", R.string.inbuilt_mod_third_person_nametag, 2));
+        // The list is the modules that are actually enabled, read live from the inbuilt provider so
+        // it can never disagree with the module grid. It is rebuilt on every open (see onAttached)
+        // because a module toggled elsewhere must appear here without recreating the wheel.
+        chips.clear();
+    }
+
+    /**
+     * Rebuilds the enabled-module list from the live provider.
+     *
+     * <p>Order follows the provider's own list, so the wheel and the Mod Menu show the same order.
+     * Modules are shown with their display name; a module that is registered but not enabled is not
+     * listed, because the list's job is "what is on right now".
+     */
+    private void rebuildEnabledList() {
+        chips.clear();
+        try {
+            // InbuiltModuleProvider.load needs an Activity; the wheel is only ever shown over one.
+            android.app.Activity activity = null;
+            android.content.Context ctx = getContext();
+            while (ctx instanceof android.content.ContextWrapper) {
+                if (ctx instanceof android.app.Activity) {
+                    activity = (android.app.Activity) ctx;
+                    break;
+                }
+                ctx = ((android.content.ContextWrapper) ctx).getBaseContext();
+            }
+            if (activity == null) return;
+            List<org.chimeramc.client.core.mods.inbuilt.UnifiedMod> mods =
+                    org.chimeramc.client.core.mods.inbuilt.InbuiltModuleProvider
+                            .load(activity);
+            for (org.chimeramc.client.core.mods.inbuilt.UnifiedMod mod : mods) {
+                if (mod == null || !mod.isEnabled()) continue;
+                // Only modules that carry a name are listed; an extension without a label cannot be
+                // drawn as a row.
+                String name = mod.getName();
+                if (name == null || name.trim().isEmpty()) continue;
+                chips.add(new Chip(mod.getStableKey(), name));
+            }
+        } catch (Throwable ignored) {
+            chips.clear();
+        }
     }
 
     private void resolveSkinHead() {
@@ -178,10 +204,14 @@ public class RadialMenuView extends View {
                     skin.bitmap.getPixels(headAtlas, 0, SkinModel.ATLAS_SIZE, 0, 0,
                             SkinModel.ATLAS_SIZE, SkinModel.ATLAS_SIZE);
                     headScene = new PreviewScene();
-                    // Head + body = a bust, so the hub shows the character rather than a cropped
-                    // head. The fit margin in drawHead3D keeps it inside the disc.
+                    // HEAD ONLY: the hub is the player's head, not a full-body bust. The whole
+                    // character belongs in the Closet preview; the wheel's hub is a small disc, so
+                    // a body would be a tiny unreadable figure and would also make the "the head
+                    // never moves" complaint impossible to judge. "head" is the box id
+                    // PreviewCharacterScene keys on, so passing it selects just the head box (and
+                    // its overlay) from the same authored skin.
                     PreviewCharacterScene.addCharacter(headScene, headAtlas, SkinModel.ATLAS_SIZE,
-                            0f, 0f);
+                            0f, 0f, "head");
                 }
             }
         } catch (Throwable ignored) {
@@ -229,11 +259,12 @@ public class RadialMenuView extends View {
         // Re-resolve the skin so a change made since the wheel was last shown (a new import, an
         // applied pack, or the game's own skin once a provider is installed) appears immediately.
         refreshSkin();
-        if (headScene != null) {
-            headLastMs = 0L;
-            headHandler.removeCallbacks(headTick);
-            headHandler.post(headTick);
-        }
+        // Rebuild the enabled-module list so a toggle made while the wheel was closed shows now.
+        rebuildEnabledList();
+        // The head is deliberately NOT animated: it turns only when the player moves the cursor,
+        // so the hub reads as a still portrait until it is interacted with. Nothing schedules a
+        // frame here, which also means the view burns no frames while it sits open.
+        headLastMs = android.os.SystemClock.uptimeMillis();
         playOpen();
     }
 
@@ -253,7 +284,6 @@ public class RadialMenuView extends View {
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
-        headHandler.removeCallbacks(headTick);
         cancelAnimators();
     }
 
@@ -292,9 +322,14 @@ public class RadialMenuView extends View {
         float hub = RadialWheelLayout.hubRadius(outer);
         int alpha = (int) (255 * Math.min(1f, openProgress * 1.4f));
 
-        // Scrim.
-        canvas.drawColor(UiTokens.withAlpha(UiTokens.WHEEL_SCRIM,
-                (int) (((UiTokens.WHEEL_SCRIM >>> 24) & 0xFF) * openProgress)));
+        // Scrim. A soft translucent wash so the game behind stays visible but the wheel reads.
+        // Deliberately NOT an opaque layer: an opaque white/grey scrim was what left a pale film
+        // over the game after the wheel closed. The alpha is tied to openProgress, so at
+        // openProgress 0 nothing is painted at all.
+        int scrimAlpha = (int) (((UiTokens.WHEEL_SCRIM >>> 24) & 0xFF) * openProgress);
+        if (scrimAlpha > 0) {
+            canvas.drawColor(UiTokens.withAlpha(UiTokens.WHEEL_SCRIM, scrimAlpha));
+        }
 
         // Sectors.
         for (int i = 0; i < SECTORS.length; i++) {
@@ -309,14 +344,14 @@ public class RadialMenuView extends View {
                     s == highlighted, alpha, local);
         }
 
-        // Hub.
+        // Hub (the player's head only).
         drawHub(canvas, cx, cy, hub, alpha);
 
         // Icons + labels.
         drawSectorContent(canvas, cx, cy, (inner + outer) / 2f, alpha);
 
-        // Chips.
-        drawChips(canvas, getWidth(), getHeight(), alpha);
+        // The enabled-module list (right side) and the controller cursor.
+        drawEnabledList(canvas, getWidth(), getHeight(), alpha);
         drawControllerCursor(canvas, alpha);
     }
 
@@ -476,48 +511,65 @@ public class RadialMenuView extends View {
             }
         }
         headRaster.prepare(size, size, 0x00000000);
-        // Orbit the bust (head + body) around the chest and fit with a wide margin, so the head is
-        // never cropped at the disc edge.
+        // The scene holds ONLY the head box (see resolveSkinHead), so the camera targets the head's
+        // own centre (model y = 28 for the 8x8x8 head whose bottom sits at 24) rather than the chest
+        // of a bust. A tight margin then fills the disc with the face instead of leaving the head
+        // adrift in a large empty circle.
         SkinModel.Camera cam = new SkinModel.Camera(headYawDeg, 8f, SkinModel.CAMERA_DISTANCE,
-                0f, 24f, 0f);
-        PreviewScene.Fit fit = headScene.fit(cam, size, size, 0.16f);
+                0f, 28f, 0f);
+        PreviewScene.Fit fit = headScene.fit(cam, size, size, 0.06f);
         headScene.render(headRaster, cam, fit);
         headBitmap.setPixels(headRaster.pixels(), 0, size, 0, 0, size, size);
         headClip.reset();
-        headClip.addCircle(cx, cy, radius * 0.9f, Path.Direction.CW);
+        headClip.addCircle(cx, cy, radius * 0.94f, Path.Direction.CW);
         int save = canvas.save();
         canvas.clipPath(headClip);
         headPaint.setFilterBitmap(true);
-        dstHead.set(cx - radius * 0.86f, cy - radius * 0.86f,
-                cx + radius * 0.86f, cy + radius * 0.86f);
+        dstHead.set(cx - radius * 0.94f, cy - radius * 0.94f,
+                cx + radius * 0.94f, cy + radius * 0.94f);
         canvas.drawBitmap(headBitmap, null, dstHead, headPaint);
         canvas.restoreToCount(save);
         return true;
     }
 
-    private void drawChips(Canvas canvas, int w, int h, int alpha) {
-        int[] counts = chipClusterCounts();
-        float[][] centers = RadialWheelLayout.chipCenters(w, h, counts[0], counts[1], counts[2]);
+    /**
+     * Draws the enabled-module list as one compact stack on the right.
+     *
+     * <p>Rows are a single {@link RadialWheelLayout#LIST_ROW_DP} pitch apart, so the list reads as a
+     * grouped column of modules rather than the old widely-spaced three-cluster layout. A row whose
+     * module is on is drawn with an accent dot; because the list only contains enabled modules the
+     * dot is always on, and tapping a row turns it off.
+     */
+    private void drawEnabledList(Canvas canvas, int w, int h, int alpha) {
+        if (chips.isEmpty()) return;
+        float[][] centers = RadialWheelLayout.enabledListCenters(w, h, chips.size(), density);
+        chipTextPaint.setTextSize(UiChip.LABEL_SP * density);
         int i = 0;
         for (Chip chip : chips) {
+            if (i >= centers.length) break;
             float[] c = centers[i++];
-            String text = getContext().getString(chip.labelRes);
-            chipTextPaint.setTextSize(UiChip.LABEL_SP * density);
-            float labelWidth = chipTextPaint.measureText(text);
+            float labelWidth = chipTextPaint.measureText(chip.label);
             boolean on = chipToggle != null && chipToggle.isChipOn(chip.moduleId);
-            UiChip.draw(canvas, chipPaint, chipTextPaint, c[0], c[1], labelWidth, text,
-                    UiTokens.withAlpha(accent, alpha), on, density);
+            UiChip.draw(canvas, chipPaint, chipTextPaint, c[0], c[1], labelWidth, chip.label,
+                    UiTokens.withAlpha(accent, alpha), on, density, UiChip.Align.RIGHT);
         }
     }
 
-    private int[] chipClusterCounts() {
-        int tl = 0, tr = 0, rm = 0;
-        for (Chip chip : chips) {
-            if (chip.cluster == 0) tl++;
-            else if (chip.cluster == 1) tr++;
-            else rm++;
+    /** The row index of the enabled-module list under a point, or -1. Pure given the list layout. */
+    int chipAt(float x, float y, int w, int h) {
+        if (chips.isEmpty()) return -1;
+        float[][] centers = RadialWheelLayout.enabledListCenters(w, h, chips.size(), density);
+        chipTextPaint.setTextSize(UiChip.LABEL_SP * density);
+        for (int i = 0; i < chips.size() && i < centers.length; i++) {
+            float cw = UiChip.width(chipTextPaint.measureText(chips.get(i).label), density);
+            float ch = UiChip.HEIGHT_DP * density;
+            // The rows are right-aligned, so the hit box hugs the chip's right edge.
+            if (x >= centers[i][0] - cw && x <= centers[i][0]
+                    && Math.abs(y - centers[i][1]) <= ch / 2f) {
+                return i;
+            }
         }
-        return new int[]{tl, tr, rm};
+        return -1;
     }
 
     private static String sectorLabel(Sector s) {
@@ -615,11 +667,32 @@ public class RadialMenuView extends View {
         cursor.setMagnetTarget(false, 0f, 0f);
         cursor.update(shaped[0], -shaped[1], dt, precision, fast,
                 CursorController.DEFAULT_MAX_SPEED_DP);
+        // The head turns with the cursor's own horizontal travel, not on a timer: the hub stays a
+        // still portrait until the player moves the stick (or the mouse), then the head follows the
+        // direction they are heading. This is the "the head never moves unless the user moves the
+        // cursor" rule, expressed with the same shaped vector the cursor moved by.
+        turnHeadFromInput(shaped[0], shaped[1], dt);
         // Magnetism: ease toward the sector icon or chip under the cursor.
         applyCursorMagnetism();
         updateCursorHighlight();
         invalidate();
         return true;
+    }
+
+    /**
+     * Advances the hub head's yaw from a shaped input vector and a frame delta.
+     *
+     * <p>Called only from an input handler (the right stick, or a mouse-move path), so the head is
+     * still until the player moves something. The yaw delta is proportional to the horizontal
+     * component plus a nudge of the vertical component, so a diagonal drag rotates faster than a
+     * pure vertical one, which is what reads as "the head is following the cursor".
+     *
+     * @param inputX shaped horizontal input, -1..1
+     * @param inputY shaped vertical input, -1..1
+     * @param dtSeconds elapsed time for this input frame (clamped by the caller)
+     */
+    void turnHeadFromInput(float inputX, float inputY, float dtSeconds) {
+        headYawDeg = RadialHeadTurn.step(headYawDeg, inputX, inputY, dtSeconds);
     }
 
     private void applyCursorMagnetism() {
@@ -651,22 +724,6 @@ public class RadialMenuView extends View {
         cursorChip = chipAt(cursor.x(), cursor.y(), getWidth(), getHeight());
     }
 
-    /** The index of the chip under a point, or -1. Pure given the chip layout. */
-    int chipAt(float x, float y, int w, int h) {
-        int[] counts = chipClusterCounts();
-        float[][] centers = RadialWheelLayout.chipCenters(w, h, counts[0], counts[1], counts[2]);
-        for (int i = 0; i < chips.size() && i < centers.length; i++) {
-            String text = getContext().getString(chips.get(i).labelRes);
-            chipTextPaint.setTextSize(UiChip.LABEL_SP * density);
-            float cw = UiChip.width(chipTextPaint.measureText(text), density);
-            float ch = UiChip.HEIGHT_DP * density;
-            if (Math.abs(x - centers[i][0]) <= cw / 2f && Math.abs(y - centers[i][1]) <= ch / 2f) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
     /**
      * The SELECT button: activates the chip under the cursor if there is one, else the sector.
      *
@@ -677,6 +734,9 @@ public class RadialMenuView extends View {
         if (cursorChip >= 0 && cursorChip < chips.size()) {
             if (chipToggle != null) chipToggle.onChipToggled(chips.get(cursorChip).moduleId);
             performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+            // The list holds only enabled modules, so a toggled-off row must leave immediately.
+            rebuildEnabledList();
+            cursorChip = -1;
             invalidate();
             return true;
         }
@@ -707,6 +767,8 @@ public class RadialMenuView extends View {
         if (cursorChip >= 0 && cursorChip < chips.size()) {
             if (chipToggle != null) chipToggle.onChipToggled(chips.get(cursorChip).moduleId);
             performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+            rebuildEnabledList();
+            cursorChip = -1;
             invalidate();
             return true;
         }
@@ -800,25 +862,17 @@ public class RadialMenuView extends View {
         }
     }
 
-    /** Toggles the chip under the pointer, if any; returns true when a chip was hit. */
+    /** Toggles the list row under the pointer, if any; returns true when a row was hit. */
     private boolean handleChipTap(float x, float y, int w, int h) {
-        int[] counts = chipClusterCounts();
-        float[][] centers = RadialWheelLayout.chipCenters(w, h, counts[0], counts[1], counts[2]);
-        int i = 0;
-        for (Chip chip : chips) {
-            float[] c = centers[i++];
-            String text = getContext().getString(chip.labelRes);
-            chipTextPaint.setTextSize(UiChip.LABEL_SP * density);
-            float cw = UiChip.width(chipTextPaint.measureText(text), density);
-            float ch = UiChip.HEIGHT_DP * density;
-            if (Math.abs(x - c[0]) <= cw / 2f && Math.abs(y - c[1]) <= ch / 2f) {
-                if (chipToggle != null) chipToggle.onChipToggled(chip.moduleId);
-                performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-                invalidate();
-                return true;
-            }
-        }
-        return false;
+        int index = chipAt(x, y, w, h);
+        if (index < 0 || index >= chips.size()) return false;
+        if (chipToggle != null) chipToggle.onChipToggled(chips.get(index).moduleId);
+        performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+        // The row's module is now off, so drop it from the list immediately rather than waiting for
+        // the next open; otherwise the list would show a module that is no longer enabled.
+        rebuildEnabledList();
+        invalidate();
+        return true;
     }
 
     private void setHighlight(Sector sector) {

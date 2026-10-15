@@ -218,14 +218,18 @@ public class RadialMenuOverlay {
         RadialMenuView view = menuView;
         menuView = null;
         if (view != null) view.playClose();
-        // Detach after the short close animation so the reverse plays rather than popping.
-        View overlay = overlayView;
-        if (overlay != null) {
-            overlay.postDelayed(this::detachQuietly, 120L);
-        } else {
-            detachQuietly();
-        }
+        // Detach after the short close animation so the reverse plays rather than popping. The
+        // callback is posted on the main Handler rather than on the View: a View's own postDelayed
+        // is queued behind attachment, so if the window was torn down by anything else first the
+        // callback never ran and the full-screen translucent window stayed attached — the frozen
+        // "white transparent overlay" over the game. A Handler post always runs.
+        mainHandler.removeCallbacks(detachRunnable);
+        mainHandler.postDelayed(detachRunnable, 120L);
     }
+
+    private final android.os.Handler mainHandler =
+            new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable detachRunnable = this::detachQuietly;
 
     private void detachQuietly() {
         View view = overlayView;
@@ -237,6 +241,13 @@ public class RadialMenuOverlay {
             }
         } catch (Exception ignored) {
             // Already detached or the token is gone; nothing to clean up.
+        }
+        // A second, unconditional attempt: removeViewImmediate can throw for a window the system
+        // has already detached, and a translucent MATCH_PARENT window that survives that is exactly
+        // the stuck overlay. A removeView of a non-attached view is a safe no-op.
+        try {
+            windowManager.removeView(view);
+        } catch (Exception ignored) {
         }
     }
 }
