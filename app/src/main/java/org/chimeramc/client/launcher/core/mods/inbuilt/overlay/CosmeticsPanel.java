@@ -15,6 +15,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import org.chimeramc.client.R;
+import org.chimeramc.client.core.cosmetics.AccountSkinCache;
+import org.chimeramc.client.core.cosmetics.AccountSkinService;
 import org.chimeramc.client.core.cosmetics.CosmeticCatalog;
 import org.chimeramc.client.core.cosmetics.CosmeticStore;
 import org.chimeramc.client.core.cosmetics.CosmeticSyncModule;
@@ -84,6 +86,8 @@ public final class CosmeticsPanel {
     private TextView syncStatus;
     private TextView syncToggle;
     private TextView vfxToggle;
+    private TextView accountSkinToggle;
+    private TextView accountSkinStatus;
     private LinearLayout peersContainer;
     private LinearLayout manualPeerRow;
     private EditText manualPeerInput;
@@ -190,6 +194,28 @@ public final class CosmeticsPanel {
         });
         detailsColumn.addView(vfxToggle);
 
+        // The account skin lookup: off by default because it sends the XUID to a third-party service
+        // to resolve the player's real Bedrock skin. Turning it on fetches once in the background
+        // and caches the atlas, so the preview and the radial wheel hub then show the real head.
+        accountSkinStatus = bodyLine();
+        detailsColumn.addView(accountSkinStatus);
+        accountSkinToggle = secondaryButton(R.string.cosmetics_account_skin_on, v -> {
+            boolean next = !AccountSkinService.isEnabled(activity);
+            AccountSkinService.setEnabled(activity, next);
+            if (next) {
+                String xuid = AccountSkinService.activeXuid(activity);
+                if (xuid != null) {
+                    AccountSkinService.refreshInBackground(activity, xuid);
+                    toast(R.string.cosmetics_account_skin_fetching);
+                } else {
+                    toast(R.string.cosmetics_account_skin_no_account);
+                }
+            }
+            refreshAccountSkinStatus();
+            refreshPreviewSkin();
+        });
+        detailsColumn.addView(accountSkinToggle);
+
         detailsColumn.addView(sectionTitle(R.string.cosmetics_peers_title));
         peersContainer = new LinearLayout(activity);
         peersContainer.setOrientation(LinearLayout.VERTICAL);
@@ -218,6 +244,7 @@ public final class CosmeticsPanel {
         refreshGameStatus();
         refreshSyncStatus();
         refreshVfxToggle();
+        refreshAccountSkinStatus();
         refreshEquipButton();
     }
 
@@ -541,6 +568,44 @@ public final class CosmeticsPanel {
         vfxToggle.setText(manager.isCosmeticVfxEnabled()
                 ? R.string.cosmetics_vfx_toggle_off
                 : R.string.cosmetics_vfx_toggle_on);
+    }
+
+    /**
+     * Updates the account-skin toggle and its status line.
+     *
+     * <p>The status is honest about each state: off, on but no account, on with a fetch pending, or
+     * on with the atlas ready. It never claims the skin is "your real skin" before the fetch landed.
+     */
+    private void refreshAccountSkinStatus() {
+        if (accountSkinToggle == null) return;
+        boolean enabled = AccountSkinService.isEnabled(activity);
+        accountSkinToggle.setText(enabled
+                ? R.string.cosmetics_account_skin_off
+                : R.string.cosmetics_account_skin_on);
+        if (accountSkinStatus == null) return;
+        if (!enabled) {
+            accountSkinStatus.setText(R.string.cosmetics_account_skin_status_off);
+            return;
+        }
+        String xuid = AccountSkinService.activeXuid(activity);
+        if (xuid == null) {
+            accountSkinStatus.setText(R.string.cosmetics_account_skin_status_no_account);
+            return;
+        }
+        AccountSkinCache.Entry cached = AccountSkinCache.read(activity.getFilesDir());
+        if (cached != null && cached.png != null && cached.png.length > 0) {
+            accountSkinStatus.setText(R.string.cosmetics_account_skin_status_ready);
+        } else {
+            accountSkinStatus.setText(R.string.cosmetics_account_skin_status_fetching);
+        }
+    }
+
+    /** Re-resolves the preview's character so a newly fetched skin shows without recreating it. */
+    private void refreshPreviewSkin() {
+        try {
+            preview.refreshSkin();
+        } catch (Throwable ignored) {
+        }
     }
 
     private void renderPeers(CosmeticSyncModule module) {
