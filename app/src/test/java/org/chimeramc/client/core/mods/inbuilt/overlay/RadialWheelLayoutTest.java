@@ -175,4 +175,31 @@ public class RadialWheelLayoutTest {
         float mid = (RadialWheelLayout.LIST_BAND_TOP_FY + RadialWheelLayout.LIST_BAND_BOTTOM_FY) / 2f;
         assertEquals(1080 * mid, rows[0][1], 1f);
     }
+
+    @Test
+    public void theTwoColumnsSitOnOppositeSidesAndStayClearOfTheRing() {
+        // The wheel shows a quick-options column on the left and the enabled column on the right.
+        float density = 2f;
+        for (int[] screen : new int[][]{{1920, 1080}, {1280, 720}, {2560, 1600}, {800, 480}}) {
+            int w = screen[0], h = screen[1];
+            float[][] left = RadialWheelLayout.moduleListCenters(w, h, 4, density, false);
+            float[][] right = RadialWheelLayout.moduleListCenters(w, h, 4, density, true);
+            assertEquals(4, left.length);
+            assertEquals(4, right.length);
+            float outer = RadialWheelLayout.outerRadius(w, h);
+            float cx = w / 2f, cy = h / 2f;
+            for (int i = 0; i < 4; i++) {
+                assertTrue("left column is left of centre", left[i][0] < cx);
+                assertTrue("right column is right of centre", right[i][0] > cx);
+                // Both columns must sit outside the ring band so a row never lands on a sector.
+                assertTrue("left row clears the ring",
+                        Math.hypot(left[i][0] - cx, left[i][1] - cy) > outer * 0.55f);
+                assertTrue("right row clears the ring",
+                        Math.hypot(right[i][0] - cx, right[i][1] - cy) > outer * 0.55f);
+                // And neither runs off its own edge.
+                assertTrue(left[i][0] >= 0f);
+                assertTrue(right[i][0] <= w);
+            }
+        }
+    }
 }

@@ -86,6 +86,7 @@ public class RadialMenuView extends View {
     private final Rect srcHead = new Rect();
     private final RectF dstHead = new RectF();
 
+    private final List<Chip> quickChips = new ArrayList<>();
     private final List<Chip> chips = new ArrayList<>();
     private Listener listener;
     private ChipToggle chipToggle;
@@ -149,9 +150,16 @@ public class RadialMenuView extends View {
     }
 
     private void buildChips() {
-        // The list is the modules that are actually enabled, read live from the inbuilt provider so
-        // it can never disagree with the module grid. It is rebuilt on every open (see onAttached)
-        // because a module toggled elsewhere must appear here without recreating the wheel.
+        // Left column: the quick module options the player can turn on from the wheel. Curated (a
+        // short list of the modules that are useful mid-game), so the wheel stays readable.
+        quickChips.clear();
+        quickChips.add(new Chip("zoom", "Zoom"));
+        quickChips.add(new Chip("fullbright", "Fullbright"));
+        quickChips.add(new Chip("cps_display", "CPS"));
+        quickChips.add(new Chip("fps_display", "FPS"));
+        quickChips.add(new Chip("list_players", "Players"));
+        quickChips.add(new Chip("debug_menu", "Debug"));
+        // Right column: filled live from the enabled modules (see rebuildEnabledList).
         chips.clear();
     }
 
@@ -533,43 +541,74 @@ public class RadialMenuView extends View {
     }
 
     /**
-     * Draws the enabled-module list as one compact stack on the right.
+     * Draws both module columns.
      *
-     * <p>Rows are a single {@link RadialWheelLayout#LIST_ROW_DP} pitch apart, so the list reads as a
-     * grouped column of modules rather than the old widely-spaced three-cluster layout. A row whose
-     * module is on is drawn with an accent dot; because the list only contains enabled modules the
-     * dot is always on, and tapping a row turns it off.
+     * <p>Left: the quick options the player can turn on, drawn left-anchored. Right: the modules that
+     * are actually enabled, right-anchored. Both are compact columns (one row pitch apart), so they
+     * read as grouped lists rather than the old widely-spaced clusters. A row's status dot shows
+     * whether its module is currently on.
      */
     private void drawEnabledList(Canvas canvas, int w, int h, int alpha) {
-        if (chips.isEmpty()) return;
-        float[][] centers = RadialWheelLayout.enabledListCenters(w, h, chips.size(), density);
         chipTextPaint.setTextSize(UiChip.LABEL_SP * density);
-        int i = 0;
-        for (Chip chip : chips) {
-            if (i >= centers.length) break;
-            float[] c = centers[i++];
-            float labelWidth = chipTextPaint.measureText(chip.label);
-            boolean on = chipToggle != null && chipToggle.isChipOn(chip.moduleId);
-            UiChip.draw(canvas, chipPaint, chipTextPaint, c[0], c[1], labelWidth, chip.label,
-                    UiTokens.withAlpha(accent, alpha), on, density, UiChip.Align.RIGHT);
+        if (!quickChips.isEmpty()) {
+            float[][] centers = RadialWheelLayout.moduleListCenters(
+                    w, h, quickChips.size(), density, false);
+            for (int i = 0; i < quickChips.size() && i < centers.length; i++) {
+                Chip chip = quickChips.get(i);
+                float labelWidth = chipTextPaint.measureText(chip.label);
+                boolean on = chipToggle != null && chipToggle.isChipOn(chip.moduleId);
+                UiChip.draw(canvas, chipPaint, chipTextPaint, centers[i][0], centers[i][1],
+                        labelWidth, chip.label, UiTokens.withAlpha(accent, alpha), on, density,
+                        UiChip.Align.CENTER);
+            }
+        }
+        if (!chips.isEmpty()) {
+            float[][] centers = RadialWheelLayout.moduleListCenters(
+                    w, h, chips.size(), density, true);
+            for (int i = 0; i < chips.size() && i < centers.length; i++) {
+                Chip chip = chips.get(i);
+                float labelWidth = chipTextPaint.measureText(chip.label);
+                boolean on = chipToggle != null && chipToggle.isChipOn(chip.moduleId);
+                UiChip.draw(canvas, chipPaint, chipTextPaint, centers[i][0], centers[i][1],
+                        labelWidth, chip.label, UiTokens.withAlpha(accent, alpha), on, density,
+                        UiChip.Align.RIGHT);
+            }
         }
     }
 
-    /** The row index of the enabled-module list under a point, or -1. Pure given the list layout. */
-    int chipAt(float x, float y, int w, int h) {
-        if (chips.isEmpty()) return -1;
-        float[][] centers = RadialWheelLayout.enabledListCenters(w, h, chips.size(), density);
+    /**
+     * The (list, row) hit under a point, or null.
+     *
+     * <p>Both columns are hit-tested so a tap selects whichever row is under it; the left column is
+     * left-anchored, so its hit box hugs the chip's left edge.
+     */
+    int[] chipHit(float x, float y, int w, int h) {
+        if (chipAtIn(quickChips, x, y, w, h, false) >= 0) {
+            return new int[] {0, chipAtIn(quickChips, x, y, w, h, false)};
+        }
+        int right = chipAtIn(chips, x, y, w, h, true);
+        return right >= 0 ? new int[] {1, right} : null;
+    }
+
+    private int chipAtIn(List<Chip> list, float x, float y, int w, int h, boolean fromRight) {
+        if (list.isEmpty()) return -1;
+        float[][] centers = RadialWheelLayout.moduleListCenters(w, h, list.size(), density, fromRight);
         chipTextPaint.setTextSize(UiChip.LABEL_SP * density);
-        for (int i = 0; i < chips.size() && i < centers.length; i++) {
-            float cw = UiChip.width(chipTextPaint.measureText(chips.get(i).label), density);
+        for (int i = 0; i < list.size() && i < centers.length; i++) {
+            float cw = UiChip.width(chipTextPaint.measureText(list.get(i).label), density);
             float ch = UiChip.HEIGHT_DP * density;
-            // The rows are right-aligned, so the hit box hugs the chip's right edge.
-            if (x >= centers[i][0] - cw && x <= centers[i][0]
-                    && Math.abs(y - centers[i][1]) <= ch / 2f) {
+            float left = fromRight ? centers[i][0] - cw : centers[i][0] - cw / 2f;
+            float right = fromRight ? centers[i][0] : centers[i][0] + cw / 2f;
+            if (x >= left && x <= right && Math.abs(y - centers[i][1]) <= ch / 2f) {
                 return i;
             }
         }
         return -1;
+    }
+
+    /** The right-column index under a point, or -1 (kept for the controller cursor's highlight). */
+    int chipAt(float x, float y, int w, int h) {
+        return chipAtIn(chips, x, y, w, h, true);
     }
 
     private static String sectorLabel(Sector s) {
@@ -721,7 +760,8 @@ public class RadialMenuView extends View {
         Sector s = RadialWheelLayout.sectorAtLinear(
                 cursor.x() - cx, cursor.y() - cy, inner, outer, RadialWheelLayout.GAP_DP * density);
         setHighlight(s);
-        cursorChip = chipAt(cursor.x(), cursor.y(), getWidth(), getHeight());
+        int[] hit = chipHit(cursor.x(), cursor.y(), getWidth(), getHeight());
+        cursorChip = hit != null && hit[0] == 1 ? hit[1] : -1;
     }
 
     /**
@@ -731,14 +771,19 @@ public class RadialMenuView extends View {
      */
     public boolean controllerSelect() {
         if (cursor == null) return false;
-        if (cursorChip >= 0 && cursorChip < chips.size()) {
-            if (chipToggle != null) chipToggle.onChipToggled(chips.get(cursorChip).moduleId);
-            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-            // The list holds only enabled modules, so a toggled-off row must leave immediately.
-            rebuildEnabledList();
-            cursorChip = -1;
-            invalidate();
-            return true;
+        int[] hit = chipHit(cursor.x(), cursor.y(), getWidth(), getHeight());
+        if (hit != null) {
+            List<Chip> list = hit[0] == 0 ? quickChips : chips;
+            int index = hit[1];
+            if (index >= 0 && index < list.size()) {
+                if (chipToggle != null) chipToggle.onChipToggled(list.get(index).moduleId);
+                performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                // The right column is the enabled set, so a toggle must rebuild it immediately.
+                rebuildEnabledList();
+                cursorChip = -1;
+                invalidate();
+                return true;
+            }
         }
         float cx = centerX();
         float cy = centerY();
@@ -764,13 +809,18 @@ public class RadialMenuView extends View {
 
     /** The PIN button: pin/unpin the hovered chip's module. Returns true when a chip was hit. */
     public boolean controllerPinHoveredChip() {
-        if (cursorChip >= 0 && cursorChip < chips.size()) {
-            if (chipToggle != null) chipToggle.onChipToggled(chips.get(cursorChip).moduleId);
-            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-            rebuildEnabledList();
-            cursorChip = -1;
-            invalidate();
-            return true;
+        int[] hit = cursor == null ? null : chipHit(cursor.x(), cursor.y(), getWidth(), getHeight());
+        if (hit != null) {
+            List<Chip> list = hit[0] == 0 ? quickChips : chips;
+            int index = hit[1];
+            if (index >= 0 && index < list.size()) {
+                if (chipToggle != null) chipToggle.onChipToggled(list.get(index).moduleId);
+                performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                rebuildEnabledList();
+                cursorChip = -1;
+                invalidate();
+                return true;
+            }
         }
         return false;
     }
@@ -862,14 +912,16 @@ public class RadialMenuView extends View {
         }
     }
 
-    /** Toggles the list row under the pointer, if any; returns true when a row was hit. */
+    /** Toggles the module row under the pointer, if any; returns true when a row was hit. */
     private boolean handleChipTap(float x, float y, int w, int h) {
-        int index = chipAt(x, y, w, h);
-        if (index < 0 || index >= chips.size()) return false;
-        if (chipToggle != null) chipToggle.onChipToggled(chips.get(index).moduleId);
+        int[] hit = chipHit(x, y, w, h);
+        if (hit == null) return false;
+        List<Chip> list = hit[0] == 0 ? quickChips : chips;
+        int index = hit[1];
+        if (index < 0 || index >= list.size()) return false;
+        if (chipToggle != null) chipToggle.onChipToggled(list.get(index).moduleId);
         performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-        // The row's module is now off, so drop it from the list immediately rather than waiting for
-        // the next open; otherwise the list would show a module that is no longer enabled.
+        // The right column reflects what is enabled, so a toggle (either direction) must rebuild it.
         rebuildEnabledList();
         invalidate();
         return true;

@@ -149,24 +149,26 @@ public final class RadialWheelLayout {
     public static final float LIST_MAX_WIDTH_FRACTION = 0.30f;
 
     /**
-     * The centre points of the enabled-module rows, in draw order (top to bottom).
+     * The centre points of a module-list column.
      *
-     * <p>Pure so a test can assert the rows are compact (a single row pitch apart), stay clear of the
-     * wheel ring, and never run off the screen — the properties a screenshot cannot check. The column
-     * is vertically centred in the safe band and, if a very long list would overflow, the pitch is
-     * compressed so the last row still lands inside the band rather than off the bottom edge.
+     * <p>The wheel has two compact columns of module rows: the left one is the quick options the
+     * player can turn on, the right one is what is currently enabled. Both read as grouped stacks
+     * (a single row pitch apart) rather than the old widely-spaced clusters, and a long column is
+     * compressed so it still fits the safe band.
      *
-     * @param w       view width in px
-     * @param h       view height in px
-     * @param count   number of rows
-     * @param density display density (dp -> px)
+     * @param w         view width in px
+     * @param h         view height in px
+     * @param count     number of rows
+     * @param density   display density (dp -> px)
+     * @param fromRight true for the right column (right-anchored), false for the left
      * @return an array of {@code {x, y}} pairs, one per row
      */
-    public static float[][] enabledListCenters(int w, int h, int count, float density) {
+    public static float[][] moduleListCenters(int w, int h, int count, float density,
+                                              boolean fromRight) {
         int safe = Math.max(0, count);
         float[][] out = new float[safe][2];
         if (safe == 0) return out;
-        float x = w - LIST_RIGHT_INSET_DP * density;
+        float x = fromRight ? w - LIST_RIGHT_INSET_DP * density : LIST_RIGHT_INSET_DP * density;
         float rowPitch = LIST_ROW_DP * density;
         float bandTop = h * LIST_BAND_TOP_FY;
         float bandBottom = h * LIST_BAND_BOTTOM_FY;
@@ -184,6 +186,11 @@ public final class RadialWheelLayout {
             out[i][1] = top + i * rowPitch;
         }
         return out;
+    }
+
+    /** The right-hand enabled-module column (right-anchored). */
+    public static float[][] enabledListCenters(int w, int h, int count, float density) {
+        return moduleListCenters(w, h, count, density, true);
     }
 
     private static double wrap180(double deg) {
