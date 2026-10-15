@@ -79,7 +79,7 @@ It is built for legitimate players: it runs the copy of Minecraft you already ow
 | **Architecture** | 64-bit (`arm64-v8a`). Most versions ship both 64- and 32-bit libs and run fine; a version whose APK ships 32-bit **only** is refused |
 | **RAM** | 1 GB minimum, **3 GB+ recommended** |
 | **Storage** | 2 GB minimum, **5 GB+ recommended** |
-| **Minecraft** | You must **own and install** the official Google Play version of Minecraft Bedrock Edition |
+| **Minecraft** | You must **install**| A unofficial Minecraft Apk to be able to launch Minecraft bedrock edition without any missing .so file errors.|
 
 ### Install in 4 steps
 
