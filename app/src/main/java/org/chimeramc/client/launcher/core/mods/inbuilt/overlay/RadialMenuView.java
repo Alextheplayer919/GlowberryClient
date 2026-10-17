@@ -110,6 +110,7 @@ public class RadialMenuView extends View {
     private int[] headAtlas;
     private Bitmap headBitmap;
     private float headYawDeg;
+    private float headPitchDeg;
     private long headLastMs;
 
     // --- Motion state -------------------------------------------------------------------------
@@ -269,9 +270,12 @@ public class RadialMenuView extends View {
         refreshSkin();
         // Rebuild the enabled-module list so a toggle made while the wheel was closed shows now.
         rebuildEnabledList();
-        // The head is deliberately NOT animated: it turns only when the player moves the cursor,
-        // so the hub reads as a still portrait until it is interacted with. Nothing schedules a
-        // frame here, which also means the view burns no frames while it sits open.
+        // The head is deliberately NOT animated on a timer: it turns only when the player moves the
+        // cursor, so the hub reads as a still portrait until it is interacted with. Reset the look
+        // to forward-facing so a previous session leaves no stare. Nothing schedules a frame here,
+        // which also means the view burns no frames while it sits open.
+        headYawDeg = 0f;
+        headPitchDeg = 0f;
         headLastMs = android.os.SystemClock.uptimeMillis();
         playOpen();
     }
@@ -523,8 +527,8 @@ public class RadialMenuView extends View {
         // own centre (model y = 28 for the 8x8x8 head whose bottom sits at 24) rather than the chest
         // of a bust. A tight margin then fills the disc with the face instead of leaving the head
         // adrift in a large empty circle.
-        SkinModel.Camera cam = new SkinModel.Camera(headYawDeg, 8f, SkinModel.CAMERA_DISTANCE,
-                0f, 28f, 0f);
+        SkinModel.Camera cam = new SkinModel.Camera(headYawDeg, headPitchDeg,
+                SkinModel.CAMERA_DISTANCE, 0f, 28f, 0f);
         PreviewScene.Fit fit = headScene.fit(cam, size, size, 0.06f);
         headScene.render(headRaster, cam, fit);
         headBitmap.setPixels(headRaster.pixels(), 0, size, 0, 0, size, size);
@@ -706,11 +710,10 @@ public class RadialMenuView extends View {
         cursor.setMagnetTarget(false, 0f, 0f);
         cursor.update(shaped[0], -shaped[1], dt, precision, fast,
                 CursorController.DEFAULT_MAX_SPEED_DP);
-        // The head turns with the cursor's own horizontal travel, not on a timer: the hub stays a
-        // still portrait until the player moves the stick (or the mouse), then the head follows the
-        // direction they are heading. This is the "the head never moves unless the user moves the
-        // cursor" rule, expressed with the same shaped vector the cursor moved by.
-        turnHeadFromInput(shaped[0], shaped[1], dt);
+        // The head looks at the cursor, not at the stick vector: the hub stays a still portrait
+        // until the player moves the cursor, then the head turns to face where the cursor now is.
+        // The same rule runs for touch (see onTouchEvent), so both inputs turn it consistently.
+        updateHeadLook(cursor.x(), cursor.y(), dt);
         // Magnetism: ease toward the sector icon or chip under the cursor.
         applyCursorMagnetism();
         updateCursorHighlight();
@@ -719,19 +722,28 @@ public class RadialMenuView extends View {
     }
 
     /**
-     * Advances the hub head's yaw from a shaped input vector and a frame delta.
+     * Points the hub head at the cursor's current position, eased by one frame.
      *
-     * <p>Called only from an input handler (the right stick, or a mouse-move path), so the head is
-     * still until the player moves something. The yaw delta is proportional to the horizontal
-     * component plus a nudge of the vertical component, so a diagonal drag rotates faster than a
-     * pure vertical one, which is what reads as "the head is following the cursor".
+     * <p>Called from every input path (the right stick and touch), so the head is still until the
+     * player moves the cursor, and then turns to face where the cursor is — it never keeps spinning
+     * after the cursor stops. Yaw/pitch come from {@link RadialHeadTurn#targetLook} on the cursor's
+     * offset from the hub centre, so the exact position (not a velocity) drives the look.
      *
-     * @param inputX shaped horizontal input, -1..1
-     * @param inputY shaped vertical input, -1..1
+     * @param cursorX   cursor/screen x within the view, pixels
+     * @param cursorY   cursor/screen y within the view, pixels
      * @param dtSeconds elapsed time for this input frame (clamped by the caller)
      */
-    void turnHeadFromInput(float inputX, float inputY, float dtSeconds) {
-        headYawDeg = RadialHeadTurn.step(headYawDeg, inputX, inputY, dtSeconds);
+    void updateHeadLook(float cursorX, float cursorY, float dtSeconds) {
+        float cx = centerX();
+        float cy = centerY();
+        float maxH = hubRadius() * 0.9f;
+        float maxV = hubRadius() * 0.9f;
+        float[] target = RadialHeadTurn.targetLook(cursorX - cx, cursorY - cy, maxH, maxV);
+        float[] eased = RadialHeadTurn.stepTowards(
+                headYawDeg, headPitchDeg, target[0], target[1], dtSeconds);
+        headYawDeg = eased[0];
+        headPitchDeg = eased[1];
+        invalidate();
     }
 
     private void applyCursorMagnetism() {
@@ -884,10 +896,13 @@ public class RadialMenuView extends View {
                 }
                 setHighlight(RadialWheelLayout.sectorAtLinear(
                         event.getX() - cx, event.getY() - cy, inner, outer, gapPx));
+                // Touch turns the head the same way the stick does: look at the pointer.
+                updateHeadLook(event.getX(), event.getY(), 1f / 60f);
                 return true;
             case MotionEvent.ACTION_MOVE:
                 setHighlight(RadialWheelLayout.sectorAtLinear(
                         event.getX() - cx, event.getY() - cy, inner, outer, gapPx));
+                updateHeadLook(event.getX(), event.getY(), 1f / 60f);
                 return true;
             case MotionEvent.ACTION_UP:
                 Sector s = RadialWheelLayout.sectorAtLinear(
