@@ -49,6 +49,59 @@ public final class UiDraw {
         p.setShader(null);
     }
 
+    /**
+     * Draws the controller cursor as a clean pointer arrow with a small soft shadow.
+     *
+     * <p>Replaces the old 10dp disc + glow + ring: the glow read as a smear and the disc hid what
+     * it was hovering over. The arrow is a standard mouse-pointer silhouette (~7dp wide, ~10dp tall)
+     * with a 1dp white fill, a 1dp dark outline and a faint offset shadow. The tip is the hotspot,
+     * so a click lands exactly where the arrow points.
+     *
+     * @param shadowFill the paint used for the shadow (reused across draws, reset each call)
+     * @param arrowFill  the paint used for the arrow body (reused across draws, reset each call)
+     */
+    public static void pointerCursor(Canvas canvas, Paint shadowFill, Paint arrowFill,
+                                     float x, float y, float density) {
+        float s = 7f * density;      // arrow width
+        float h = 10f * density;     // arrow height
+        // Standard pointer silhouette: tip, then a right edge that steps down into the tail, with a
+        // notch on the bottom edge before the tail's lower-right corner.
+        Path shape = new Path();
+        shape.moveTo(x, y);
+        shape.lineTo(x + s * 0.55f, y + h * 0.55f);
+        shape.lineTo(x + s * 0.22f, y + h * 0.55f);
+        shape.lineTo(x + s * 0.22f, y + h);
+        shape.lineTo(x - s * 0.1f, y + h * 0.75f);
+        shape.lineTo(x - s * 0.1f, y + h * 0.55f);
+        shape.lineTo(x - s * 0.32f, y + h * 0.78f);
+        shape.lineTo(x - s * 0.68f, y + h * 0.40f);
+        // Close the shape back to the tip via the upper-left side.
+        shape.lineTo(x - s * 0.35f, y + s * 0.30f);
+        shape.close();
+
+        // Shadow: a 1dp offset copy in black at 18% alpha, blurred by the caller (we do not paint a
+        // shadow layer here; the caller's paint can carry one as a small convenience, but a plain
+        // offset fill reads cleaner and costs nothing).
+        shadowFill.reset();
+        shadowFill.setAntiAlias(true);
+        shadowFill.setColor(0x2E000000);
+        canvas.save();
+        canvas.translate(0.8f * density, 1.1f * density);
+        canvas.drawPath(shape, shadowFill);
+        canvas.restore();
+
+        // Arrow body: near-white fill with a 1dp dark outline so it reads on any backdrop.
+        arrowFill.reset();
+        arrowFill.setAntiAlias(true);
+        arrowFill.setStyle(Paint.Style.FILL);
+        arrowFill.setColor(0xFFFAFAFA);
+        canvas.drawPath(shape, arrowFill);
+        arrowFill.setStyle(Paint.Style.STROKE);
+        arrowFill.setStrokeWidth(Math.max(1f, 0.75f * density));
+        arrowFill.setColor(0xB3000000);
+        canvas.drawPath(shape, arrowFill);
+    }
+
     /** A 1dp divider line. */
     public static void divider(Canvas c, Paint p, float l, float y, float r, float strokeWidth,
                                int color) {

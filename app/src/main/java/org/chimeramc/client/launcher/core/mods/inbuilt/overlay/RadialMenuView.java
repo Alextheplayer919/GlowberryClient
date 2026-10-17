@@ -23,6 +23,7 @@ import org.chimeramc.client.core.cosmetics.PreviewScene;
 import org.chimeramc.client.core.cosmetics.SkinModel;
 import org.chimeramc.client.core.mods.inbuilt.overlay.RadialWheelLayout.Sector;
 import org.chimeramc.client.ui.components.UiChip;
+import org.chimeramc.client.ui.components.UiDraw;
 import org.chimeramc.client.ui.components.UiIcons;
 import org.chimeramc.client.ui.components.UiTokens;
 
@@ -367,26 +368,12 @@ public class RadialMenuView extends View {
         drawControllerCursor(canvas, alpha);
     }
 
-    /** Draws the controller cursor: a 10dp disc with a 2dp white ring and a soft accent glow. */
+    /** Draws the controller cursor as a clean pointer arrow with a small shadow. */
     private void drawControllerCursor(Canvas canvas, int alpha) {
         if (!isCursorVisible()) return;
-        float cx = cursor.x();
-        float cy = cursor.y();
-        float r = 5f * density;
-        // Soft glow.
-        Paint glow = iconPaint;
-        glow.reset();
-        glow.setAntiAlias(true);
-        glow.setColor(UiTokens.withAlpha(accent, (int) (0x55 * (alpha / 255f))));
-        glow.setShadowLayer(6f * density, 0f, 0f,
-                UiTokens.withAlpha(accent, (int) (0x99 * (alpha / 255f))));
-        canvas.drawCircle(cx, cy, r, glow);
-        glow.clearShadowLayer();
-        // White ring, 2dp.
-        glow.setStyle(Paint.Style.STROKE);
-        glow.setStrokeWidth(2f * density);
-        glow.setColor(UiTokens.withAlpha(0xFFFFFFFF, alpha));
-        canvas.drawCircle(cx, cy, r, glow);
+        Paint shadow = iconPaint;
+        Paint arrow = chipPaint;
+        UiDraw.pointerCursor(canvas, shadow, arrow, cursor.x(), cursor.y(), density);
     }
 
     private void drawSector(Canvas canvas, float cx, float cy, float rInner, float rOuter,

@@ -8,6 +8,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 
+import org.chimeramc.client.ui.components.UiDraw;
 import org.chimeramc.client.ui.components.UiTokens;
 
 /**
@@ -29,6 +30,7 @@ public final class MenuCursorOverlay extends View {
     private final CursorRouter router;
 
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint paint2 = new Paint(Paint.ANTI_ALIAS_FLAG);
     private long lastMs;
 
     public MenuCursorOverlay(Context context) {
@@ -122,21 +124,9 @@ public final class MenuCursorOverlay extends View {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         if (!router.isMenuOpen()) return;
-        float cx = router.cursor().x();
-        float cy = router.cursor().y();
         float density = getResources().getDisplayMetrics().density;
-        float r = 5f * density;
-        int accent = UiTokens.resolveAccent(getContext());
-        paint.reset();
-        paint.setAntiAlias(true);
-        paint.setColor(UiTokens.withAlpha(accent, 0x55));
-        paint.setShadowLayer(6f * density, 0f, 0f, UiTokens.withAlpha(accent, 0x99));
-        canvas.drawCircle(cx, cy, r, paint);
-        paint.clearShadowLayer();
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeWidth(2f * density);
-        paint.setColor(0xFFFFFFFF);
-        canvas.drawCircle(cx, cy, r, paint);
+        UiDraw.pointerCursor(canvas, paint, paint2,
+                router.cursor().x(), router.cursor().y(), density);
     }
 
     @Override
