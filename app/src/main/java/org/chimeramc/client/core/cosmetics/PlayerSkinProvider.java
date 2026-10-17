@@ -126,8 +126,8 @@ public final class PlayerSkinProvider {
         }
 
         // 4. The account lookup: the signed-in player's own Bedrock skin, resolved from their XUID.
-        //    Off by default (it sends the XUID to a third-party service), so it only runs when the
-        //    player enabled it in the Cosmetics panel; a failure falls through to the next rung.
+        //    On after a Microsoft sign-in (the sign-in is the consent) so a newly signed-in player
+        //    sees their real skin; a failure falls through to the next rung.
         Bitmap fromAccount = readAccountSkin(context);
         if (fromAccount != null) {
             return new SkinBitmap(fromAccount, false, false, "Your Minecraft account skin");

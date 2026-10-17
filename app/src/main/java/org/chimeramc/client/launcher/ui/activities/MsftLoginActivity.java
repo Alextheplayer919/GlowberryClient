@@ -45,6 +45,7 @@ import org.chimeramc.client.R;
 import org.chimeramc.client.core.auth.MsftAccountStore;
 import org.chimeramc.client.core.auth.MsftAuthManager;
 import org.chimeramc.client.core.auth.MicrosoftOAuthManager;
+import org.chimeramc.client.core.cosmetics.AccountSkinService;
 import org.chimeramc.client.ui.animation.DynamicAnim;
 import org.chimeramc.client.util.CryptoUtils;
 import org.chimeramc.client.util.PersonalizationManager;
@@ -623,6 +624,16 @@ public class MsftLoginActivity extends BaseActivity {
                 : account != null && !TextUtils.isEmpty(account.xboxGamertag)
                 ? account.xboxGamertag
                 : getString(R.string.not_signed_in);
+        // Signing in is the one-line consent the account-skin lookup needs: the player chose to use
+        // their own Microsoft identity, so the preview and the radial hub should show that identity's
+        // skin rather than a stand-in. Turning it on here makes it the default after a fresh sign-in
+        // (the Cosmetics panel toggle can still switch it off). The fetch runs once in the
+        // background and caches the atlas; a failure just leaves the preview on the fallback skin.
+        AccountSkinService.setEnabled(this, true);
+        String xuid = AccountSkinService.activeXuid(this);
+        if (xuid != null) {
+            AccountSkinService.refreshInBackground(this, xuid);
+        }
         runOnUiThread(() -> {
             if (!isCurrentLogin(generation) || !completed.compareAndSet(false, true)) {
                 return;

@@ -194,9 +194,11 @@ public final class CosmeticsPanel {
         });
         detailsColumn.addView(vfxToggle);
 
-        // The account skin lookup: off by default because it sends the XUID to a third-party service
-        // to resolve the player's real Bedrock skin. Turning it on fetches once in the background
-        // and caches the atlas, so the preview and the radial wheel hub then show the real head.
+        // The account skin lookup: on after a Microsoft sign-in (the sign-in is the one-line consent —
+        // the player chose to use their own Microsoft identity, so the launcher shows that identity's
+        // skin). Turning it off here stops fetching; the toggle sends the XUID to a third-party
+        // service to resolve the player's real Bedrock skin. While on, a fetch runs once in the
+        // background and caches the atlas, so the preview and the radial wheel hub show the real head.
         accountSkinStatus = bodyLine();
         detailsColumn.addView(accountSkinStatus);
         accountSkinToggle = secondaryButton(R.string.cosmetics_account_skin_on, v -> {
