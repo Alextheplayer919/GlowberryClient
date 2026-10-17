@@ -36,6 +36,21 @@ public class CursorControllerTest {
     }
 
     @Test
+    public void aPositiveStickYMovesDownBecauseAndroidStickYIsNegativeWhenUp() {
+        // Android's stick Y is negative when pushed up, which already matches screen Y growing
+        // down. An up push arrives as a negative shaped Y and must reduce the cursor's y; a positive
+        // shaped Y (a downward push) must increase it. The caller passes the axes through unchanged,
+        // so this pins that update() itself treats +stickY as screen-down.
+        CursorController up = cursor();
+        up.update(0f, -1f, 1f, false, false, 900f);
+        assertTrue("an up push must reduce y", up.y() < 300f);
+
+        CursorController down = cursor();
+        down.update(0f, 1f, 1f, false, false, 900f);
+        assertTrue("a down push must increase y", down.y() > 300f);
+    }
+
+    @Test
     public void aHalfSecondMovesHalfTheDistance() {
         CursorController c = cursor();
         c.update(1f, 0f, 0.5f, false, false, 900f);

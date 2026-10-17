@@ -78,8 +78,10 @@ public final class MenuCursorOverlay extends View {
         float[] shaped = new float[2];
         CursorController.shape(rawX, rawY, CursorController.DEFAULT_DEAD_ZONE,
                 CursorController.DEFAULT_CURVE_EXPONENT, shaped);
+        // Android's stick Y is negative when pushed up, matching screen Y growing down (an up push
+        // must reduce the cursor's y). Pass the shaped axes through unchanged.
         router.cursor().setMagnetTarget(false, 0f, 0f);
-        router.cursor().update(shaped[0], -shaped[1], dt, precision, fast,
+        router.cursor().update(shaped[0], shaped[1], dt, precision, fast,
                 CursorController.DEFAULT_MAX_SPEED_DP);
         invalidate();
         return true;

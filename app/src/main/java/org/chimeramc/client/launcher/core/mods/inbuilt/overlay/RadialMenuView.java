@@ -706,9 +706,10 @@ public class RadialMenuView extends View {
         cursorVisible = true;
         float[] shaped = new float[2];
         CursorController.shape(rawX, rawY, deadZone, curveExponent, shaped);
-        // Screen Y grows down; a pad's +Y is up, so negate so pushing up moves the cursor up.
+        // Android's stick Y is negative when pushed up, which matches screen Y growing down (an up
+        // push must reduce the cursor's y). Pass the shaped axes through unchanged.
         cursor.setMagnetTarget(false, 0f, 0f);
-        cursor.update(shaped[0], -shaped[1], dt, precision, fast,
+        cursor.update(shaped[0], shaped[1], dt, precision, fast,
                 CursorController.DEFAULT_MAX_SPEED_DP);
         // The head looks at the cursor, not at the stick vector: the hub stays a still portrait
         // until the player moves the cursor, then the head turns to face where the cursor now is.
