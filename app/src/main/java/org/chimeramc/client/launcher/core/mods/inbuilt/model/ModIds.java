@@ -37,11 +37,11 @@ public final class ModIds {
     public static final String KILL_EFFECTS = "kill_effects";
 
     // --- FPS optimization modules (host-side performance, filed under the General tab) --------
-    /** HyperSpatial Vertex Culling & Occlusion Matrix (host-side visibility/batching). */
+    /** Launcher animation culling: stops the launcher advancing its own off-screen animation. */
     public static final String HYPERSPATIAL_CULL = "hyperspatial_cull";
-    /** Advanced Vertical Rendering & Draw-Call Coalescing (host-side batching). */
+    /** Launcher overlay batching: batches the launcher's own overlay updates + atlas residency. */
     public static final String VERTICAL_RENDER_COALESCE = "vertical_render_coalesce";
-    /** Intelligent Tick-Rate & Animation Predictor (host-side tick throttling). */
+    /** Launcher polling throttle: paces the launcher's own background requests and per-frame work. */
     public static final String TICK_RATE_PREDICTOR = "tick_rate_predictor";
 
     // --- Visual / HUD / Misc modules (the mod-panel list) ------------------------------------

@@ -1764,13 +1764,13 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="kill_effects_scope_note">A purely visual effect on your own screen. Credit is inferred: a player you hit within the last two seconds who then dies counts as your kill. It never damages anyone and cannot see a server-confirmed kill.</string>
 
     <!-- FPS optimization modules (host-side only) -->
-    <string name="inbuilt_mod_hyperspatial_cull">HyperSpatial Vertex Culling &amp; Occlusion Matrix</string>
-    <string name="inbuilt_mod_hyperspatial_cull_desc">Reduces the launcher\'s own overlay and preview work only.</string>
-    <string name="inbuilt_mod_vertical_render_coalesce">Advanced Vertical Rendering &amp; Draw-Call Coalescing</string>
-    <string name="inbuilt_mod_vertical_render_coalesce_desc">Batches the launcher\'s own overlays and merges its draw calls.</string>
-    <string name="inbuilt_mod_tick_rate_predictor">Intelligent Tick-Rate &amp; Animation Predictor</string>
-    <string name="inbuilt_mod_tick_rate_predictor_desc">Throttles the launcher\'s own non-essential per-tick work.</string>
-    <string name="fps_modules_scope_note">These modules reduce work the launcher itself does while a session runs. A launcher cannot change the game\'s draw calls, cull its geometry or raise its frame rate — the game\'s visuals are set by the player and the server — so no switch here promises a frame rate.</string>
+    <string name="inbuilt_mod_hyperspatial_cull">Launcher Animation Culling</string>
+    <string name="inbuilt_mod_hyperspatial_cull_desc">Stops the launcher advancing its own off-screen animation, freeing CPU.</string>
+    <string name="inbuilt_mod_vertical_render_coalesce">Launcher Overlay Batching</string>
+    <string name="inbuilt_mod_vertical_render_coalesce_desc">Batches the launcher\'s own overlay updates and keeps cosmetic atlases resident.</string>
+    <string name="inbuilt_mod_tick_rate_predictor">Launcher Polling Throttle</string>
+    <string name="inbuilt_mod_tick_rate_predictor_desc">Throttles the launcher\'s own background polling and per-frame overlay work.</string>
+    <string name="fps_modules_scope_note">These modules reduce work the launcher itself does while a session runs: they slow the launcher\'s own overlay and background updates, which on a weak phone can free real CPU for the game. A launcher cannot change the game\'s draw calls, cull its geometry or raise its frame rate — the game\'s visuals are set by the player and the server — so no switch here promises a frame rate.</string>
     <string name="mod_config_category_culling">Culling</string>
     <string name="mod_config_category_batching">Batching</string>
     <string name="mod_config_category_memory">Memory</string>

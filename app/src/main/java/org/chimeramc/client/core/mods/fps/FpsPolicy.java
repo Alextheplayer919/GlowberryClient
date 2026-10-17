@@ -58,9 +58,9 @@ public final class FpsPolicy {
      * Builds the host plan from the enabled modules and their option values.
      *
      * @param sessionActive whether a game session is running (the modules are no-ops otherwise)
-     * @param cullEnabled   the HyperSpatial culling module
-     * @param coalesceEnabled the vertical-rendering / draw-call coalescing module
-     * @param tickEnabled   the tick-rate / animation predictor module
+     * @param cullEnabled   the animation-culling module
+     * @param coalesceEnabled the overlay-batching module
+     * @param tickEnabled   the polling-throttle module
      * @param values        the option values, keyed by option key; a missing key reads its default
      */
     public static HostPlan plan(boolean sessionActive, boolean cullEnabled, boolean coalesceEnabled,
@@ -76,7 +76,11 @@ public final class FpsPolicy {
         boolean coalesceNet = false;
         boolean keepAtlases = false;
 
-        // Culling module: stop advancing off-screen animation and keep the atlas resident.
+        // The three modules' effect, mapped to the launcher's own knobs. Each option read here is
+        // one of the seven that are actually implemented; the catalogue carries only these too, so
+        // a stored value for anything else can never be read again.
+        //
+        // Culling module: stop advancing off-screen animation.
         if (cullEnabled) {
             dropDistant = values.bool("cull_skip_offscreen_anim", false);
         }
@@ -89,7 +93,8 @@ public final class FpsPolicy {
             overlayInterval = Math.max(0, sliceBatch) * 2L; // ~2 ms per slice, bounded and honest
         }
 
-        // Tick module: throttle the launcher's own background refresh and coalesce its requests.
+        // Tick module: throttle the launcher's own background refresh, coalesce its requests, and
+        // batch low-priority overlay work every Nth tick.
         if (tickEnabled) {
             int intervalSeconds = values.integer("tr_net_interval", 60);
             backgroundInterval = Math.max(5, intervalSeconds) * 1000L;
@@ -112,20 +117,20 @@ public final class FpsPolicy {
         if (active == 0) {
             return "No FPS modules enabled";
         }
-        StringBuilder b = new StringBuilder("Host work reduced: ");
+        StringBuilder b = new StringBuilder("Launcher work reduced: ");
         boolean first = true;
         if (cull) {
-            b.append("overlay culling");
+            b.append("animation culling");
             first = false;
         }
         if (coalesce) {
             if (!first) b.append(", ");
-            b.append("draw batching");
+            b.append("overlay batching");
             first = false;
         }
         if (tick) {
             if (!first) b.append(", ");
-            b.append("tick throttling");
+            b.append("polling throttle");
         }
         return b.toString();
     }
