@@ -112,6 +112,46 @@ public final class UiDraw {
         c.drawLine(l, y, r, y, p);
     }
 
+    /**
+     * A soft drop shadow under a rounded surface, so the panel reads as floating above the world.
+     * The shadow is drawn as a translucent rounded rect offset down by {@code dy}; the caller paints
+     * the actual fill on top.
+     */
+    public static void dropShadow(Canvas c, Paint p, float l, float t, float r, float b,
+                                  float radius, float dy, int shadowColor) {
+        p.reset();
+        p.setStyle(Paint.Style.FILL);
+        p.setAntiAlias(true);
+        p.setColor(shadowColor);
+        p.setShadowLayer(Math.max(1f, radius * 0.4f), 0f, dy, shadowColor);
+        c.drawRoundRect(new RectF(l, t, r, b), radius, radius, p);
+        p.clearShadowLayer();
+    }
+
+    /** An inner glow along the inside edge of a rounded surface, for a hovered/focused state. */
+    public static void innerGlow(Canvas c, Paint p, float l, float t, float r, float b,
+                                 float radius, float width, int glowColor) {
+        p.reset();
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeWidth(Math.max(1f, width));
+        p.setColor(glowColor);
+        p.setAntiAlias(true);
+        c.drawRoundRect(new RectF(l + width / 2f, t + width / 2f, r - width / 2f, b - width / 2f),
+                radius, radius, p);
+    }
+
+    /** A soft elliptical shadow that grounds an object, tinted (usually by the accent). */
+    public static void pedestal(Canvas c, Paint p, float cx, float cy, float rx, float ry,
+                                int color) {
+        p.reset();
+        p.setStyle(Paint.Style.FILL);
+        p.setAntiAlias(true);
+        p.setColor(color);
+        p.setShadowLayer(Math.max(1f, ry), 0f, 0f, color);
+        c.drawOval(new RectF(cx - rx, cy - ry, cx + rx, cy + ry), p);
+        p.clearShadowLayer();
+    }
+
     /** The "corner fillet" path for a rounded annular sector, used by the radial wheel. */
     public static Path annularSectorPath(float cx, float cy, float innerR, float outerR,
                                          float startDeg, float sweepDeg, float cornerRadius) {

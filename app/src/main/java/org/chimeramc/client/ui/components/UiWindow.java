@@ -47,6 +47,27 @@ public final class UiWindow {
     /** Draws the window background, the title bar and the divider. */
     public static void draw(Canvas c, Paint paint, RectF window, float radius, float density,
                             float shadowRadius, float shadowAlpha) {
+        draw(c, paint, window, radius, density, shadowRadius, shadowAlpha,
+                UiGlass.BLUR_PANEL);
+    }
+
+    /**
+     * Draws the window at an explicit glass blur level.
+     *
+     * <p>The fill alpha follows {@link UiGlass#panelAlpha}: a heavier blur is a clearer pane. The
+     * title bar and the content share the one material so a menu cannot render its chrome and its
+     * body at different translucencies. {@code userOpacity} (0..1) is the player's own background
+     * opacity preference, applied on top so the "clear glass vs solid panel" slider works without a
+     * second drawing path.
+     */
+    public static void draw(Canvas c, Paint paint, RectF window, float radius, float density,
+                            float shadowRadius, float shadowAlpha, float blur) {
+        draw(c, paint, window, radius, density, shadowRadius, shadowAlpha, blur, 1f);
+    }
+
+    /** As {@link #draw(Canvas, Paint, RectF, float, float, float, float, float)} with user opacity. */
+    public static void draw(Canvas c, Paint paint, RectF window, float radius, float density,
+                            float shadowRadius, float shadowAlpha, float blur, float userOpacity) {
         paint.reset();
         paint.setAntiAlias(true);
         paint.setColor(UiTokens.withAlpha(0xFF000000, (int) (shadowAlpha * 255)));
@@ -55,17 +76,22 @@ public final class UiWindow {
         c.drawRoundRect(window, radius, radius, paint);
         paint.clearShadowLayer();
 
+        int fillAlpha = Math.round(UiGlass.panelAlpha(blur, true) * clamp01(userOpacity));
         paint.reset();
         paint.setAntiAlias(true);
-        paint.setColor(UiTokens.BG_WINDOW);
+        paint.setColor(UiTokens.withAlpha(UiTokens.BG_WINDOW, fillAlpha));
         c.drawRoundRect(window, radius, radius, paint);
 
         RectF bar = titleBar(window, density);
-        paint.setColor(UiTokens.BG_TITLEBAR);
+        paint.setColor(UiTokens.withAlpha(UiTokens.BG_TITLEBAR, fillAlpha));
         c.drawRoundRect(new RectF(bar.left, bar.top, bar.right, bar.bottom), radius, radius, paint);
         UiDraw.divider(c, paint, window.left, bar.bottom, window.right, Math.max(1f, density),
                 UiTokens.STROKE_HAIRLINE);
         UiDraw.hairline(c, paint, window.left, window.top, window.right, window.bottom, radius,
                 Math.max(1f, density), UiTokens.STROKE_HAIRLINE);
+    }
+
+    private static float clamp01(float value) {
+        return Math.max(0f, Math.min(1f, value));
     }
 }
