@@ -1,39 +1,123 @@
 {
   "schemaVersion": 1,
-  "headline": "GlowberryClient — Crash Fix & Native Mod Restore",
-  "summary": "The startup crash from the preloader's memory allocator is fixed, and every inbuilt mod — Gyro, Zoom, FPS, AutoSprint and the rest — loads and runs again.",
+  "headline": "GlowberryClient BETA3 — Module Data Fixes, Blueberry UI & Native Route Cleanup",
+  "summary": "The module catalogue entries that were disabled, or enabled but doing nothing, purely because they were refused for lack of a live native game feed now work wherever this build actually has a route to their data. Every entry is classified by the route it needs, and only the entries that genuinely require a feed this build does not expose stay badged, with the reason they are badged.",
   "sections": [
     {
-      "title": "Crash Fix",
+      "title": "Module Catalogue — Phase A: device input and launcher state (no game data needed)",
       "items": [
         {
-          "text": "Fixed a startup crash caused by the preloader replacing malloc/free with an allocator that cannot free memory it did not allocate.",
+          "text": "HUD readouts: clock, keystrokes, memory, watermark, combo, death counter, K/D tracker, streak tracker, kill counter.",
           "url": ""
         },
         {
-          "text": "The process now keeps the system allocator, which is what the Optifine \"Allocator\" toggle requested in the first place.",
+          "text": "Actions: drop all, chat macro, command bind, auto GG, auto tip.",
+          "url": ""
+        },
+        {
+          "text": "Input-driven cooldown readouts: attack cooldown, attack indicator, crit timer, pearl timer, gapple timer, shield timer, hit marker.",
+          "url": ""
+        },
+        {
+          "text": "Sprint helpers: no sprint reset, sprint swing, keep sprint.",
           "url": ""
         }
       ]
     },
     {
-      "title": "Inbuilt Mods Restored",
+      "title": "Module Catalogue — Phase B: the game options file",
       "items": [
         {
-          "text": "Restored the native hook entry point the bundled inbuilt-mods library imports, so it loads instead of failing silently with no implementation.",
-          "url": ""
-        },
-        {
-          "text": "Gyro, Zoom, FPS, AutoSprint and the other inbuilt mods now load and run again.",
+          "text": "Bob off, fullbright (self and world), particle off, sprint particles, FOV boost. Each writes the instance's options file, applied on the next game load.",
           "url": ""
         }
       ]
     },
     {
-      "title": "Updated Preloader",
+      "title": "Module Catalogue — Phase C: the local-player feed",
       "items": [
         {
-          "text": "The bundled preloader is updated: no allocator interposition, and the older hook ABI is exported again so prebuilt mod libraries stay loadable.",
+          "text": "Coordinates, direction, compass, chunk borders, speedometer, health display, position display, speed display, velocity display, fall damage warning, waypoints, death waypoint.",
+          "url": ""
+        }
+      ]
+    },
+    {
+      "title": "Module Catalogue — Phase D: the peer feed",
+      "items": [
+        {
+          "text": "Reach circle, target HUD and target info, from the proximity-voice peer feed (needs no game hook).",
+          "url": ""
+        }
+      ]
+    },
+    {
+      "title": "Module Catalogue — Phases E and F: honestly badged, not faked",
+      "items": [
+        {
+          "text": "Engine/render hooks are not reachable on the shipped builds: the game exposes no entity, block, inventory or effect feed to a mod. These stay badged with the reason, instead of showing a fabricated reading.",
+          "url": ""
+        },
+        {
+          "text": "Server-decided or ban-risk behaviour (reach, knockback, crits, TPS, inventory automation) is not shipped on purpose and is badged with the note that says which.",
+          "url": ""
+        }
+      ]
+    },
+    {
+      "title": "Native route cleanup (this build)",
+      "items": [
+        {
+          "text": "Retired the raw OpenGL ES mesh rasteriser, which cannot draw on a Vulkan-only RenderDragon build, along with its draw self-test cube and mesh draw counter.",
+          "url": ""
+        },
+        {
+          "text": "Capes reach the game through the engine's own texture loader, so a cape appears with no resource pack, no world reload and no GL renderer.",
+          "url": ""
+        },
+        {
+          "text": "Accessories and pets reach the game through the client's native player-render hook; where that hook is not live the panel says the piece is preview-only instead of implying it is drawn.",
+          "url": ""
+        },
+        {
+          "text": "Cosmetics diagnostics now report the route that is actually live (cape engine texture route, engine image pipeline, player-render hook) and name the first failing stage, rather than a GLES draw count.",
+          "url": ""
+        }
+      ]
+    },
+    {
+      "title": "Also in this release (everything since OV.2)",
+      "items": [
+        {
+          "text": "Cosmetics: capes, pets and hats reach the game across versions; native render pipeline, authored Blockbench mesh support, per-piece textures and the in-app cosmetics diagnostics.",
+          "url": ""
+        },
+        {
+          "text": "Cosmetics plan phases 0-6: rules revision and version coverage, honest skin identity, the cape engine texture swap, hand-designed capes, pet asset measurement and the big-server skin finding.",
+          "url": ""
+        },
+        {
+          "text": "Plan phases 7-13: a real F3-style debug readout, Closet icon sections with standalone previews, the replay transport, an alphabetised Mod Menu, the Launch tab revamp, a controller cursor with connection toasts, and every emoji icon removed.",
+          "url": ""
+        },
+        {
+          "text": "Software rasteriser preview (character, pet, cape, accessories) with golden-image tests.",
+          "url": ""
+        },
+        {
+          "text": "Blueberry UI: shared design tokens and a component library, restyled Mod Menus, radial wheel, Closet and Launch tab; blue is the default accent.",
+          "url": ""
+        },
+        {
+          "text": "Real Minecraft skin shown from the engine-hook seam, with the XUID-based account skin resolver enabled after a Microsoft sign-in.",
+          "url": ""
+        },
+        {
+          "text": "FPS modules trimmed to the seven options that work; the radial hub head follows the cursor; the cursor disc is replaced with a clean pointer arrow.",
+          "url": ""
+        },
+        {
+          "text": "Signature rules revision 7: fresh pause/HUD hooks for 1.26.30-1.26.52.",
           "url": ""
         }
       ]
