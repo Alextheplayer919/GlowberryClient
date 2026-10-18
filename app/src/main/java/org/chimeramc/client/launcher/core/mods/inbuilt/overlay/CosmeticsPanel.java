@@ -911,16 +911,17 @@ public final class CosmeticsPanel {
     private void refreshGameStatus() {
         if (gameStatus == null) return;
         try {
-            switch (NativeCosmeticsFeed.renderState()) {
-                case ACTIVE:
-                    gameStatus.setText(R.string.cosmetics_native_active);
-                    break;
-                case HOOK_ONLY:
-                    gameStatus.setText(R.string.cosmetics_native_hook_only);
-                    break;
-                default:
-                    gameStatus.setText(R.string.cosmetics_native_inactive);
-                    break;
+            // A cosmetic reaches the game through the engine's own texture/image pipeline (the cape
+            // texture swap) or the native player-render hook. The GLES mesh rasteriser is retired, so
+            // "active" means one of those routes is live — not that a mesh was drawn.
+            boolean capeLive = NativeCosmeticsFeed.isCapeEngineRouteLive();
+            boolean hookLive = NativeCosmeticsFeed.isNativeRenderLive();
+            if (capeLive && hookLive) {
+                gameStatus.setText(R.string.cosmetics_native_active);
+            } else if (capeLive) {
+                gameStatus.setText(R.string.cosmetics_native_cape_only);
+            } else {
+                gameStatus.setText(R.string.cosmetics_native_inactive);
             }
         } catch (Throwable t) {
             gameStatus.setText(R.string.cosmetics_native_inactive);

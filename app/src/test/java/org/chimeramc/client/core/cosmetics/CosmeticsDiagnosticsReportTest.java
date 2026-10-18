@@ -26,15 +26,14 @@ public class CosmeticsDiagnosticsReportTest {
         in.eglContextCurrent = true;
         in.hookInstalled = true;
         in.framesSeen = 120;
-        in.rendererDrawable = true;
-        in.drawsThisSession = 5;
+        in.capeEngineRouteLive = true;
+        in.imagePipelineLive = true;
         in.lastError = 0;
         in.geometryBytes = 2048;
         in.pieceAtlasMask = 0b011;
         in.capeOverrides = 1;
         in.textureOverrides = 2;
         in.timestampMs = 0;
-        in.lastDrawDecision = 0;
         in.localPlayerLive = true;
         in.localPlayerPosition = new float[] {10.5f, 64.0f, -3.25f, 90.0f, 12.5f};
         in.rulesSource = "bundled";
@@ -54,7 +53,7 @@ public class CosmeticsDiagnosticsReportTest {
     public void theReportNamesTheFirstFailingStage() {
         // Phase 0.3: the report must point at one broken link, not just the end result.
         String report = CosmeticsDiagnosticsReport.format(fullInputs());
-        assertTrue(report.contains("FIRST FAILING STAGE: none — the native render path completed"));
+        assertTrue(report.contains("FIRST FAILING STAGE: none — the cape reaches the game"));
 
         CosmeticsDiagnosticsReport.Inputs noLib = fullInputs();
         noLib.nativeLoaded = false;
@@ -83,14 +82,6 @@ public class CosmeticsDiagnosticsReportTest {
         CosmeticsDiagnosticsReport.Inputs noHook = fullInputs();
         noHook.hookInstalled = false;
         assertTrue(CosmeticsDiagnosticsReport.firstFailingStage(noHook).startsWith("5. render slot"));
-
-        CosmeticsDiagnosticsReport.Inputs notDrawable = fullInputs();
-        notDrawable.rendererDrawable = false;
-        assertTrue(CosmeticsDiagnosticsReport.firstFailingStage(notDrawable).startsWith("6. draw surface"));
-
-        CosmeticsDiagnosticsReport.Inputs noDraw = fullInputs();
-        noDraw.drawsThisSession = 0;
-        assertTrue(CosmeticsDiagnosticsReport.firstFailingStage(noDraw).contains("no cosmetic mesh has been drawn"));
     }
 
     @Test
@@ -111,10 +102,10 @@ public class CosmeticsDiagnosticsReportTest {
         assertTrue(report.contains("resolved by render-diagnostic string scan"));
         assertTrue(report.contains("Hook installed: yes"));
         assertTrue(report.contains("Frames seen: 120"));
-        assertTrue(report.contains("Renderer drawable: yes"));
+        assertTrue(report.contains("Cape engine texture route: yes"));
+        assertTrue(report.contains("Engine image pipeline live: yes"));
         assertTrue(report.contains("GL backend: GLES"));
         assertTrue(report.contains("EGL context current: yes"));
-        assertTrue(report.contains("Successful draws this session: 5"));
         assertTrue(report.contains("Published geometry bytes: 2048"));
         assertTrue(report.contains("Piece atlases: cape hat"));
         assertTrue(report.contains("published under key: \"local\""));
@@ -133,7 +124,6 @@ public class CosmeticsDiagnosticsReportTest {
         assertTrue(report.contains("libpreloader.so copies mapped: 1"));
         assertTrue(report.contains("Local player feed: live x=10.50 y=64.00 z=-3.25"));
         assertTrue(report.contains("Camera anchor source: engine view-projection"));
-        assertTrue(report.contains("Last draw decision: draw"));
     }
 
     @Test
@@ -154,10 +144,9 @@ public class CosmeticsDiagnosticsReportTest {
 
     @Test
     public void aSkipDrawDecisionIsNamed() {
-        CosmeticsDiagnosticsReport.Inputs in = fullInputs();
-        in.lastDrawDecision = 4;
-        assertTrue(CosmeticsDiagnosticsReport.format(in)
-                .contains("Last draw decision: skip: no published geometry"));
+        // The GLES rasteriser is retired; the draw-decision field is gone from the report.
+        String report = CosmeticsDiagnosticsReport.format(fullInputs());
+        assertFalse(report.contains("Last draw decision"));
     }
 
     @Test
@@ -199,14 +188,14 @@ public class CosmeticsDiagnosticsReportTest {
 
     @Test
     public void theStatusLineRequiresAnActualDrawToClaimActive() {
-        // Hook live and drawable but nothing drawn yet: NOT active.
+        // The cape engine route is the cape's live route; with it live the status says so.
         CosmeticsDiagnosticsReport.Inputs in = fullInputs();
-        in.drawsThisSession = 0;
-        assertTrue(CosmeticsDiagnosticsReport.statusText(in).contains("no cosmetic mesh has been drawn"));
+        assertTrue(CosmeticsDiagnosticsReport.statusText(in).contains("cape active through the engine texture loader"));
 
-        // A real draw: active.
-        in.drawsThisSession = 3;
-        assertTrue(CosmeticsDiagnosticsReport.statusText(in).contains("native renderer active"));
+        // Hook live but the cape route not yet observed: not "active".
+        CosmeticsDiagnosticsReport.Inputs noCape = fullInputs();
+        noCape.capeEngineRouteLive = false;
+        assertTrue(CosmeticsDiagnosticsReport.statusText(noCape).contains("has not observed a loaded cape texture"));
     }
 
     @Test
@@ -214,13 +203,10 @@ public class CosmeticsDiagnosticsReportTest {
         CosmeticsDiagnosticsReport.Inputs noLib = new CosmeticsDiagnosticsReport.Inputs();
         assertTrue(CosmeticsDiagnosticsReport.statusText(noLib).contains("native library not loaded"));
 
-        CosmeticsDiagnosticsReport.Inputs noHook = fullInputs();
-        noHook.hookInstalled = false;
-        assertTrue(CosmeticsDiagnosticsReport.statusText(noHook).contains("render hook not installed"));
-
-        CosmeticsDiagnosticsReport.Inputs notDrawable = fullInputs();
-        notDrawable.rendererDrawable = false;
-        assertTrue(CosmeticsDiagnosticsReport.statusText(notDrawable).contains("draw surface is unavailable"));
+        CosmeticsDiagnosticsReport.Inputs noHookNoCape = fullInputs();
+        noHookNoCape.hookInstalled = false;
+        noHookNoCape.capeEngineRouteLive = false;
+        assertTrue(CosmeticsDiagnosticsReport.statusText(noHookNoCape).contains("preview-only"));
     }
 
     @Test

@@ -152,16 +152,6 @@ public class PreloaderInput {
     public static native boolean nativeIsCosmeticsHookLive();
 
     /**
-     * True only when the native renderer can actually rasterise: the player-render hook is live
-     * <em>and</em> the GLES draw surface resolved. Distinct from the hook merely firing — a
-     * Vulkan-only build fires the hook but cannot draw.
-     */
-    public static native boolean nativeIsRendererDrawable();
-
-    /** The number of native mesh draw attempts so far this session (0 when unavailable). */
-    public static native int nativeCosmeticDrawCount();
-
-    /**
      * Sets one local cosmetic piece's texture: 0 cape, 1 hat, 2 pet. A null array clears the slot.
      * Keyed by role, not catalogue id, so the hat and pet do not share the cape's artwork.
      */
@@ -226,7 +216,9 @@ public class PreloaderInput {
      * lastError, geometryBytes, pieceAtlasMask, lastDrawDecision, localPlayerLive, rulesRevision,
      * rulesMergeConflicts, rulesHaveRenderIndex, rulesLoadAttempted, preloaderModuleMappings,
      * trianglesDrawn}. All entries are -1 when the native library is absent. Never fabricates a
-     * reading: an unresolved slot or a missing GLES surface is reported as such.
+     * reading: an unresolved slot or a missing GLES surface is reported as such. The last two
+     * entries (lastDrawDecision, trianglesDrawn) belong to the retired GLES rasteriser and now
+     * always read -1; the array shape is kept so an older report reader still parses it.
      */
     public static native int[] nativeReadRenderDiagnostics();
 
@@ -242,15 +234,6 @@ public class PreloaderInput {
      * resolved engine camera.
      */
     public static native int nativeCameraAnchorSource();
-
-    /**
-     * Arms the debug draw: the native renderer draws one bright cube above the local player's head
-     * every frame. For proving the draw path on a device; unverified on device.
-     */
-    public static native void nativeSetCosmeticDebugCube(boolean enabled);
-
-    /** True when the debug cube is armed. */
-    public static native boolean nativeIsDebugCubeEnabled();
 
     /**
      * Samples the native cape chain: {@code {lean1, sway1, lean2, sway2, ...}} in degrees for
@@ -614,30 +597,6 @@ public class PreloaderInput {
         }
     }
 
-    /**
-     * True only when the native renderer can actually rasterise cosmetics.
-     *
-     * <p>An older preloader library predates this symbol; the {@link UnsatisfiedLinkError} catch
-     * falls back to {@link #isCosmeticsHookLive()} so the status line still reports the hook, not a
-     * false "cannot draw".
-     */
-    public static boolean isRendererDrawable() {
-        try {
-            return nativeIsRendererDrawable();
-        } catch (UnsatisfiedLinkError e) {
-            return isCosmeticsHookLive();
-        }
-    }
-
-    /** Native mesh draw count, or 0 when the symbol is absent. */
-    public static int cosmeticDrawCount() {
-        try {
-            return nativeCosmeticDrawCount();
-        } catch (UnsatisfiedLinkError e) {
-            return 0;
-        }
-    }
-
     /** Sets one local piece's texture (0 cape, 1 hat, 2 pet); no-op on a build without the symbol. */
     public static void setPieceAtlas(int piece, byte[] rgba, int width, int height) {
         try {
@@ -704,23 +663,6 @@ public class PreloaderInput {
             return nativeCameraAnchorSource();
         } catch (UnsatisfiedLinkError e) {
             return -1;
-        }
-    }
-
-    /** Arms/disarms the debug draw cube; a no-op on a build without the symbol. */
-    public static void setCosmeticDebugCube(boolean enabled) {
-        try {
-            nativeSetCosmeticDebugCube(enabled);
-        } catch (UnsatisfiedLinkError ignored) {
-        }
-    }
-
-    /** True when the debug cube is armed; false on a build without the symbol. */
-    public static boolean isDebugCubeEnabled() {
-        try {
-            return nativeIsDebugCubeEnabled();
-        } catch (UnsatisfiedLinkError e) {
-            return false;
         }
     }
 

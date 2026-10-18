@@ -50,8 +50,10 @@ public final class CosmeticsDiagnosticsReport {
         public boolean hookInstallPending;
         /** Render ticks seen this session, or -1 when the renderer has not run. */
         public int framesSeen = -1;
-        public boolean rendererDrawable;
-        public int drawsThisSession;
+        /** Whether the cape's engine texture route is live this session (the cape's live route). */
+        public boolean capeEngineRouteLive;
+        /** Whether the engine image-loader pipeline observed a texture upload this session. */
+        public boolean imagePipelineLive;
         public int lastError;
         /** Bytes of published render geometry, or -1 when none. */
         public int geometryBytes = -1;
@@ -60,9 +62,6 @@ public final class CosmeticsDiagnosticsReport {
         public int capeOverrides;
         public int textureOverrides;
         public String localKeyId = NativeCosmeticsBridge.LOCAL_PLAYER_ID;
-        public boolean debugCubeArmed;
-        /** The last render call's draw decision (0 draw; else the gate that skipped), or -1 unknown. */
-        public int lastDrawDecision = -1;
         /** Whether the local-player position feed produced a reading this frame. */
         public boolean localPlayerLive;
         /** The effective hook rule's resolved fields (which slots the running build used). */
@@ -77,8 +76,6 @@ public final class CosmeticsDiagnosticsReport {
         public boolean rulesLoadAttempted;
         /** How many copies of libpreloader.so are mapped; >1 means a split, empty registry. */
         public int preloaderModuleMappings = -1;
-        /** Triangles the renderer has submitted this session, or -1 when unknown. */
-        public int trianglesDrawn = -1;
         /** The deferred hook-install state: 0 not armed, 1 waiting, 2 resolved. */
         public int hookInstallState;
         /** Frame ticks the install gate observed before deciding. */
@@ -137,14 +134,12 @@ public final class CosmeticsDiagnosticsReport {
             in.geometryBytes = diag[7];
             in.pieceAtlasMask = diag[8];
             if (diag.length >= 17) {
-                in.lastDrawDecision = diag[9];
                 in.localPlayerLive = diag[10] == 1;
                 in.rulesRevision = diag[11];
                 in.rulesMergeConflicts = diag[12];
                 in.rulesHaveRenderIndex = diag[13] == 1;
                 in.rulesLoadAttempted = diag[14] == 1;
                 in.preloaderModuleMappings = diag[15];
-                in.trianglesDrawn = diag[16];
             }
         }
         in.cameraAnchorSource = PreloaderInput.cameraAnchorSource();
@@ -170,14 +165,13 @@ public final class CosmeticsDiagnosticsReport {
                     .getRulesSource(context);
         } catch (Throwable ignored) {
         }
-        in.rendererDrawable = NativeCosmeticsFeed.isRendererDrawable();
-        in.drawsThisSession = NativeCosmeticsFeed.drawCount();
+        in.capeEngineRouteLive = NativeCosmeticsFeed.isCapeEngineRouteLive();
+        in.imagePipelineLive = NativeCosmeticsBridge.isImagePipelineLive();
         try {
             in.hookInstallPending =
                     org.chimeramc.client.core.mods.ModManager.isGameHookInstallPending();
         } catch (Throwable ignored) {
         }
-        in.debugCubeArmed = PreloaderInput.isDebugCubeEnabled();
         try {
             in.sessionActive =
                     org.chimeramc.client.settings.LowLatencyNetworkManager.isGameSessionActive();
@@ -292,12 +286,10 @@ public final class CosmeticsDiagnosticsReport {
         b.append("Frames seen: ").append(countText(v.framesSeen)).append('\n');
         b.append("Local player feed: ").append(localPlayerText(v)).append('\n');
         b.append("Camera anchor source: ").append(cameraText(v)).append('\n');
-        b.append("Last draw decision: ").append(drawDecisionText(v.lastDrawDecision)).append('\n');
-        b.append("Renderer drawable: ").append(yesNo(v.rendererDrawable)).append('\n');
+        b.append("Cape engine texture route: ").append(yesNo(v.capeEngineRouteLive)).append('\n');
+        b.append("Engine image pipeline live: ").append(yesNo(v.imagePipelineLive)).append('\n');
         b.append("GL backend: ").append(backendText(v.glBackend)).append('\n');
         b.append("EGL context current: ").append(yesNo(v.eglContextCurrent)).append('\n');
-        b.append("Successful draws this session: ").append(v.drawsThisSession).append('\n');
-        b.append("Triangles drawn this session: ").append(countText(v.trianglesDrawn)).append('\n');
         b.append("Last GL error: ").append(errorText(v.lastError)).append('\n');
         b.append('\n');
 
@@ -306,7 +298,6 @@ public final class CosmeticsDiagnosticsReport {
         b.append("Cape overrides: ").append(v.capeOverrides).append('\n');
         b.append("Texture overrides: ").append(v.textureOverrides).append('\n');
         b.append("Local cosmetics published under key: \"").append(v.localKeyId).append("\"\n");
-        b.append("Debug cube armed: ").append(yesNo(v.debugCubeArmed)).append('\n');
         b.append("Game-skin feed installed: ").append(yesNo(v.skinFeedInstalled)).append('\n');
         b.append("Base skin captured from game: ").append(yesNo(v.skinCaptured)).append('\n');
         b.append('\n');
@@ -435,34 +426,23 @@ public final class CosmeticsDiagnosticsReport {
                 : "first-person fallback (engine camera did not resolve)";
     }
 
-    private static String drawDecisionText(int decision) {
-        switch (decision) {
-            case -1: return "unknown";
-            case 0: return "draw";
-            case 1: return "skip: nothing equipped (and the debug cube is off)";
-            case 2: return "skip: no published frame";
-            case 3: return "skip: no live local player";
-            case 4: return "skip: no published geometry";
-            default: return "unknown (" + decision + ")";
-        }
-    }
-
     /** The honest status line, matching the rule the Cosmetics panel uses. */
     static String statusText(Inputs v) {
         if (!v.nativeLoaded) {
             return "native library not loaded — cosmetics are preview-only.";
         }
-        if (!v.hookInstalled) {
-            return "render hook not installed this session — cosmetics are preview-only.";
+        if (v.capeEngineRouteLive) {
+            return "cape active through the engine texture loader"
+                    + (v.imagePipelineLive ? " (image pipeline live)" : "")
+                    + (v.hookInstalled ? "; accessories and pets reach the game through the native "
+                            + "player-render hook." : "; accessories and pets need the native "
+                            + "player-render hook, which is not live this session.");
         }
-        if (!v.rendererDrawable) {
-            return "hook active but the draw surface is unavailable on this build — cosmetics are "
-                    + "preview-only.";
+        if (v.hookInstalled) {
+            return "native player-render hook live; the cape's engine texture route has not "
+                    + "observed a loaded cape texture yet this session.";
         }
-        if (v.drawsThisSession <= 0) {
-            return "hook active and drawable, but no cosmetic mesh has been drawn yet this session.";
-        }
-        return "native renderer active (" + v.drawsThisSession + " draw(s) this session).";
+        return "render hook not installed and no cape texture observed — cosmetics are preview-only.";
     }
 
     /**
@@ -503,14 +483,10 @@ public final class CosmeticsDiagnosticsReport {
             return "5. render slot — the install ran but the render hook is not live; the slot did"
                     + " not resolve to an executable address on this build.";
         }
-        if (!v.rendererDrawable) {
-            return "6. draw surface — the hook is live but the draw surface is unavailable on this"
-                    + " backend/build.";
+        if (v.capeEngineRouteLive) {
+            return "none — the cape reaches the game through the engine texture loader this session.";
         }
-        if (v.drawsThisSession <= 0) {
-            return "none reached a draw — every stage up to the renderer is live; no cosmetic mesh"
-                    + " has been drawn yet (equip a cosmetic and enter a world).";
-        }
-        return "none — the native render path completed a draw this session.";
+        return "none blocking — the render hook is live; the cape's engine texture route fires once"
+                + " the engine has loaded your cape texture this session.";
     }
 }

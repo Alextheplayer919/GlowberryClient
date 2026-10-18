@@ -90,11 +90,9 @@ public final class RenderDebugOverlay {
             v.renderSlot = in.renderSlot;
             v.hookInstalled = in.hookInstalled;
             v.framesSeen = in.framesSeen;
-            v.rendererDrawable = in.rendererDrawable;
+            v.capeEngineRouteLive = in.capeEngineRouteLive;
             v.glBackend = in.glBackend;
             v.eglContextCurrent = in.eglContextCurrent;
-            v.drawsThisSession = in.drawsThisSession;
-            v.lastError = in.lastError;
             v.geometryBytes = in.geometryBytes;
             v.pieceAtlasMask = in.pieceAtlasMask;
             List<String> lines = RenderDebugLines.lines(v);

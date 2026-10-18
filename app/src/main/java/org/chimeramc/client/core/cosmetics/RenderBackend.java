@@ -10,9 +10,10 @@ package org.chimeramc.client.core.cosmetics;
  * could drift. This is that single classification, and it is pure so the wording and the
  * "can we draw" answer are pinned without a device.
  *
- * <p>The reading is {@link #fromNativeCode} of the native {@code GlBackend} value. The native
- * {@code isRendererDrawable} flag remains the authority for whether a draw can happen; this class
- * only says what the backend is and how to describe it.
+ * <p>The reading is {@link #fromNativeCode} of the native {@code GlBackend} value. A cosmetic no
+ * longer reaches the game through a GLES draw — it goes through the engine's own texture/image
+ * pipeline, which does not need a GLES surface — so the backend is informational only and no longer
+ * decides whether a cosmetic can be drawn.
  */
 public final class RenderBackend {
 
@@ -49,21 +50,5 @@ public final class RenderBackend {
             case VULKAN: return "Vulkan (GLES unavailable)";
             default: return "unknown";
         }
-    }
-
-    /**
-     * True when the native renderer can rasterise on this backend.
-     *
-     * <p>Only {@link Kind#GLES} can. A Vulkan-only build fires the render hook but has no GLES entry
-     * points, so a module must treat it as "preview only" rather than attempting a legacy GLES draw
-     * (which is the mismatch that crashed modules before the GLES table was resolved dynamically).
-     */
-    public static boolean canRasterise(Kind kind) {
-        return kind == Kind.GLES;
-    }
-
-    /** True when the backend is a Vulkan-only build (the case the status wording must call out). */
-    public static boolean isVulkanOnly(Kind kind) {
-        return kind == Kind.VULKAN;
     }
 }

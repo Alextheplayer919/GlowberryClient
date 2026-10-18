@@ -22,11 +22,9 @@ public final class RenderDebugLines {
         public int renderSlot = -1;
         public boolean hookInstalled;
         public int framesSeen = -1;
-        public boolean rendererDrawable;
+        public boolean capeEngineRouteLive;
         public int glBackend;
         public boolean eglContextCurrent;
-        public int drawsThisSession;
-        public int lastError;
         public int geometryBytes = -1;
         public int pieceAtlasMask = -1;
     }
@@ -39,11 +37,9 @@ public final class RenderDebugLines {
         out.add("slot: " + (val.renderSlot < 0 ? "unknown" : String.valueOf(val.renderSlot)));
         out.add("hook: " + yesNo(val.hookInstalled));
         out.add("frames: " + count(val.framesSeen));
-        out.add("drawable: " + yesNo(val.rendererDrawable));
+        out.add("cape route: " + yesNo(val.capeEngineRouteLive));
         out.add("GL: " + backend(val.glBackend));
         out.add("EGL: " + yesNo(val.eglContextCurrent));
-        out.add("draws: " + val.drawsThisSession);
-        out.add("GL error: " + (val.lastError <= 0 ? "none" : "0x" + Integer.toHexString(val.lastError)));
         out.add("geometry: " + count(val.geometryBytes) + " B");
         out.add("atlases: " + mask(val.pieceAtlasMask));
         out.add("3rd person: required");

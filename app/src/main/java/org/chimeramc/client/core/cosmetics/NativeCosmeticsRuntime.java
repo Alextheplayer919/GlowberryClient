@@ -62,21 +62,6 @@ public final class NativeCosmeticsRuntime {
         } catch (Throwable ignored) {
         }
         syncEquipped(context);
-        applyDebugCubePreference(context);
-    }
-
-    /**
-     * Applies the persisted debug-cube preference to the native renderer, so a session that starts
-     * with the toggle already on draws the cube without the player re-toggling it.
-     */
-    private static void applyDebugCubePreference(Context context) {
-        try {
-            boolean enabled = org.chimeramc.client.core.mods.inbuilt.manager.InbuiltModManager
-                    .getInstance(context).isCosmeticDebugCubeEnabled();
-            PreloaderInput.setCosmeticDebugCube(enabled);
-        } catch (Throwable ignored) {
-            // A build without the native symbol simply never draws it.
-        }
     }
 
     /**

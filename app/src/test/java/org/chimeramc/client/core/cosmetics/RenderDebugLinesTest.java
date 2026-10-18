@@ -39,19 +39,17 @@ public class RenderDebugLinesTest {
         v.renderSlot = 17;
         v.hookInstalled = true;
         v.framesSeen = 120;
-        v.rendererDrawable = true;
+        v.capeEngineRouteLive = true;
         v.glBackend = 1;
         v.eglContextCurrent = true;
-        v.drawsThisSession = 5;
         v.pieceAtlasMask = 0b011;
         List<String> lines = RenderDebugLines.lines(v);
         String joined = String.join("\n", lines);
         assertTrue(joined.contains("native: yes"));
         assertTrue(joined.contains("slot: 17"));
         assertTrue(joined.contains("frames: 120"));
-        assertTrue(joined.contains("drawable: yes"));
+        assertTrue(joined.contains("cape route: yes"));
         assertTrue(joined.contains("GL: GLES"));
-        assertTrue(joined.contains("draws: 5"));
         assertTrue(joined.contains("atlases: cape hat"));
     }
 

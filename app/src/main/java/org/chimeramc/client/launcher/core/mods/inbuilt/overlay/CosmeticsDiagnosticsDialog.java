@@ -75,28 +75,9 @@ final class CosmeticsDiagnosticsDialog {
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
         root.addView(scroller, scrollerParams);
 
-        // The debug-cube toggle: a diagnostic instrument, off by default.
-        final CheckBox debugCube = new CheckBox(activity);
-        debugCube.setText(R.string.cosmetics_diagnostics_debug_cube);
-        debugCube.setTextColor(TEXT_PRIMARY);
-        debugCube.setTextSize(13f);
-        debugCube.setPadding(0, dp(activity, 8), 0, 0);
-        InbuiltModManager manager = InbuiltModManager.getInstance(activity);
-        debugCube.setChecked(manager.isCosmeticDebugCubeEnabled());
-        debugCube.setOnCheckedChangeListener((button, checked) -> {
-            manager.setCosmeticDebugCubeEnabled(checked);
-            reportView.setText(CosmeticsDiagnosticsReport.readLive(activity));
-        });
-        root.addView(debugCube);
-
-        TextView cubeNote = new TextView(activity);
-        cubeNote.setText(R.string.cosmetics_diagnostics_debug_cube_note);
-        cubeNote.setTextSize(11f);
-        cubeNote.setTextColor(TEXT_SECONDARY);
-        root.addView(cubeNote);
-
         // The live render debug overlay toggle: prints the native draw values on screen (refreshed
         // once a second) so the draw path can be watched in third person without leaving the game.
+        InbuiltModManager manager = InbuiltModManager.getInstance(activity);
         final CheckBox renderDebug = new CheckBox(activity);
         renderDebug.setText(R.string.cosmetics_diagnostics_live_overlay);
         renderDebug.setTextColor(TEXT_PRIMARY);

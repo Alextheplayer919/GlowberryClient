@@ -113,7 +113,6 @@ public class InbuiltModManager {
     /** Whether the equipped cape/accessory/pet is advertised to other Chimera users in the world. */
     private static final String KEY_COSMETIC_SYNC_ENABLED = "cosmetic_sync_enabled";
     private static final String KEY_COSMETIC_VFX_ENABLED = "cosmetic_vfx_enabled";
-    private static final String KEY_COSMETIC_DEBUG_CUBE = "cosmetic_debug_cube";
     private static final String KEY_RENDER_DEBUG_OVERLAY = "render_debug_overlay";
     private static final String KEY_COSMETIC_MANUAL_PEER = "cosmetic_sync_manual_peer";
     private static final String KEY_COSMETIC_CLOUD_TOPIC = "cosmetic_sync_cloud_topic";
@@ -1064,26 +1063,6 @@ public class InbuiltModManager {
 
     public void setCosmeticVfxEnabled(boolean enabled) {
         prefs.edit().putBoolean(KEY_COSMETIC_VFX_ENABLED, enabled).apply();
-    }
-
-    /**
-     * Whether the native renderer draws one bright debug cube above the local player's head.
-     *
-     * <p>A diagnostic aid for proving the draw path on a device: it draws even with nothing
-     * equipped, so a screenshot either shows the cube (the path works) or does not (it does not).
-     * Off by default, and whether it appears in game is unverified on device.
-     */
-    public boolean isCosmeticDebugCubeEnabled() {
-        return prefs.getBoolean(KEY_COSMETIC_DEBUG_CUBE, false);
-    }
-
-    public void setCosmeticDebugCubeEnabled(boolean enabled) {
-        prefs.edit().putBoolean(KEY_COSMETIC_DEBUG_CUBE, enabled).apply();
-        try {
-            org.chimeramc.client.preloader.PreloaderInput.setCosmeticDebugCube(enabled);
-        } catch (Throwable ignored) {
-            // A build without the native symbol simply never draws it.
-        }
     }
 
     /**

@@ -89,57 +89,10 @@ public final class NativeCosmeticsFeed {
     }
 
     /**
-     * Whether the native renderer can actually rasterise cosmetics this session.
-     *
-     * <p>Distinct from {@link #isNativeRenderLive()}: the hook firing only proves the render seam is
-     * installed, not that a GLES draw surface exists. A Vulkan-only RenderDragon build fires the
-     * hook and cannot draw, so the status must not report "drawn" on the hook alone.
-     */
-    public static boolean isRendererDrawable() {
-        return PreloaderInput.isRendererDrawable();
-    }
-
-    /** The number of native mesh draw attempts so far this session. */
-    public static int drawCount() {
-        return PreloaderInput.cosmeticDrawCount();
-    }
-
-    /**
-     * The three honest states of the native render path, so the UI can say which one applies.
-     *
-     * <p>Distinguishing {@link #HOOK_ONLY} from {@link #ACTIVE} is the point: a live hook with a
-     * drawable surface proves only that the seam is installed, not that any cosmetic reached the
-     * screen. Saying "drawn on your character in game" on the hook alone is the over-claim this
-     * fixes — the status must require at least one successful draw this session.
-     */
-    public enum RenderState {
-        /** No native library, no hook, or no drawable surface. */
-        INACTIVE,
-        /** Hook live and drawable, but no cosmetic mesh has been drawn yet this session. */
-        HOOK_ONLY,
-        /** Hook live, drawable, and at least one mesh drawn this session. */
-        ACTIVE,
-    }
-
-    /** Classifies the current state from the native feed. */
-    public static RenderState renderState() {
-        if (!isNativeRenderLive() || !isRendererDrawable()) return RenderState.INACTIVE;
-        return drawCount() > 0 ? RenderState.ACTIVE : RenderState.HOOK_ONLY;
-    }
-
-    /**
-     * True only when cosmetics can honestly be described as drawn in game this session: the hook is
-     * live, the surface is drawable, and at least one mesh was actually drawn.
-     */
-    public static boolean isCosmeticsActiveThisSession() {
-        return renderState() == RenderState.ACTIVE;
-    }
-
-    /**
      * Whether the cape's engine texture route is live this session.
      *
      * <p>The cape reaches the game as a texture swap at the engine's image loader, which does not
-     * need the GL renderer and so survives a Vulkan-only build. The route is live once the engine has
+     * need a GL renderer and so survives a Vulkan-only build. The route is live once the engine has
      * loaded the local player's cape once (so there is a capture to key on) and the launcher has
      * registered a substitution for it. Both halves are required: a capture with no substitution
      * changes nothing, and a substitution with no capture has nothing to match.
@@ -171,22 +124,6 @@ public final class NativeCosmeticsFeed {
         }
         return "Native renderer: active (" + status.renderTick + " ticks) — cape and pet motion "
                 + "is driven by the game's own render tick.";
-    }
-
-    /**
-     * A status line that also distinguishes "the hook fired" from "a mesh can actually be drawn".
-     *
-     * <p>The hook firing proves only that the render seam is installed; a Vulkan-only RenderDragon
-     * build fires it and cannot rasterise. This is the line the UI should show, so a player on such
-     * a build is told the cosmetics are preview-only instead of being told the renderer is active.
-     */
-    public static String describeWithDrawability(Status status) {
-        if (status != null && status.isNative() && !isRendererDrawable()) {
-            return "Native renderer: hook live (" + status.renderTick + " ticks) but the draw "
-                    + "surface is unavailable on this build, so meshes cannot be rasterised — "
-                    + "cosmetics show in this preview only.";
-        }
-        return describe(status);
     }
 
     /**
