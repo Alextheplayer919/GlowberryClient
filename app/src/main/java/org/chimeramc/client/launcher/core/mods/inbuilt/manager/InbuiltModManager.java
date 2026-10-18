@@ -191,6 +191,26 @@ public class InbuiltModManager {
         prefs.edit().putBoolean(KEY_MOD_CONFIG_PREFIX + key, value).apply();
     }
 
+    /** Reads a module config string value, or {@code fallback} when it was never stored. */
+    public String getModConfigString(String key, String fallback) {
+        return prefs.getString(KEY_MOD_CONFIG_PREFIX + key, fallback);
+    }
+
+    /** Stores a module config string value. */
+    public void setModConfigString(String key, String value) {
+        prefs.edit().putString(KEY_MOD_CONFIG_PREFIX + key, value).apply();
+    }
+
+    /** The saved chat macro the Chat Macro module types, or an empty string when unset. */
+    public String getCatalogChatMacro() {
+        return getModConfigString("catalog_chat_macro", "");
+    }
+
+    /** The saved command the Command Bind module runs, or an empty string when unset. */
+    public String getCatalogCommandBind() {
+        return getModConfigString("catalog_command_bind", "");
+    }
+
     public int getAutoSprintKeybind() {
         return prefs.getInt(KEY_AUTOSPRINT_KEY, KeyEvent.KEYCODE_CTRL_LEFT);
     }

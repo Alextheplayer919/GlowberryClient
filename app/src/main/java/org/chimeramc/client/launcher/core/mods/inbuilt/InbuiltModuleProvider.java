@@ -92,6 +92,8 @@ public final class InbuiltModuleProvider {
     private static final String CFG_HIT_PREDICTION_LOOKAHEAD = "hit_prediction_lookahead_ms";
     private static final String CFG_KILL_EFFECT_STYLE = "kill_effect_style";
     private static final String CFG_KILL_EFFECT_COLOR = "kill_effect_color";
+    private static final String CFG_CATALOG_CHAT_MACRO = "catalog_chat_macro";
+    private static final String CFG_CATALOG_COMMAND_BIND = "catalog_command_bind";
 
     private InbuiltModuleProvider() {
     }
@@ -256,7 +258,7 @@ public final class InbuiltModuleProvider {
             // A catalogue entry that duplicates an already-listed module by id is skipped; the menu
             // shows each shipped module once.
             if (entry.linksToExisting()) continue;
-            mods.add(new UnifiedMod(
+            UnifiedMod mod = new UnifiedMod(
                     entry.id,
                     entry.name,
                     entry.description,
@@ -265,13 +267,105 @@ public final class InbuiltModuleProvider {
                     overlayManager != null
                             ? overlayManager.isModActive(entry.id)
                             : manager.resolveInbuiltModEnabled(entry.id, false),
-                    new ArrayList<>(),
+                    createCatalogConfigs(activity, manager, entry.id),
                     false,
                     GROUP_PVP_ID,
                     pvpGroupName,
-                    (mod, enabled) -> setEnabled(manager, mod, enabled),
-                    (mod, config, value) -> setConfig(manager, mod, config, value)
-            ));
+                    (m, enabled) -> setEnabled(manager, m, enabled),
+                    (m, config, value) -> setConfig(manager, m, config, value)
+            );
+            mod.setLocalConfigSchema(createCatalogConfigSchema(activity, mod));
+            mods.add(mod);
+        }
+    }
+
+    /** A catalogue module's own options: macro text, or the readout's overlay appearance. */
+    private static List<UnifiedMod.ConfigEntry> createCatalogConfigs(Context context,
+                                                                     InbuiltModManager manager,
+                                                                     String modId) {
+        List<UnifiedMod.ConfigEntry> configs = new ArrayList<>();
+        if ("util_chat_macro".equals(modId)) {
+            configs.add(config(CFG_CATALOG_CHAT_MACRO,
+                    context.getString(R.string.catalog_macro_text),
+                    UnifiedMod.ConfigType.TEXT, "", "", "",
+                    manager.getCatalogChatMacro()));
+        } else if ("util_command_bind".equals(modId)) {
+            configs.add(config(CFG_CATALOG_COMMAND_BIND,
+                    context.getString(R.string.catalog_command_text),
+                    UnifiedMod.ConfigType.TEXT, "", "", "",
+                    manager.getCatalogCommandBind()));
+        }
+        if (org.chimeramc.client.core.mods.inbuilt.overlay.CatalogModuleHost
+                .isReadout(modId)) {
+            configs.add(config(CFG_OVERLAY_SIZE,
+                    context.getString(R.string.mod_config_overlay_button_size_dp),
+                    UnifiedMod.ConfigType.SLIDER_INT, "56", "20", "100",
+                    String.valueOf(manager.getOverlayButtonSize(modId))));
+            configs.add(config(CFG_OVERLAY_OPACITY,
+                    context.getString(R.string.mod_config_overlay_opacity_percent),
+                    UnifiedMod.ConfigType.SLIDER_INT, "100", "0", "100",
+                    String.valueOf(manager.getOverlayOpacity(modId))));
+            configs.add(config(CFG_OVERLAY_LOCK,
+                    context.getString(R.string.overlay_button_lock),
+                    UnifiedMod.ConfigType.TOGGLE, "false", "", "",
+                    String.valueOf(manager.isOverlayLocked(modId))));
+            configs.add(config(CFG_OVERLAY_SHOW_EVERYWHERE,
+                    context.getString(R.string.mod_config_overlay_show_everywhere),
+                    UnifiedMod.ConfigType.TOGGLE, "false", "", "",
+                    String.valueOf(manager.isOverlayShowEverywhere(modId))));
+        }
+        return configs;
+    }
+
+    /**
+     * A catalogue module's config dialog: its own content/display options plus a scope note that
+     * says which route the module uses, so a working module does not read as a roadmap stub.
+     */
+    private static RuntimeConfigSchema createCatalogConfigSchema(Context context, UnifiedMod mod) {
+        String modId = mod.getId();
+        try {
+            JSONArray categories = new JSONArray();
+            JSONArray nodes = new JSONArray();
+            boolean readout = org.chimeramc.client.core.mods.inbuilt.overlay
+                    .CatalogModuleHost.isReadout(modId);
+            categories.put(configCategory(context, "content", R.string.mod_config_category_behavior));
+            if (readout) {
+                categories.put(configCategory(context, "display", R.string.mod_config_category_appearance));
+            }
+            if ("util_chat_macro".equals(modId)) {
+                nodes.put(configNode(context, mod, CFG_CATALOG_CHAT_MACRO, "content"));
+            } else if ("util_command_bind".equals(modId)) {
+                nodes.put(configNode(context, mod, CFG_CATALOG_COMMAND_BIND, "content"));
+            }
+            if (readout) {
+                nodes.put(configNode(context, mod, CFG_OVERLAY_SIZE, "display"));
+                nodes.put(configNode(context, mod, CFG_OVERLAY_OPACITY, "display"));
+                nodes.put(configNode(context, mod, CFG_OVERLAY_LOCK, "display"));
+                nodes.put(configNode(context, mod, CFG_OVERLAY_SHOW_EVERYWHERE, "display"));
+            }
+            int noteRes = catalogScopeNoteRes(modId);
+            if (noteRes != 0) {
+                nodes.put(scopeNoteNode(context, mod, noteRes, "content"));
+            }
+            return RuntimeConfigSchema.parse(new JSONObject().put("version", 2)
+                    .put("default_category", "content")
+                    .put("categories", categories).put("nodes", nodes).toString());
+        } catch (JSONException e) {
+            throw new IllegalStateException("Unable to build catalogue config schema", e);
+        }
+    }
+
+    private static int catalogScopeNoteRes(String modId) {
+        switch (org.chimeramc.client.core.mods.inbuilt.catalog.PvpModuleScopes.scopeOf(modId)) {
+            case GAME_OPTIONS:
+                return R.string.catalog_options_scope_note;
+            case LOCAL_FEED:
+            case PEER_FEED:
+                return R.string.catalog_local_scope_note;
+            case DEVICE_INPUT:
+                return R.string.catalog_scope_note;
+            default:
+                return 0;
         }
     }
 
@@ -1227,6 +1321,12 @@ public final class InbuiltModuleProvider {
             return;
         }
         switch (config.key) {
+            case CFG_CATALOG_CHAT_MACRO:
+                manager.setModConfigString(CFG_CATALOG_CHAT_MACRO, value == null ? "" : value);
+                break;
+            case CFG_CATALOG_COMMAND_BIND:
+                manager.setModConfigString(CFG_CATALOG_COMMAND_BIND, value == null ? "" : value);
+                break;
             case CFG_OVERLAY_SIZE:
                 manager.setOverlayButtonSize(mod.getId(), parseInt(value, manager.getOverlayButtonSize(mod.getId())));
                 break;

@@ -51,6 +51,7 @@ public class InbuiltOverlayManager {
     private KillEffectsOverlay killEffectsOverlay;
     private VoiceChatOverlay voiceChatOverlay;
     private VoiceNametagOverlay voiceNametagOverlay;
+    private CatalogModuleRuntime catalogRuntime;
     private org.chimeramc.client.core.cosmetics.CosmeticSyncModule cosmeticSyncModule;
     private ModMenuButton modMenuButton;
     private HudOverlay hudOverlay;
@@ -191,6 +192,10 @@ public class InbuiltOverlayManager {
 
         modMenuButton = new ModMenuButton(activity);
         modMenuButton.show(START_X, nextY);
+        // A catalogue module that was on when the last session ended comes back with this one. The
+        // shipped modules are restored by the calls above; the catalogue ones are restored here so
+        // a saved readout does not silently vanish on the next launch.
+        CatalogModuleHost.restoreEnabled(activity, this, manager);
         refreshExternalButtons();
         refreshRuntimeVisibility();
     }
@@ -218,6 +223,20 @@ public class InbuiltOverlayManager {
         }
     }
 
+    /**
+     * The live side of the reachable catalogue modules.
+     *
+     * <p>Created lazily so a launcher process that never opens a game session pays nothing for it.
+     * The same instance is used by the menu's toggle and the frame tick, so a catalogue module and
+     * the shipped modules it mirrors cannot drift.
+     */
+    public CatalogModuleRuntime catalogRuntime() {
+        if (catalogRuntime == null) {
+            catalogRuntime = new CatalogModuleRuntime(activity);
+        }
+        return catalogRuntime;
+    }
+
     private void showModOverlay(String modId) {
         if (modOverlayMap.containsKey(modId)) {
             return;
@@ -231,6 +250,14 @@ public class InbuiltOverlayManager {
 
         int savedX = manager.getOverlayPositionX(modId, centerX);
         int savedY = manager.getOverlayPositionY(modId, centerY);
+
+        // A reachable catalogue module is shown by the catalogue runtime, not by the switch below.
+        // The switch is about the shipped modules; keeping the two apart means a catalogue module
+        // cannot accidentally match a shipped case and render the wrong overlay.
+        if (CatalogModuleHost.handles(modId)) {
+            CatalogModuleHost.onEnable(activity, this, manager, modId, savedX, savedY);
+            return;
+        }
 
         switch (modId) {
             case ModIds.QUICK_DROP:
@@ -434,6 +461,10 @@ public class InbuiltOverlayManager {
     }
 
     private void hideModOverlay(String modId) {
+        if (CatalogModuleHost.handles(modId)) {
+            CatalogModuleHost.onDisable(this, modId);
+            return;
+        }
         if (modId.equals(ModIds.ARMOR_HUD)) {
             if (armorHudOverlay != null) {
                 armorHudOverlay.hide();
@@ -1108,6 +1139,18 @@ public class InbuiltOverlayManager {
     public boolean handleKeyEvent(int keyCode, int action, int rawKeyCode) {
         InbuiltModManager manager = InbuiltModManager.getInstance(activity);
 
+        // The keystrokes readout mirrors the keys the game actually receives: this is the same
+        // dispatch the game acts on, so the readout cannot show a key the game did not get. The
+        // launcher's own "use item" bind arms the item-use timers, so a pearl/gapple readout starts
+        // from the player's real use input rather than from a guessed key.
+        if (catalogRuntime != null) {
+            catalogRuntime.onKey(keyCode, action == android.view.KeyEvent.ACTION_DOWN);
+            if (action == android.view.KeyEvent.ACTION_DOWN
+                    && keyCode == manager.getOffhandUseKey()) {
+                catalogRuntime.onUseAction(android.os.SystemClock.uptimeMillis());
+            }
+        }
+
         // The open Mod Menu takes controller navigation before anything else. Its root is
         // unfocusable by design (so the platform stops painting a focus wash), so the menu cannot
         // be driven by the framework's focus system and is driven here instead.
@@ -1253,7 +1296,11 @@ public class InbuiltOverlayManager {
      * game receives rather than against a UI event that may never reach it.
      */
     public void notifyAttack() {
-        HitTimingMod.onAttack(android.os.SystemClock.uptimeMillis());
+        long now = android.os.SystemClock.uptimeMillis();
+        HitTimingMod.onAttack(now);
+        // The same attack signal arms the catalogue's swing timers and hit marker, so the client's
+        // readouts and the Select Hit metronome agree about when the player swung.
+        if (catalogRuntime != null) catalogRuntime.onAttackAction(now);
     }
 
     private final TouchTapDetector touchTapDetector = new TouchTapDetector();
@@ -1639,6 +1686,13 @@ public class InbuiltOverlayManager {
         }
         for (HotbarSlotOverlay hotbar : hotbarSlotOverlayMap.values()) {
             hotbar.setRenderVisible(hotbarVisible);
+        }
+        // The reachable catalogue modules share this same frame tick: their counters advance from
+        // the client's own signals and their readouts follow the world/menu visibility rule. A
+        // no-op when none is enabled, so the tick stays cheap.
+        if (catalogRuntime != null) {
+            catalogRuntime.tick();
+            catalogRuntime.setReadoutsVisible(inbuiltVisible);
         }
 
         long stateHash = manager.getOverlayVisibilityRevision();

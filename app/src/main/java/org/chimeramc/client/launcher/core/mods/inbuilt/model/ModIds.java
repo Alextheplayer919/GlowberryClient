@@ -124,11 +124,16 @@ public final class ModIds {
      * Hit Prediction share that peer route and stay usable for the same reason.
      */
     public static boolean requiresGameData(String modId) {
-        // A PvP catalogue roadmap entry (one this build cannot drive) is badged by the same rule:
-        // it is listed for discoverability but must not present a switch that does nothing.
+        // A PvP catalogue entry is badged only when this build genuinely cannot drive it. The
+        // catalogue classifies each entry by the route it needs; a reachable route (device input,
+        // the local-player feed, the peer feed, the game options file) gets a real toggle, and only
+        // an ENGINE_HOOK or SERVER_DECIDED entry is badged. Reading the classification here rather
+        // than the catalogue's own "implemented" flag is what un-greys the reachable half of the
+        // list instead of refusing a clock for lack of a native entity feed.
         if (org.chimeramc.client.core.mods.pvp.PvpModuleCatalog.find(modId) != null
                 && !org.chimeramc.client.core.mods.pvp.PvpModuleCatalog.find(modId).implemented) {
-            return true;
+            return !org.chimeramc.client.core.mods.inbuilt.catalog.PvpModuleScopes
+                    .isReachable(modId);
         }
         return ARMOR_HUD.equals(modId) || CRYSTAL_OPTIMIZER.equals(modId)
                 || TRAJECTORY_PREDICTION.equals(modId) || KILL_EFFECTS.equals(modId)
