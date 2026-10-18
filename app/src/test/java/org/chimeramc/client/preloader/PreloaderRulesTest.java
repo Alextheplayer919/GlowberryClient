@@ -177,6 +177,37 @@ public class PreloaderRulesTest {
                 PreloaderRules.coversBundledRules(bundled, bundled));
     }
 
+    /**
+     * Phase 0.1: a four-component patch version must match the rule written for its release line.
+     *
+     * <p>The diagnostics report from a 1.26.33.1 device showed no hooks armed. The cause was the
+     * rule's exact range ({@code min == max == 1.26.33}), which a patch version ({@code 1.26.33.1})
+     * exceeds — so the build fell through to the broad 1.21.132..1.26.39.99 rule and used the wrong
+     * menu/HUD signatures. The rule now covers the whole 1.26.33.x line.
+     */
+    @Test
+    public void theBundledFileCoversTheWhole12633PatchLine() throws Exception {
+        java.nio.file.Path path = realRulesPath();
+        org.junit.Assume.assumeTrue("bundled rules not found at " + path,
+                java.nio.file.Files.exists(path));
+        String bundled = new String(java.nio.file.Files.readAllBytes(path),
+                java.nio.charset.StandardCharsets.UTF_8);
+
+        for (String version : new String[] {"1.26.33", "1.26.33.0", "1.26.33.1", "1.26.33.99"}) {
+            JsonObject merged = PreloaderRules.mergeRuleForVersion(bundled, version);
+            assertNotNull("the bundled file must match " + version, merged);
+            assertTrue(version + " must get a render slot",
+                    PreloaderRules.hasPlayerRenderIndex(merged));
+            assertEquals(version + " must get the menu index its release line pins",
+                    153, merged.get("isShowingMenuVtableIndex").getAsInt());
+        }
+        // 1.26.34 is a different line and must NOT be caught by the widened 1.26.33 rule.
+        JsonObject nextLine = PreloaderRules.mergeRuleForVersion(bundled, "1.26.34");
+        assertNotNull("1.26.34 still matches the broad rule", nextLine);
+        assertFalse("the widened rule must not swallow the next line",
+                nextLine.has("isShowingMenuVtableIndex"));
+    }
+
     private static java.nio.file.Path realRulesPath() {
         // Gradle runs unit tests with the module dir as the working directory, so the file is at
         // ../resources/preloader/...; fall back to a repo-relative path for other runners.

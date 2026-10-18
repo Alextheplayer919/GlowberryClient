@@ -160,7 +160,7 @@
     },
     {
       "min": "1.26.33",
-      "max": "1.26.33",
+      "max": "1.26.33.99",
       "isShowingMenuVtableIndex": 153,
       "playerRenderVtableIndex": 17,
       "sigs": {
