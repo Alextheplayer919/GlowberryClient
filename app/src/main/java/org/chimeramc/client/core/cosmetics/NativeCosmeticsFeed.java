@@ -136,6 +136,25 @@ public final class NativeCosmeticsFeed {
     }
 
     /**
+     * Whether the cape's engine texture route is live this session.
+     *
+     * <p>The cape reaches the game as a texture swap at the engine's image loader, which does not
+     * need the GL renderer and so survives a Vulkan-only build. The route is live once the engine has
+     * loaded the local player's cape once (so there is a capture to key on) and the launcher has
+     * registered a substitution for it. Both halves are required: a capture with no substitution
+     * changes nothing, and a substitution with no capture has nothing to match.
+     *
+     * <p>Fail-closed: no native library reads as false.
+     */
+    public static boolean isCapeEngineRouteLive() {
+        try {
+            return PreloaderInput.hasCapturedCape() && PreloaderInput.capeSubstitutionCount() > 0;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /**
      * A short human-readable line for the cosmetics status screen.
      *
      * <p>Never contains a number that reads as a performance claim; the render tick is a count,

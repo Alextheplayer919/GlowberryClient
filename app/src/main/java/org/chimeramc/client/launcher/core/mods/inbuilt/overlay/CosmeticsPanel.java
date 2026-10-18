@@ -18,6 +18,7 @@ import org.chimeramc.client.R;
 import org.chimeramc.client.core.cosmetics.AccountSkinCache;
 import org.chimeramc.client.core.cosmetics.AccountSkinService;
 import org.chimeramc.client.core.cosmetics.CosmeticCatalog;
+import org.chimeramc.client.core.cosmetics.CosmeticRoute;
 import org.chimeramc.client.core.cosmetics.CosmeticStore;
 import org.chimeramc.client.core.cosmetics.CosmeticSyncModule;
 import org.chimeramc.client.core.cosmetics.CosmeticSyncProtocol;
@@ -81,6 +82,8 @@ public final class CosmeticsPanel {
     private final LinearLayout railColumn;
     private final LinearLayout gridContainer;
     private final TextView gridTitle;
+    /** The per-category route note: whether the pieces on this card grid reach the game or not. */
+    private final TextView routeNote;
     private final TextView equipButton;
     private TextView gameStatus;
     private TextView syncStatus;
@@ -127,6 +130,12 @@ public final class CosmeticsPanel {
         gridTitle.setTextColor(UiTokens.TEXT_SECONDARY);
         gridTitle.setPadding(0, 0, 0, dp(8));
         centre.addView(gridTitle);
+        // A per-category note, because not every piece reaches the game the same way: a cape goes
+        // through the engine texture swap (which survives a Vulkan-only build) while a hat or pet
+        // needs the native render hook, so on some builds a hat is preview-only.
+        routeNote = bodyLine();
+        routeNote.setTextColor(UiTokens.TEXT_SECONDARY);
+        centre.addView(routeNote);
         ScrollView gridScroll = new ScrollView(activity);
         gridContainer = new LinearLayout(activity);
         gridContainer.setOrientation(LinearLayout.VERTICAL);
@@ -274,6 +283,7 @@ public final class CosmeticsPanel {
     private void selectCategory(Category c) {
         this.category = c;
         gridTitle.setText(categoryLabel(c));
+        refreshRouteNote();
         for (int i = 0; i < railButtons.size(); i++) {
             boolean selected = Category.values()[i] == c;
             TextView b = railButtons.get(i);
@@ -661,6 +671,52 @@ public final class CosmeticsPanel {
         if (parts.isEmpty()) return activity.getString(R.string.cosmetics_peer_wearing_none);
         return activity.getString(R.string.cosmetics_peer_wearing,
                 android.text.TextUtils.join(", ", parts));
+    }
+
+    /**
+     * Says whether the pieces on the current card grid reach the game, per the route each uses.
+     *
+     * <p>The cape is live through the engine texture swap even when the GL renderer is not, so it is
+     * never described as preview-only while that route works. A hat or pet is preview-only exactly
+     * when the native render hook is not live.
+     */
+    private void refreshRouteNote() {
+        if (routeNote == null) return;
+        try {
+            boolean engineTexture = NativeCosmeticsFeed.isCapeEngineRouteLive();
+            boolean nativeRenderer = NativeCosmeticsFeed.isNativeRenderLive();
+            CosmeticRoute.Piece piece = routePiece(category);
+            if (piece == null) {
+                routeNote.setVisibility(View.GONE);
+                return;
+            }
+            routeNote.setVisibility(View.VISIBLE);
+            switch (CosmeticRoute.routeFor(piece, engineTexture, nativeRenderer)) {
+                case ENGINE_TEXTURE:
+                    routeNote.setText(R.string.cosmetics_route_cape_live);
+                    break;
+                case NATIVE_RENDER:
+                    routeNote.setText(R.string.cosmetics_route_native_live);
+                    break;
+                default:
+                    routeNote.setText(piece == CosmeticRoute.Piece.CAPE
+                            ? R.string.cosmetics_route_cape_preview
+                            : R.string.cosmetics_route_preview_only);
+                    break;
+            }
+        } catch (Throwable t) {
+            routeNote.setVisibility(View.GONE);
+        }
+    }
+
+    /** The piece a category's cards are, or null for a category that is not a single piece kind. */
+    private static CosmeticRoute.Piece routePiece(Category c) {
+        switch (c) {
+            case CAPES: return CosmeticRoute.Piece.CAPE;
+            case HATS: case BACK: return CosmeticRoute.Piece.HAT;
+            case PETS: return CosmeticRoute.Piece.PET;
+            default: return null;
+        }
     }
 
     private void refreshGameStatus() {
