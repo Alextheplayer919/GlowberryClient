@@ -21,14 +21,14 @@
     <string name="mod_reordered">Đã sắp xếp lại Mod</string>
 
     <!-- About -->
-    <string name="about_title">☕ Về</string>
+    <string name="about_title">Về</string>
     <string name="copyright">©2024–2026 GlowberryClient. Mọi quyền được bảo lưu.</string>
     <string name="font_license">Ứng dụng đang sử dụng phông chữ Misans.</string>
     <string name="about_footer_github">GitHub: https://github.com/ChimeraAnt-DEV/ChimeraLauncher</string>
     <string name="quick_actions_title">Thao tác nhanh</string>
     <string name="content_mgmt_section_title">Quản lý nội dung</string>
     <string name="misc_section_title">Khác</string>
-    <string name="view_all">Xem tất cả →</string>
+    <string name="view_all">Xem tất cả</string>
     <string name="content_management_subtitle">Quản lý các thế giới, gói tài nguyên và gói hành vi</string>
     <string name="import_apk_subtitle">Cài đặt Minecraft từ file APK hoặc APKS.</string>
     <string name="ms_add_account">Thêm tài khoản</string>
@@ -726,7 +726,7 @@ Quá trình chuyển đổi phải hoàn tất trước khi GlowberryClient có 
 
     <string name="about_page_title">Về</string>
     <string name="about_subtitle">GlowberryClient — Một Launcher Hiện Đại Cho Minecraft Bedrock</string>
-    <string name="about_authors_title">👥 Tác giả &amp; Người bảo trì</string>
+    <string name="about_authors_title">Tác giả &amp; Người bảo trì</string>
     <string name="about_author_name">DreamGuXiang</string>
     <string name="about_author_badge">Tác giả</string>
     <string name="about_author_role">Tác giả GlowberryClient</string>

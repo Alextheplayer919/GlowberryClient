@@ -13,6 +13,7 @@ import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
@@ -60,7 +61,7 @@ public final class ReplayPlayerView {
     private final FrameLayout root;
     private final SurfaceView surface;
     private TextView title;
-    private TextView playPause;
+    private ImageView playPause;
     private TextView speedButton;
     private TextView cameraButton;
     private SeekBar seekBar;
@@ -247,7 +248,7 @@ public final class ReplayPlayerView {
             player.setOnCompletionListener(mp -> {
                 timeline.pause();
                 unlatchGate();
-                playPause.setText("▶");
+                showPlayIcon(true);
                 updateProgress();
             });
             player.setOnErrorListener((mp, what, extra) -> {
@@ -271,13 +272,24 @@ public final class ReplayPlayerView {
         }
     }
 
+    /**
+     * Sets the transport glyph from the vector set.
+     *
+     * @param play true for the play triangle (paused), false for the pause bars (playing)
+     */
+    private void showPlayIcon(boolean play) {
+        if (playPause == null) return;
+        playPause.setImageResource(play ? R.drawable.ic_replay_play : R.drawable.ic_replay_pause);
+        playPause.setColorFilter(style.textPrimary());
+    }
+
     private void togglePlayPause() {
         if (player == null || !prepared) return;
         if (timeline.isPlaying()) {
             timeline.pause();
             player.pause();
             unlatchGate();
-            playPause.setText("▶");
+            showPlayIcon(true);
             mainHandler.removeCallbacks(progressTick);
         } else {
             timeline.seekMs(player.getCurrentPosition());
@@ -292,7 +304,7 @@ public final class ReplayPlayerView {
             // Reverse is a stepped seek; the decoder stays paused and the tick moves the position.
             timeline.play();
             if (!timeline.isPlaying()) return;
-            playPause.setText("⏸");
+            showPlayIcon(false);
             latchGate();
             lastTickMs = SystemClock.uptimeMillis();
             mainHandler.removeCallbacks(progressTick);
@@ -306,7 +318,7 @@ public final class ReplayPlayerView {
         }
         timeline.play();
         if (!timeline.isPlaying()) return;
-        playPause.setText("⏸");
+        showPlayIcon(false);
         latchGate();
         lastTickMs = SystemClock.uptimeMillis();
         mainHandler.removeCallbacks(progressTick);
@@ -323,7 +335,7 @@ public final class ReplayPlayerView {
             player.seekTo((int) timeline.positionMs());
             player.pause();
             unlatchGate();
-            playPause.setText("▶");
+            showPlayIcon(true);
             mainHandler.removeCallbacks(progressTick);
             return;
         }
@@ -479,11 +491,10 @@ public final class ReplayPlayerView {
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
 
-        playPause = new TextView(activity);
-        playPause.setText("⏸");
-        playPause.setTextColor(style.textPrimary());
-        playPause.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f);
-        playPause.setGravity(Gravity.CENTER);
+        playPause = new ImageView(activity);
+        // Vector transport icons, never the ▶/⏸ glyphs: those are emoji and render inconsistently.
+        showPlayIcon(false);
+        playPause.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
         playPause.setBackground(ReplayStyle.rippled(
                 ReplayStyle.rounded(style.surfaceElevated(), 10f, activity),
                 style.accentFill(60), activity));

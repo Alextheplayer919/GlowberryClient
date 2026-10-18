@@ -49,6 +49,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.WeakHashMap;
+import org.chimeramc.client.R;
 
 final class RuntimeConfigView {
     private static final WeakHashMap<ViewGroup, RuntimeConfigView> ACTIVE = new WeakHashMap<>();
@@ -426,7 +427,16 @@ final class RuntimeConfigView {
         row.setOrientation(LinearLayout.VERTICAL);
         row.setPadding(dp(4), dp(10), dp(4), dp(5));
         TextView title = new TextView(context);
-        title.setText(node.title + (node.collapsible ? (collapsedSections.contains(node.id) ? "  ▸" : "  ▾") : ""));
+        // A vector chevron rather than a ▸/▾ glyph: the spec bans emoji/symbol glyphs, and a
+        // compound drawable keeps the indicator with the title at any font scale.
+        title.setText(node.title);
+        if (node.collapsible) {
+            boolean collapsed = collapsedSections.contains(node.id);
+            title.setCompoundDrawablesWithIntrinsicBounds(0, 0,
+                    collapsed ? R.drawable.ic_chevron_right : R.drawable.ic_arrow_down, 0);
+            title.setCompoundDrawablePadding(dp(6));
+            title.setCompoundDrawableTintList(ColorStateList.valueOf(TEXT_PRIMARY));
+        }
         title.setTextColor(TEXT_PRIMARY);
         title.setTextSize(15);
         title.setTypeface(null, android.graphics.Typeface.BOLD);

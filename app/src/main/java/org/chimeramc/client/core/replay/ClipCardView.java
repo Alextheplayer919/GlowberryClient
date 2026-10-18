@@ -12,6 +12,7 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import org.chimeramc.client.R;
 
 /**
  * One clip card in the Replay grid.
@@ -30,8 +31,8 @@ final class ClipCardView extends FrameLayout {
     private final TextView durationPill;
     private final TextView name;
     private final TextView meta;
-    private final TextView favorite;
-    private final TextView highlightBadge;
+    private final ImageView favorite;
+    private final ImageView highlightBadge;
 
     private ReplayClip clip;
     private Runnable onOpen;
@@ -109,13 +110,14 @@ final class ClipCardView extends FrameLayout {
         pillParams.setMargins(0, 0, ReplayStyle.dpInt(context, 8), ReplayStyle.dpInt(context, 8));
         thumbFrame.addView(durationPill, pillParams);
 
-        highlightBadge = new TextView(context);
-        highlightBadge.setText("★");
-        highlightBadge.setTextColor(0xFFFFD166);
-        highlightBadge.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f);
+        highlightBadge = new ImageView(context);
+        // A vector star, not an emoji glyph: emoji rendering varies by device font and the spec
+        // bans emoji icons outright.
+        highlightBadge.setImageResource(R.drawable.ic_star_filled);
+        highlightBadge.setColorFilter(0xFFFFD166);
         highlightBadge.setBackground(ReplayStyle.pill(0x99000000, context));
-        highlightBadge.setPadding(ReplayStyle.dpInt(context, 6), ReplayStyle.dpInt(context, 1),
-                ReplayStyle.dpInt(context, 6), ReplayStyle.dpInt(context, 1));
+        int badgePad = ReplayStyle.dpInt(context, 3);
+        highlightBadge.setPadding(badgePad, badgePad, badgePad, badgePad);
         highlightBadge.setVisibility(GONE);
         FrameLayout.LayoutParams badgeParams = new FrameLayout.LayoutParams(
                 LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
@@ -144,10 +146,9 @@ final class ClipCardView extends FrameLayout {
         nameRow.addView(name, new LinearLayout.LayoutParams(0,
                 LayoutParams.WRAP_CONTENT, 1f));
 
-        favorite = new TextView(context);
-        favorite.setText("☆");
-        favorite.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f);
-        favorite.setTextColor(style.textTertiary());
+        favorite = new ImageView(context);
+        favorite.setImageResource(R.drawable.ic_star_outline);
+        favorite.setColorFilter(style.textTertiary());
         favorite.setPadding(ReplayStyle.dpInt(context, 6), ReplayStyle.dpInt(context, 0),
                 ReplayStyle.dpInt(context, 0), 0);
         favorite.setOnClickListener(v -> {
@@ -238,8 +239,8 @@ final class ClipCardView extends FrameLayout {
         name.setText(value.displayName());
         durationPill.setText(ReplayFormat.duration(value.durationMs()));
         meta.setText(value.dateLabel() + "  ·  " + ReplayFormat.size(value.sizeBytes()));
-        favorite.setText(value.favorite() ? "★" : "☆");
-        favorite.setTextColor(value.favorite() ? 0xFFFFD166 : style.textTertiary());
+        favorite.setImageResource(value.favorite() ? R.drawable.ic_star_filled : R.drawable.ic_star_outline);
+        favorite.setColorFilter(value.favorite() ? 0xFFFFD166 : style.textTertiary());
         highlightBadge.setVisibility(value.highlight() ? VISIBLE : GONE);
     }
 

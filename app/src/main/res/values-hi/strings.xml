@@ -22,14 +22,14 @@
     <string name="mod_reordered">मॉड का क्रम अपडेट हो गया</string>
 
     <!-- About -->
-    <string name="about_title">☕ बारे में</string>
+    <string name="about_title">बारे में</string>
     <string name="copyright">©2024–2026 GlowberryClient. सर्वाधिकार सुरक्षित।</string>
     <string name="font_license">यह ऐप Misans फ़ॉन्ट का उपयोग करता है।</string>
     <string name="about_footer_github">GitHub: https://github.com/ChimeraAnt-DEV/ChimeraLauncher</string>
     <string name="quick_actions_title">त्वरित कार्य</string>
     <string name="content_mgmt_section_title">सामग्री प्रबंधन</string>
     <string name="misc_section_title">विविध</string>
-    <string name="view_all">सभी देखें →</string>
+    <string name="view_all">सभी देखें</string>
     <string name="content_management_subtitle">वर्ल्ड्स, रिसोर्स पैक्स और बिहेवियर पैक्स प्रबंधित करें</string>
     <string name="import_apk_subtitle">APK या APKS फ़ाइल से Minecraft इंस्टॉल करें</string>
     <string name="ms_add_account">खाता जोड़ें</string>
@@ -673,7 +673,7 @@ GlowberryClient जारी रखने से पहले माइग्र
 
     <string name="about_page_title">बारे में</string>
     <string name="about_subtitle">GlowberryClient — एक आधुनिक Minecraft Bedrock लॉन्चर</string>
-    <string name="about_authors_title">👥 लेखक और मेंटेनर</string>
+    <string name="about_authors_title">लेखक और मेंटेनर</string>
     <string name="about_author_name">DreamGuXiang</string>
     <string name="about_author_badge">लेखक</string>
     <string name="about_author_role">GlowberryClient के लेखक</string>

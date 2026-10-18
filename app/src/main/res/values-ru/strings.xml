@@ -18,7 +18,7 @@
     <string name="mod_reordered">Порядок модов обновлен</string>
 
     <!-- О приложении -->
-    <string name="about_title">☕ О приложении</string>
+    <string name="about_title">О приложении</string>
     <string name="copyright">©2024–2026 GlowberryClient. Все права защищены.</string>
     <string name="font_license">Это приложение использует шрифт Misans.</string>
     <string name="about_footer_github">GitHub: https://github.com/ChimeraAnt-DEV/ChimeraLauncher</string>
@@ -441,7 +441,7 @@
 
     <!-- Inbuilt Mods -->
     <string name="inbuilt_mods">Встроенные моды</string>
-    <string name="inbuilt_mods_title">🔧 Встроенные моды</string>
+    <string name="inbuilt_mods_title">Встроенные моды</string>
     <string name="inbuilt_mods_subtitle">Внутренние моды, работающие без нативных библиотек</string>
     <string name="no_inbuilt_mods_available">Все встроенные моды уже добавлены</string>
     <string name="inbuilt_mod_added">%s добавлен в моды</string>
@@ -599,7 +599,7 @@
     <string name="current_instance">Текущий экземпляр</string>
     <string name="content_mgmt_section_title">Управление контентом</string>
     <string name="misc_section_title">Разное</string>
-    <string name="view_all">Показать все →</string>
+    <string name="view_all">Показать все</string>
     <string name="import_so_plugin_title">Импорт SO-плагина</string>
     <string name="plugin_name_label">Название плагина</string>
     <string name="plugin_type_label">Тип</string>
@@ -672,7 +672,7 @@
     <string name="vanilla_prefix">Vanilla %s</string>
     <string name="about_page_title">О приложении</string>
     <string name="about_subtitle">GlowberryClient — современный лаунчер Minecraft Bedrock</string>
-    <string name="about_authors_title">👥 Авторы и сопровождающие</string>
+    <string name="about_authors_title">Авторы и сопровождающие</string>
     <string name="about_author_name">DreamGuXiang</string>
     <string name="about_author_badge">Автор</string>
     <string name="about_author_role">Авторы GlowberryClient</string>

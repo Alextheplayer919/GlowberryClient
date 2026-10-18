@@ -22,14 +22,14 @@
     <string name="mod_reordered">モッドの順序を更新しました</string>
 
     <!-- About -->
-    <string name="about_title">☕ アプリについて</string>
+    <string name="about_title">アプリについて</string>
     <string name="copyright">©2024–2026 GlowberryClient. All rights reserved.</string>
     <string name="font_license">このアプリは Misans フォントを使用しています。</string>
     <string name="about_footer_github">GitHub: https://github.com/ChimeraAnt-DEV/ChimeraLauncher</string>
     <string name="quick_actions_title">クイックアクション</string>
     <string name="content_mgmt_section_title">コンテンツ管理</string>
     <string name="misc_section_title">その他</string>
-    <string name="view_all">すべて表示 →</string>
+    <string name="view_all">すべて表示</string>
     <string name="content_management_subtitle">ワールド、リソースパック、ビヘイビアパックの管理</string>
     <string name="import_apk_subtitle">APK または APKS から Minecraft をインストール</string>
     <string name="ms_add_account">アカウントを追加</string>
@@ -646,7 +646,7 @@ GlowberryClient を続行するには移行を完了する必要があります�
 
     <string name="about_page_title">アプリについて</string>
     <string name="about_subtitle">GlowberryClient — 最新の Minecraft Bedrock ランチャー</string>
-    <string name="about_authors_title">👥 開発者 &amp; メンテナー</string>
+    <string name="about_authors_title">開発者 &amp; メンテナー</string>
     <string name="about_author_name">DreamGuXiang</string>
     <string name="about_author_badge">開発者</string>
     <string name="about_author_role">GlowberryClient 開発者</string>

@@ -22,14 +22,14 @@
     <string name="mod_reordered">Ordre des mods mis à jour</string>
 
     <!-- About -->
-    <string name="about_title">☕ À propos</string>
+    <string name="about_title">À propos</string>
     <string name="copyright">©2024–2026 GlowberryClient. Tous droits réservés.</string>
     <string name="font_license">Cette application utilise la police Misans.</string>
     <string name="about_footer_github">GitHub : https://github.com/ChimeraAnt-DEV/ChimeraLauncher</string>
     <string name="quick_actions_title">Actions rapides</string>
     <string name="content_mgmt_section_title">Gestion de contenu</string>
     <string name="misc_section_title">Divers</string>
-    <string name="view_all">Voir tout →</string>
+    <string name="view_all">Voir tout</string>
     <string name="content_management_subtitle">Gérer les mondes, packs de ressources et comportements</string>
     <string name="import_apk_subtitle">Installer Minecraft depuis un fichier APK ou APKS</string>
     <string name="ms_add_account">Ajouter un compte</string>
@@ -646,7 +646,7 @@ La migration doit être terminée avant de continuer avec GlowberryClient.</stri
 
     <string name="about_page_title">À propos</string>
     <string name="about_subtitle">GlowberryClient — Un lanceur Minecraft Bedrock moderne</string>
-    <string name="about_authors_title">👥 Auteurs et Mainteneurs</string>
+    <string name="about_authors_title">Auteurs et Mainteneurs</string>
     <string name="about_author_name">DreamGuXiang</string>
     <string name="about_author_badge">Auteur</string>
     <string name="about_author_role">Auteurs de GlowberryClient</string>

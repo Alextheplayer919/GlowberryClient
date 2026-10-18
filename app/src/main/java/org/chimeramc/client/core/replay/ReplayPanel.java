@@ -260,11 +260,12 @@ public final class ReplayPanel {
                 ReplayStyle.dpInt(activity, 10), ReplayStyle.dpInt(activity, 4));
         row.addView(qualityBadge);
 
-        TextView settings = new TextView(activity);
-        settings.setText("⚙");
-        settings.setTextColor(style.textSecondary());
-        settings.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17f);
-        settings.setGravity(Gravity.CENTER);
+        ImageView settings = new ImageView(activity);
+        // A vector gear, not the emoji glyph: the spec bans emoji icons, and the emoji renders
+        // differently on every device font.
+        settings.setImageResource(R.drawable.ic_settings);
+        settings.setColorFilter(style.textSecondary());
+        settings.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
         settings.setBackground(ReplayStyle.rippled(
                 ReplayStyle.rounded(style.surfaceElevated(), 10f, activity),
                 style.accentFill(60), activity));

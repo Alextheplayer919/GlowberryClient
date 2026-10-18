@@ -18,7 +18,7 @@
     <string name="mod_reordered">Urutan Mod diperbarui</string>
 
     <!-- About -->
-    <string name="about_title">☕ Tentang</string>
+    <string name="about_title">Tentang</string>
     <string name="copyright">©2024–2026 GlowberryClient. All rights reserved.</string>
     <string name="font_license">Aplikasi ini menggunakan font Misans..</string>
     <string name="about_footer_github">GitHub: https://github.com/ChimeraAnt-DEV/ChimeraLauncher</string>
@@ -445,7 +445,7 @@ Migrasi harus selesai sebelum GlowberryClient dapat melanjutkan.</string>
 
     <!-- Inbuilt Mods -->
     <string name="inbuilt_mods">Mod Bawaan</string>
-    <string name="inbuilt_mods_title">🔧 Mod Bawaan</string>
+    <string name="inbuilt_mods_title">Mod Bawaan</string>
     <string name="inbuilt_mods_subtitle">Mod internal/bawaan yang berjalan tanpa native libraries(.so mod)</string>
     <string name="no_inbuilt_mods_available">Semua mod bawaan telah ditambahkan.</string>
     <string name="inbuilt_mod_added">%s ditambahkan ke mod</string>
@@ -603,7 +603,7 @@ Migrasi harus selesai sebelum GlowberryClient dapat melanjutkan.</string>
     <string name="current_instance">Instans Saat Ini</string>
     <string name="content_mgmt_section_title">Manajemen Konten</string>
     <string name="misc_section_title">Lain-lain</string>
-    <string name="view_all">Lihat Semua →</string>
+    <string name="view_all">Lihat Semua</string>
     <string name="import_so_plugin_title">Impor Plugin SO</string>
     <string name="plugin_name_label">Nama Plugin</string>
     <string name="plugin_type_label">Jenis</string>
@@ -671,7 +671,7 @@ Migrasi harus selesai sebelum GlowberryClient dapat melanjutkan.</string>
     <string name="vanilla_prefix">Vanilla %s</string>
     <string name="about_page_title">Tentang</string>
     <string name="about_subtitle">GlowberryClient — Launcher Minecraft Bedrock Modern</string>
-    <string name="about_authors_title">👥 Penulis &amp; Pemelihara</string>
+    <string name="about_authors_title">Penulis &amp; Pemelihara</string>
     <string name="about_author_name">DreamGuXiang</string>
     <string name="about_author_badge">Penulis</string>
     <string name="about_author_role">Penulis GlowberryClient</string>
