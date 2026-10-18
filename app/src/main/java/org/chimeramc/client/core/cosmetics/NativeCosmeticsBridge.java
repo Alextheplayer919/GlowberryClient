@@ -625,12 +625,30 @@ public final class NativeCosmeticsBridge {
      * @return true when a substitution is registered (or cleared)
      */
     public static boolean publishCapeTexture(CosmeticCatalog.Cape cape) {
+        return publishCapeTexture(null, cape);
+    }
+
+    /**
+     * Registers the local player's cape pixels, preferring the hand-authored image.
+     *
+     * <p>An authored cape ({@link AuthoredCapeTextures}) carries artwork a generator cannot, so it
+     * wins when present; otherwise the procedural {@link CapeTexturePainter} renders the palette
+     * weave. Either way the result is a 2:1 panel, which is what the engine needs to recognise it as
+     * a cape at the loader seam.
+     */
+    public static boolean publishCapeTexture(Context context, CosmeticCatalog.Cape cape) {
         if (cape == null) {
             PreloaderInput.clearCapeSubstitution();
             return true;
         }
-        byte[] png = CapeTexturePainter.paint(cape.color, cape.trimColor, cape.accentColor,
-                cape.pattern, cape.branded);
+        byte[] png = null;
+        if (context != null) {
+            png = AuthoredCapeTextures.loadFromAssets(assetOpener(context), cape.id);
+        }
+        if (png == null) {
+            png = CapeTexturePainter.paint(cape.color, cape.trimColor, cape.accentColor,
+                    cape.pattern, cape.branded);
+        }
         Bitmap image = decode(png);
         if (image == null) return false;
         byte[] rgba = toRgba(image);

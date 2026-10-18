@@ -414,6 +414,11 @@ public final class CosmeticCatalog {
         capes.add(new Cape(OPTIFINE_BLUE_ID, "Optifine Cape (Blue)", 0xFF0A0A0C, 0xFF2A6FD8, 0xFF2A6FD8,
                 CapePattern.OPTIFINE, false, false));
 
+        // Hand-designed capes: real authored images (see AuthoredCapeTextures), each with its own
+        // name, so the cape section is not only palette recolours. Their ids match both the
+        // catalogue entry and the asset file name, so the two cannot drift.
+        addAuthoredCapes(capes);
+
         // Generated families: every palette crossed with every pattern. The brand mark rides on
         // the "Chimera" palette's Split weave only, so the flagship stays special instead of every
         // cape being branded. Each palette has its own row of names (see CAPE_PATTERN_NAMES), so a
@@ -425,7 +430,7 @@ public final class CosmeticCatalog {
                 // OPTIFINE is not a weave; it is only ever the two built-in capes added above.
                 if (pattern == CapePattern.OPTIFINE) continue;
                 String id = slug(stem) + "_" + pattern.name().toLowerCase();
-                if (isHandAuthored(id)) continue;
+                if (isHandAuthored(id) || AuthoredCapeTextures.hasAuthoredTexture(id)) continue;
                 boolean branded = "Chimera".equals(stem) && pattern == CapePattern.SPLIT;
                 capes.add(new Cape(id, capePatternName(p, pattern),
                         pal[0], pal[1], pal[2], pattern, false, branded));
@@ -589,6 +594,65 @@ public final class CosmeticCatalog {
             AccessoryKind.VEIL, AccessoryKind.MONOCLE, AccessoryKind.ANTLERS,
             AccessoryKind.PLUME, AccessoryKind.TRICORN, AccessoryKind.MORTARBOARD
     };
+
+    /**
+     * Adds the hand-designed capes: an authored 64x32 image plus a hand-written name each.
+     *
+     * <p>These sit beside the generated palette families rather than replacing them. The procedural
+     * families are a legitimately large catalogue of recolours; the authored set is the artwork a
+     * generator cannot produce. Every id here must also be in {@link AuthoredCapeTextures#IDS}, so
+     * the catalogue entry and the asset file are one decision.
+     */
+    private static void addAuthoredCapes(List<Cape> capes) {
+        capes.add(new Cape("aurora_borealis", "Aurora Borealis", 0xFF0B2A3A, 0xFF9FF7DC, 0xFF43E8B0,
+                CapePattern.GRADIENT, false, false));
+        capes.add(new Cape("ember_forge", "Ember Forge", 0xFF2A0B08, 0xFFFFC46B, 0xFFFF7A1A,
+                CapePattern.CHECKER, false, false));
+        capes.add(new Cape("glacial_veil", "Glacial Veil", 0xFF0E2A44, 0xFFE6F6FF, 0xFF8FD4FF,
+                CapePattern.SPLIT, false, false));
+        capes.add(new Cape("void_rift", "Void Rift", 0xFF0A0614, 0xFFC7A8FF, 0xFF7C4DFF,
+                CapePattern.SPLIT, false, false));
+        capes.add(new Cape("solar_flare", "Solar Flare", 0xFF3A1A00, 0xFFFFF2A8, 0xFFFFC400,
+                CapePattern.GRADIENT, false, false));
+        capes.add(new Cape("midnight_rose", "Midnight Rose", 0xFF1A0716, 0xFFFFB8DC, 0xFFE0409A,
+                CapePattern.CAMO, false, false));
+        capes.add(new Cape("toxic_bloom", "Toxic Bloom", 0xFF0C1A08, 0xFFD6FF9E, 0xFF8CE63A,
+                CapePattern.GRADIENT, false, false));
+        capes.add(new Cape("deep_current", "Deep Current", 0xFF04182A, 0xFFB0EBFF, 0xFF1FA8E0,
+                CapePattern.HORIZONTAL_STRIPES, false, false));
+        capes.add(new Cape("golden_ash", "Golden Ash", 0xFF241C10, 0xFFFFE7A8, 0xFFD8A83A,
+                CapePattern.CAMO, false, false));
+        capes.add(new Cape("phantom_shroud", "Phantom Shroud", 0xFF14141E, 0xFFC0C0E8, 0xFF6E6E9E,
+                CapePattern.GRADIENT, false, false));
+        capes.add(new Cape("crimson_tide", "Crimson Tide", 0xFF2A0608, 0xFFFFA0B0, 0xFFD81E3A,
+                CapePattern.HORIZONTAL_STRIPES, false, false));
+        capes.add(new Cape("frostbite", "Frostbite", 0xFF10222E, 0xFFFFFFFF, 0xFFB0E8FF,
+                CapePattern.SPLIT, false, false));
+        capes.add(new Cape("obsidian_wing", "Obsidian Wing", 0xFF0A0A0E, 0xFF9E8FD8, 0xFF5A4A8A,
+                CapePattern.CHECKER, false, false));
+        capes.add(new Cape("meadow_light", "Meadow Light", 0xFF0E2410, 0xFFE8FFC0, 0xFF7ED957,
+                CapePattern.HORIZONTAL_STRIPES, false, false));
+        capes.add(new Cape("storm_caller", "Storm Caller", 0xFF121826, 0xFFE0ECFF, 0xFF9AC0FF,
+                CapePattern.SPLIT, false, false));
+        capes.add(new Cape("royal_scepter", "Royal Scepter", 0xFF160B2E, 0xFFD8B8FF, 0xFF8A4DFF,
+                CapePattern.SPLIT, false, false));
+        capes.add(new Cape("shadow_fade", "Shadow Fade", 0xFF0C0C10, 0xFF8A8AA0, 0xFF3A3A48,
+                CapePattern.GRADIENT, false, false));
+        capes.add(new Cape("coral_reef", "Coral Reef", 0xFF2A0E12, 0xFFFFC0A8, 0xFFFF6E5A,
+                CapePattern.CAMO, false, false));
+        capes.add(new Cape("neon_grid", "Neon Grid", 0xFF06060E, 0xFFFF00D0, 0xFF00E5FF,
+                CapePattern.CHECKER, false, false));
+        capes.add(new Cape("bronze_scale", "Bronze Scale", 0xFF241A0C, 0xFFE8C88A, 0xFFB87A32,
+                CapePattern.CHECKER, false, false));
+        capes.add(new Cape("skyline", "Skyline", 0xFF0A1420, 0xFFB8DCFF, 0xFF4A9EFF,
+                CapePattern.HORIZONTAL_STRIPES, false, false));
+        capes.add(new Cape("amethyst_geode", "Amethyst Geode", 0xFF180A28, 0xFFE0C0FF, 0xFFA85CFF,
+                CapePattern.SPLIT, false, false));
+        capes.add(new Cape("honey_drift", "Honey Drift", 0xFF2A1E06, 0xFFFFEBA8, 0xFFFFC83A,
+                CapePattern.CHECKER, false, false));
+        capes.add(new Cape("ink_brush", "Ink Brush", 0xFF0A0A0A, 0xFFD0D0E0, 0xFF50506A,
+                CapePattern.GRADIENT, false, false));
+    }
 
     private static boolean isHandAuthored(String id) {
         return id.equals("chimera_solid") || id.equals("void_solid")
