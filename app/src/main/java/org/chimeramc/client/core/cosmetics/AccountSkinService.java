@@ -32,10 +32,12 @@ import java.util.Base64;
  * base64 JSON names the texture URL. That is the only keyless route, so it is what this class uses;
  * both the endpoint and the texture host are plain HTTPS.
  *
- * <p><b>Consent and privacy.</b> The lookup sends the player's XUID to a third-party service, so it
- * is <b>off by default</b> and gated by {@link #setEnabled(boolean)} (the Cosmetics panel toggle).
- * The XUID is an opaque account id — no name, token or gamertag is sent, and no image is uploaded.
- * The decoded result is cached on disk and re-read on later launches, so the request happens once.
+ * <p><b>Consent and privacy.</b> The lookup sends the player's XUID to a third-party service. It is
+ * <b>on after a Microsoft sign-in</b> (the sign-in itself is the one-line consent: the player chose
+ * to use their own Microsoft identity, so the launcher shows that identity's skin), and can always
+ * be switched off in the Cosmetics panel. The XUID is an opaque account id — no name, token or
+ * gamertag is sent, and no image is uploaded. The decoded result is cached on disk and re-read on
+ * later launches, so the request happens once.
  *
  * <p><b>Fail-closed.</b> Any failure (no account, no XUID, HTTP error, an unknown xuid, a decode
  * failure, or the feature switched off) returns null and the existing fallback chain continues to
@@ -55,7 +57,7 @@ public final class AccountSkinService {
     private AccountSkinService() {
     }
 
-    /** Whether the account lookup is allowed. Off by default; persisted per install. */
+    /** Whether the account lookup is allowed. On after a sign-in; persisted per install. */
     public static boolean isEnabled(android.content.Context context) {
         return AccountSkinPrefs.isEnabled(context);
     }

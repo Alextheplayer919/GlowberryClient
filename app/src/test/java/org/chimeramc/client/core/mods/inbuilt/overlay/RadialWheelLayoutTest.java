@@ -150,9 +150,10 @@ public class RadialWheelLayoutTest {
                 assertTrue("row stays on screen (x)", r[0] > 0f && r[0] <= w);
                 assertTrue("row stays on screen (y)", r[1] >= 0f && r[1] <= h);
                 assertEquals("rows sit in one column", rows[0][0], r[0], 1e-3f);
-                // Rows must sit outside the inner edge of the ring band, not on top of a sector.
+                // Rows must sit outside the ring band, not on top of a sector. The column is
+                // anchored to the outer radius plus a gap, so it must clear the ring comfortably.
                 float dist = (float) Math.hypot(r[0] - cx, r[1] - cy);
-                assertTrue("column clears the ring at " + w + "x" + h, dist > outer * 0.55f);
+                assertTrue("column clears the ring at " + w + "x" + h, dist > outer * 0.6f);
             }
             // A long list is compressed, not allowed to overflow the bottom.
             assertTrue("last row stays inside the view", rows[rows.length - 1][1] < h);
@@ -169,16 +170,15 @@ public class RadialWheelLayoutTest {
     }
 
     @Test
-    public void aSingleRowSitsCentredInTheBand() {
+    public void aSingleRowSitsAtTheHubCentre() {
+        // The column is vertically centred on the hub, so a one-row list sits at the hub's y.
         float[][] rows = RadialWheelLayout.enabledListCenters(1920, 1080, 1, 3f);
         assertEquals(1, rows.length);
-        float mid = (RadialWheelLayout.LIST_BAND_TOP_FY + RadialWheelLayout.LIST_BAND_BOTTOM_FY) / 2f;
-        assertEquals(1080 * mid, rows[0][1], 1f);
+        assertEquals(1080f / 2f, rows[0][1], 1f);
     }
 
     @Test
-    public void theTwoColumnsSitOnOppositeSidesAndStayClearOfTheRing() {
-        // The wheel shows a quick-options column on the left and the enabled column on the right.
+    public void theTwoColumnsAnchorToTheOuterRadiusNotTheScreenEdges() {
         float density = 2f;
         for (int[] screen : new int[][]{{1920, 1080}, {1280, 720}, {2560, 1600}, {800, 480}}) {
             int w = screen[0], h = screen[1];
@@ -188,17 +188,23 @@ public class RadialWheelLayoutTest {
             assertEquals(4, right.length);
             float outer = RadialWheelLayout.outerRadius(w, h);
             float cx = w / 2f, cy = h / 2f;
+            float gap = RadialWheelLayout.LIST_RING_GAP_DP * density;
+            float centreDist = Math.abs(cx - left[3][0]);
+            // The near edge of a column sits just past the ring: outer radius plus the gap.
+            assertEquals("the left column hugs the ring", outer + gap, centreDist, 1f);
+            assertEquals("columns mirror the ring", cx + outer + gap, right[0][0], 1f);
+            // The column's vertical midpoint is the hub's y (the first and last rows straddle it).
+            assertEquals("column is centred on the hub", cy,
+                    (left[0][1] + left[3][1]) / 2f, 1f);
             for (int i = 0; i < 4; i++) {
-                assertTrue("left column is left of centre", left[i][0] < cx);
-                assertTrue("right column is right of centre", right[i][0] > cx);
-                // Both columns must sit outside the ring band so a row never lands on a sector.
-                assertTrue("left row clears the ring",
-                        Math.hypot(left[i][0] - cx, left[i][1] - cy) > outer * 0.55f);
-                assertTrue("right row clears the ring",
-                        Math.hypot(right[i][0] - cx, right[i][1] - cy) > outer * 0.55f);
-                // And neither runs off its own edge.
+                // Neither runs off its own edge.
                 assertTrue(left[i][0] >= 0f);
                 assertTrue(right[i][0] <= w);
+                // And the row is never on top of a sector.
+                assertTrue("left row clears the ring",
+                        Math.hypot(left[i][0] - cx, left[i][1] - cy) > outer * 0.6f);
+                assertTrue("right row clears the ring",
+                        Math.hypot(right[i][0] - cx, right[i][1] - cy) > outer * 0.6f);
             }
         }
     }

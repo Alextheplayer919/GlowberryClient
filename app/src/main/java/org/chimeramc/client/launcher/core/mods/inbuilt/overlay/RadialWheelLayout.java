@@ -140,11 +140,11 @@ public final class RadialWheelLayout {
      * layout used.
      */
     public static final float LIST_ROW_DP = 26f;
-    /** The list's vertical band as fractions of the view height; the column is centred in it. */
+    /** The list's vertical band as fractions of the view height; a long column is clamped to it. */
     public static final float LIST_BAND_TOP_FY = 0.12f;
     public static final float LIST_BAND_BOTTOM_FY = 0.90f;
-    /** The list's right inset from the view edge, in dp. */
-    public static final float LIST_RIGHT_INSET_DP = 12f;
+    /** The gap between the wheel's outer radius and the near edge of a module column, in dp. */
+    public static final float LIST_RING_GAP_DP = 14f;
     /** The widest the list is allowed to be, as a fraction of the view width. */
     public static final float LIST_MAX_WIDTH_FRACTION = 0.30f;
 
@@ -156,11 +156,16 @@ public final class RadialWheelLayout {
      * (a single row pitch apart) rather than the old widely-spaced clusters, and a long column is
      * compressed so it still fits the safe band.
      *
+     * <p>Each column is anchored to the wheel's <em>outer radius plus a gap</em>, not to the screen
+     * edge (an edge-anchored column drifts far from the ring it belongs to on wide screens), and is
+     * centred vertically on the hub. A very long list is clamped to the vertical safe band so it
+     * never leaves the screen.
+     *
      * @param w         view width in px
      * @param h         view height in px
      * @param count     number of rows
      * @param density   display density (dp -> px)
-     * @param fromRight true for the right column (right-anchored), false for the left
+     * @param fromRight true for the right column, false for the left
      * @return an array of {@code {x, y}} pairs, one per row
      */
     public static float[][] moduleListCenters(int w, int h, int count, float density,
@@ -168,7 +173,11 @@ public final class RadialWheelLayout {
         int safe = Math.max(0, count);
         float[][] out = new float[safe][2];
         if (safe == 0) return out;
-        float x = fromRight ? w - LIST_RIGHT_INSET_DP * density : LIST_RIGHT_INSET_DP * density;
+        float outer = outerRadius(w, h);
+        float cx = w / 2f;
+        float cy = h / 2f;
+        float gap = LIST_RING_GAP_DP * density;
+        float x = fromRight ? cx + outer + gap : cx - outer - gap;
         float rowPitch = LIST_ROW_DP * density;
         float bandTop = h * LIST_BAND_TOP_FY;
         float bandBottom = h * LIST_BAND_BOTTOM_FY;
@@ -179,8 +188,9 @@ public final class RadialWheelLayout {
             rowPitch = bandHeight / (safe - 1);
             columnHeight = bandHeight;
         }
-        // Centre the column in the band.
-        float top = bandTop + (bandHeight - columnHeight) / 2f;
+        // Centre the column vertically on the hub, then clamp a long list into the safe band.
+        float top = cy - columnHeight / 2f;
+        if (top < bandTop) top = bandTop;
         for (int i = 0; i < safe; i++) {
             out[i][0] = x;
             out[i][1] = top + i * rowPitch;

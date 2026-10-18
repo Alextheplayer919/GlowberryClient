@@ -10,25 +10,27 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.chimeramc.client.core.mods.inbuilt.model.ModIds;
 import org.junit.Test;
 
 /**
  * Pins the three FPS-optimization modules (no mocks).
  *
- * <p>Two things matter here. The catalogue must be exactly the three modules with the requested
- * option counts (25/22/20) and unique option keys, so the config schema cannot bind a key to the
- * wrong option. And the policy must be honest: every description says the change is to the
- * launcher's own host work, and no output may contain an "fps" figure the launcher cannot measure.
+ * <p>Two things matter here. The catalogue must be exactly the three modules with the implemented
+ * option counts (1/2/4 = 7 options total — only the ones FpsPolicy actually reads) and unique
+ * option keys, so the config schema cannot bind a key to the wrong option. And the policy must be
+ * honest: every description says the change is to the launcher's own host work, and no output may
+ * contain an "fps" figure the launcher cannot measure.
  */
 public class FpsModulesTest {
 
     @Test
-    public void theCatalogueHasTheThreeModulesWithTheRequestedOptionCounts() {
+    public void theCatalogueHasTheThreeModulesWithOnlyTheImplementedOptions() {
         List<FpsModuleCatalog.Module> modules = FpsModuleCatalog.modules();
         assertEquals(3, modules.size());
-        assertEquals(25, FpsModuleCatalog.find(FpsModuleCatalog.HYPERSPATIAL_CULL).options.size());
-        assertEquals(22, FpsModuleCatalog.find(FpsModuleCatalog.VERTICAL_RENDER_COALESCE).options.size());
-        assertEquals(20, FpsModuleCatalog.find(FpsModuleCatalog.TICK_RATE_PREDICTOR).options.size());
+        assertEquals(1, FpsModuleCatalog.find(FpsModuleCatalog.HYPERSPATIAL_CULL).options.size());
+        assertEquals(2, FpsModuleCatalog.find(FpsModuleCatalog.VERTICAL_RENDER_COALESCE).options.size());
+        assertEquals(4, FpsModuleCatalog.find(FpsModuleCatalog.TICK_RATE_PREDICTOR).options.size());
     }
 
     @Test
@@ -37,7 +39,24 @@ public class FpsModulesTest {
         for (FpsModuleCatalog.Option option : FpsModuleCatalog.allOptions()) {
             assertTrue("duplicate option key: " + option.key, seen.add(option.key));
         }
-        assertEquals(25 + 22 + 20, seen.size());
+        assertEquals(1 + 2 + 4, seen.size());
+    }
+
+    @Test
+    public void everyOptionIsOneThePolicyReads() {
+        // The catalogue and the policy must agree: a displayed option that FpsPolicy never reads is
+        // a dead switch. Both sides were trimmed together, so this pins the remaining seven.
+        assertNotNull(FpsModuleCatalog.find(ModIds.HYPERSPATIAL_CULL));
+        for (FpsModuleCatalog.Option option : FpsModuleCatalog.allOptions()) {
+            boolean read = option.key.equals("cull_skip_offscreen_anim")
+                    || option.key.equals("vc_slice_batch")
+                    || option.key.equals("vc_atlas_lock")
+                    || option.key.equals("tr_net_interval")
+                    || option.key.equals("tr_coalesce_net")
+                    || option.key.equals("tr_batch_ticks")
+                    || option.key.equals("tr_batch_n");
+            assertTrue(option.key + " is shown but no policy reads it", read);
+        }
     }
 
     @Test

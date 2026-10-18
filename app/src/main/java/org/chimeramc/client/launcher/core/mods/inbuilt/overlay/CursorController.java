@@ -95,9 +95,11 @@ public final class CursorController {
     /**
      * Integrates one frame of stick input.
      *
-     * @param stickX      shaped right-stick X, -1..1 (already dead-zoned by the caller, or raw and
+     * @param stickX      shaped stick X, -1..1 (already dead-zoned by the caller, or raw and
      *                    the dead zone applied here — see {@link #shape})
-     * @param stickY      shaped right-stick Y, -1..1 (screen Y grows down, so the caller inverts)
+     * @param stickY      shaped stick Y, -1..1. Android's stick Y is negative when pushed up, which
+     *                    already matches screen Y growing down, so the caller passes it through
+     *                    unchanged (an up push reduces the cursor's y).
      * @param dtSeconds   real elapsed time; a long stall is clamped by the caller
      * @param precision   true while the left stick is held (slow, fine control)
      * @param fast        true while the right stick is clicked (fast)

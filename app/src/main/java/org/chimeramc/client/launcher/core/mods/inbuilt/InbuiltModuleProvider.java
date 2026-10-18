@@ -631,24 +631,21 @@ public final class InbuiltModuleProvider {
         try {
             JSONArray categories = new JSONArray();
             JSONArray nodes = new JSONArray();
+            // The three FPS modules keep only their implemented options, so a category is only
+            // created when an option actually uses it.
             categories.put(configCategory(context, "main", R.string.mod_config_category_culling));
             categories.put(configCategory(context, "batching", R.string.mod_config_category_batching));
             categories.put(configCategory(context, "memory", R.string.mod_config_category_memory));
             categories.put(configCategory(context, "timing", R.string.mod_config_category_timing));
-            categories.put(configCategory(context, "prediction", R.string.mod_config_category_prediction));
             categories.put(configCategory(context, "network", R.string.mod_config_category_network));
 
             nodes.put(scopeNoteNode(context, mod, R.string.fps_modules_scope_note, "main"));
 
-            int index = 0;
             for (org.chimeramc.client.core.mods.fps.FpsModuleCatalog.Option option : module.options) {
-                // Distribute the options across the categories so the dialog is not one long column;
-                // the exact split is presentation only and every option is always present.
-                String category = fpsCategoryFor(option.key, index++);
                 JSONObject node = new JSONObject()
                         .put("id", option.key)
                         .put("key", option.key)
-                        .put("category", category)
+                        .put("category", fpsCategoryFor(option.key))
                         .put("title", option.label)
                         .put("type", option.isToggle() ? "toggle" : "slider")
                         .put("default_value", option.defaultValue)
@@ -665,20 +662,15 @@ public final class InbuiltModuleProvider {
         }
     }
 
-    /** A presentation-only category for an FPS option key. Every option is always included. */
-    private static String fpsCategoryFor(String key, int index) {
+    /** The category a kept FPS option belongs to. Only the seven implemented options are present. */
+    private static String fpsCategoryFor(String key) {
         if (key.startsWith("tr_")) {
-            return key.contains("net") || key.contains("packet") || key.contains("coalesce")
-                    ? "network" : (key.contains("prediction") || key.contains("predict")
-                    ? "prediction" : "timing");
+            return key.contains("net") || key.contains("coalesce") ? "network" : "timing";
         }
         if (key.startsWith("vc_")) {
-            return key.contains("gc") || key.contains("pool") || key.contains("prealloc")
-                    || key.contains("cache") || key.contains("recycle") || key.contains("buffer")
-                    ? "memory" : "batching";
+            return key.contains("atlas") ? "memory" : "batching";
         }
-        // The culling module: a rough split between visibility (main) and batching, by index.
-        return index % 5 == 4 ? "batching" : "main";
+        return "main";
     }
 
     private static RuntimeConfigSchema createPvpSuiteConfigSchema(Context context, UnifiedMod mod) {

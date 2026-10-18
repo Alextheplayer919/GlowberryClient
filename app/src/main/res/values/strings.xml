@@ -884,10 +884,10 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="vip_menu_subtitle">Premium in-game control</string>
     <!-- The touch Mod Menu's top-bar subtitle, matching the VIP shell's lockup. -->
     <string name="mod_menu_subtitle">In-game control</string>
-    <!-- Account skin lookup (Cosmetics panel). Off by default: it resolves the signed-in player's
-         real Bedrock skin from their XUID via a third-party service. -->
-    <string name="cosmetics_account_skin_on">Use my account skin: off — tap to fetch</string>
-    <string name="cosmetics_account_skin_off">Use my account skin: on — tap to stop</string>
+    <!-- Account skin lookup (Cosmetics panel). On after a Microsoft sign-in: it resolves the
+         signed-in player's real Bedrock skin from their XUID via a third-party service. -->
+    <string name="cosmetics_account_skin_on">Use my account skin: off — tap to turn on</string>
+    <string name="cosmetics_account_skin_off">Use my account skin: on — tap to turn off</string>
     <string name="cosmetics_account_skin_status_off">Account skin: off. The preview uses your imported or applied skin.</string>
     <string name="cosmetics_account_skin_status_no_account">Account skin: no signed-in account. Sign in to resolve your skin.</string>
     <string name="cosmetics_account_skin_status_fetching">Account skin: fetching… it appears on the next open.</string>
@@ -1777,13 +1777,13 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="kill_effects_scope_note">A purely visual effect on your own screen. Credit is inferred: a player you hit within the last two seconds who then dies counts as your kill. It never damages anyone and cannot see a server-confirmed kill.</string>
 
     <!-- FPS optimization modules (host-side only) -->
-    <string name="inbuilt_mod_hyperspatial_cull">HyperSpatial Vertex Culling &amp; Occlusion Matrix</string>
-    <string name="inbuilt_mod_hyperspatial_cull_desc">Reduces the launcher\'s own overlay and preview work only.</string>
-    <string name="inbuilt_mod_vertical_render_coalesce">Advanced Vertical Rendering &amp; Draw-Call Coalescing</string>
-    <string name="inbuilt_mod_vertical_render_coalesce_desc">Batches the launcher\'s own overlays and merges its draw calls.</string>
-    <string name="inbuilt_mod_tick_rate_predictor">Intelligent Tick-Rate &amp; Animation Predictor</string>
-    <string name="inbuilt_mod_tick_rate_predictor_desc">Throttles the launcher\'s own non-essential per-tick work.</string>
-    <string name="fps_modules_scope_note">These modules reduce work the launcher itself does while a session runs. A launcher cannot change the game\'s draw calls, cull its geometry or raise its frame rate — the game\'s visuals are set by the player and the server — so no switch here promises a frame rate.</string>
+    <string name="inbuilt_mod_hyperspatial_cull">Launcher Animation Culling</string>
+    <string name="inbuilt_mod_hyperspatial_cull_desc">Stops the launcher advancing its own off-screen animation, freeing CPU.</string>
+    <string name="inbuilt_mod_vertical_render_coalesce">Launcher Overlay Batching</string>
+    <string name="inbuilt_mod_vertical_render_coalesce_desc">Batches the launcher\'s own overlay updates and keeps cosmetic atlases resident.</string>
+    <string name="inbuilt_mod_tick_rate_predictor">Launcher Polling Throttle</string>
+    <string name="inbuilt_mod_tick_rate_predictor_desc">Throttles the launcher\'s own background polling and per-frame overlay work.</string>
+    <string name="fps_modules_scope_note">These modules reduce work the launcher itself does while a session runs: they slow the launcher\'s own overlay and background updates, which on a weak phone can free real CPU for the game. A launcher cannot change the game\'s draw calls, cull its geometry or raise its frame rate — the game\'s visuals are set by the player and the server — so no switch here promises a frame rate.</string>
     <string name="mod_config_category_culling">Culling</string>
     <string name="mod_config_category_batching">Batching</string>
     <string name="mod_config_category_memory">Memory</string>
