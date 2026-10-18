@@ -10,13 +10,13 @@ import org.chimeramc.client.preloader.PreloaderInput;
  *
  * <p>It turns a cape or accessory image into the raw RGBA the native registry expects and hands it
  * across the JNI boundary, keyed by the player id the cosmetic belongs to. The native side stores
- * the pixels and its skin/cape and texture hooks would substitute them; until a substitution slot
- * resolves for a given build, the registry is still populated and the resource pack carries the
- * cosmetic, so nothing regresses.
+ * the pixels and its skin/cape and texture hooks substitute them; until a substitution slot
+ * resolves for a given build, the registry is still populated but nothing is drawn, so the piece
+ * shows in the preview only.
  *
  * <p><b>Fail-closed.</b> Every call is guarded ({@link PreloaderInput} swallows a missing symbol),
- * so a build whose library predates this surface simply does no native work and the pack path is
- * unchanged. The launcher never assumes the native path is live; it asks {@link #isLive()}.
+ * so a build whose library predates this surface simply does no native work. The launcher never
+ * assumes the native path is live; it asks {@link #isLive()}.
  */
 public final class NativeCosmeticsBridge {
 
@@ -107,8 +107,7 @@ public final class NativeCosmeticsBridge {
      * launch and on every equip, so the registry tracks the equipped set. A piece that is not
      * equipped clears its entry.
      *
-     * <p>Fail-closed: without the native library every upload is a no-op and the pack path is
-     * unchanged.
+     * <p>Fail-closed: without the native library every upload is a no-op and nothing is drawn.
      *
      * @param cape      the equipped cape, or null
      * @param accessory the equipped accessory, or null
@@ -530,7 +529,7 @@ public final class NativeCosmeticsBridge {
     // build the image from this RGBA instead"), so the lifecycle never involves a launcher `malloc`
     // the game could free. The launcher registers the cosmetic's PNG bytes and its painted RGBA;
     // the native hook performs the swap at upload time. Fail-closed throughout: without a resolved
-    // loader address none of this is live and the pack path is unchanged.
+    // loader address none of this is live and the vanilla texture is left alone.
 
     /**
      * Registers a content-addressed substitution: when the engine loads {@code sourceBytes} (the

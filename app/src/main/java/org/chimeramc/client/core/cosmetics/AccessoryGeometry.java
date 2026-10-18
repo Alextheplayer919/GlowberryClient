@@ -5,17 +5,15 @@ package org.chimeramc.client.core.cosmetics;
  *
  * <p>This is the in-game half of the accessory family. The preview draws an accessory with
  * {@code CapePreviewView}, but a preview is not what a player sees in a world, so each drawing
- * kind also has a real {@code minecraft:geometry} here, emitted into the same resource pack as
- * the cape and bound to the player by a render controller.
+ * kind also has a real {@code minecraft:geometry} here. It is framed into the geometry blob the
+ * native player-render hook parses and draws, alongside the cape and the pet.
  *
- * <p><b>Why a separate geometry rather than the player's own bones.</b> A render controller
- * renders one geometry per controller, and the player's vanilla geometry is a compiled
- * {@code geometry.humanoid.custom}. Injecting new cubes into it is not something a resource pack
- * can do, so each accessory is its own small geometry drawn in entity space at the head's real
- * coordinates (the vanilla head box spans x -4..4, y 24..32, z -4..4). Its single {@code acc} bone
- * is pivoted at the neck (0, 24, 0 — the vanilla {@code head} bone's pivot) and the pack's
- * {@code animation.chimera_hat} turns that bone by {@code query.target_x_rotation} /
- * {@code query.target_y_rotation}, so the accessory follows the player's position, body facing
+ * <p><b>Why a separate geometry rather than the player's own bones.</b> The engine's player model
+ * is a compiled {@code geometry.humanoid.custom} and there is no reachable way to add cubes to it,
+ * so each accessory is its own small geometry drawn in entity space at the head's real coordinates
+ * (the vanilla head box spans x -4..4, y 24..32, z -4..4). Its single {@code acc} bone is pivoted
+ * at the neck (0, 24, 0 — the vanilla {@code head} bone's pivot) and the preview turns that bone by
+ * the head's pitch and yaw, so the accessory follows the player's position, body facing
  * <em>and</em> head look, exactly like a worn item rather than a static prop.
  *
  * <p><b>Varied meshes, not one mesh recoloured.</b> Each {@link CosmeticCatalog.AccessoryKind}

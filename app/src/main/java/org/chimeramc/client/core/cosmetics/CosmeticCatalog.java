@@ -17,10 +17,11 @@ import java.util.List;
  * every shape, and every variant keeps a real, readable name.
  *
  * <p>Scope honesty: these are launcher-side cosmetics. Bedrock does not expose a general custom
- * cape slot, nor any way to spawn a client-side pet entity, to a third-party launcher, so the
- * previews show how the pieces <em>look</em>; only the cape can reach the game (through the
- * texture-override resource pack built elsewhere). The UI carries that note rather than implying
- * pets appear in the world.
+ * cape slot, nor any way to spawn a client-side pet entity, to a third-party launcher. A cape
+ * reaches the game as a texture swap at the engine's image loader; an accessory and a pet are drawn
+ * by the native player-render hook. Both routes are fail-closed, so on a build where neither
+ * resolves the pieces show in the preview only, and {@link CosmeticRoute} is what the UI reads to
+ * say which case applies rather than implying every piece is live.
  */
 public final class CosmeticCatalog {
 
