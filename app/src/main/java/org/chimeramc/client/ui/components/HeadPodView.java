@@ -73,6 +73,8 @@ public class HeadPodView extends View {
 
     private boolean animationsEnabled = true;
     private int syncState = SYNC_UNKNOWN;
+    private long entranceStartMs;
+    private boolean entranceDone;
 
     /** The pod's sync indicator states. */
     public static final int SYNC_UNKNOWN = 0;
@@ -138,6 +140,9 @@ public class HeadPodView extends View {
             removeCallbacks(frameTick);
         } else if (isAttachedToWindow()) {
             lastFrameMs = android.os.SystemClock.uptimeMillis();
+            // Re-run the entrance so a toggle applied while the tab is open still gets the pop.
+            entranceStartMs = lastFrameMs;
+            entranceDone = false;
             postOnAnimation(frameTick);
         }
         invalidate();
@@ -164,6 +169,8 @@ public class HeadPodView extends View {
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         startMs = android.os.SystemClock.uptimeMillis();
+        entranceStartMs = startMs;
+        entranceDone = false;
         lastFrameMs = startMs;
         if (animationsEnabled) postOnAnimation(frameTick);
     }
@@ -271,12 +278,31 @@ public class HeadPodView extends View {
         float radius = podRadius();
         float bob = animationsEnabled ? HeadPodMotion.bobPx(now - startMs) : 0f;
 
+        // Entrance: the whole pod springs up from zero, the bust resolves in behind it. Under
+        // reduced motion the pod is simply present at rest.
+        long sinceEntrance = now - entranceStartMs;
+        float entranceScale = 1f;
+        float headAlpha = 1f;
+        if (animationsEnabled && !entranceDone) {
+            if (PodEntrance.isSettled(sinceEntrance)) {
+                entranceDone = true;
+            } else {
+                entranceScale = PodEntrance.scaleAt(sinceEntrance);
+                headAlpha = PodEntrance.headAlphaAt(sinceEntrance);
+            }
+        }
+
+        int save = canvas.save();
+        if (entranceScale != 1f) {
+            canvas.scale(entranceScale, entranceScale, cx, cy);
+        }
         drawPedestal(canvas, cx, cy, radius);
         drawDisc(canvas, cx, cy, radius, bob);
-        drawHead(canvas, cx, cy, radius, bob);
+        drawHead(canvas, cx, cy, radius, bob, headAlpha);
         drawRim(canvas, cx, cy, radius, bob);
         if (animationsEnabled) drawParticles(canvas, cx, cy, radius, now);
         drawSyncIndicator(canvas, cx, cy, radius);
+        canvas.restoreToCount(save);
     }
 
     /** The tinted elliptical drop shadow that grounds the pod. */
@@ -333,8 +359,8 @@ public class HeadPodView extends View {
         rimPaint.setShader(null);
     }
 
-    /** The head itself, clipped to the disc. */
-    private void drawHead(Canvas canvas, float cx, float cy, float radius, float bob) {
+    /** The head itself, clipped to the disc. {@code alpha} is the entrance fade (1 = fully in). */
+    private void drawHead(Canvas canvas, float cx, float cy, float radius, float bob, float alpha) {
         if (headScene == null || headAtlas == null) {
             // No skin available: a neutral accent disc rather than a glyph or emoji.
             headPaint.setStyle(Paint.Style.FILL);
@@ -365,7 +391,20 @@ public class HeadPodView extends View {
         canvas.clipPath(headClip);
         RectF dst = new RectF(cx - radius * 0.9f, cy - radius * 0.9f + bob,
                 cx + radius * 0.9f, cy + radius * 0.9f + bob);
+        headPaint.setAlpha(Math.max(0, Math.min(255, (int) (alpha * 255f))));
         canvas.drawBitmap(headBitmap, null, dst, headPaint);
+        headPaint.setAlpha(255);
+        // Hover rim light: a soft accent spotlight on the upper-left of the head, so the model
+        // reads as lit rather than pasted in. Only on hover, per the spec's hover state.
+        if (motion.isHovered()) {
+            float rr = radius * 0.94f;
+            glowPaint.setStyle(Paint.Style.FILL);
+            glowPaint.setShader(new RadialGradient(cx - rr * 0.4f, cy + bob - rr * 0.4f, rr * 1.1f,
+                    UiTokens.withAlpha(0xFFFFFFFF, 0x40),
+                    UiTokens.withAlpha(accent, 0x00), Shader.TileMode.CLAMP));
+            canvas.drawCircle(cx, cy + bob, rr, glowPaint);
+            glowPaint.setShader(null);
+        }
         canvas.restoreToCount(save);
     }
 
