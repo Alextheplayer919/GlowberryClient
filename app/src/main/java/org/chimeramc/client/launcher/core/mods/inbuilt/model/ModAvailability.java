@@ -23,8 +23,26 @@ public final class ModAvailability {
 
     /** The reason shown on a module that cannot run, or null when the module is usable. */
     public static String unavailableReason(String modId) {
-        return ModIds.requiresGameData(modId) ? REASON_NO_GAME_DATA : null;
+        if (!ModIds.requiresGameData(modId)) return null;
+        // A catalogue entry is badged for one of two distinct causes, and telling them apart matters:
+        // an engine-hook module is waiting for a feed this build cannot yet read, while a
+        // server-decided module is not shipped on purpose because the server arbitrates the outcome
+        // (or automating it would be a ban risk). Saying "no game data" for the second would be
+        // factually wrong — there is no feed it is waiting for.
+        if (org.chimeramc.client.core.mods.pvp.PvpModuleCatalog.find(modId) != null
+                && org.chimeramc.client.core.mods.inbuilt.catalog.PvpModuleScopes.scopeOf(modId)
+                        == org.chimeramc.client.core.mods.inbuilt.catalog.ModuleScope.SERVER_DECIDED) {
+            return REASON_SERVER_DECIDED;
+        }
+        return REASON_NO_GAME_DATA;
     }
+
+    /**
+     * A stable id for the reason, so the caller can pick wording without matching a string. A
+     * server-decided module is not waiting for a feed; it is not shipped because the server
+     * arbitrates the outcome.
+     */
+    public static final String REASON_SERVER_DECIDED = "server_decided";
 
     /**
      * True when the module must be presented as not working: badged, greyed and unclickable.

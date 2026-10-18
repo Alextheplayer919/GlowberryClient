@@ -355,8 +355,14 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             // the click is dropped instead of flipping a switch that changes nothing on screen.
             if (!available) {
                 if (modHolder.unavailableText != null) {
+                    // The reason-specific wording: a server-decided module is not waiting for a
+                    // feed, so "no game data" would be wrong for it.
+                    int reason = ModAvailability.REASON_SERVER_DECIDED.equals(
+                            ModAvailability.unavailableReason(mod.getId()))
+                            ? R.string.mod_unavailable_reason_server
+                            : R.string.mod_unavailable_reason;
                     android.widget.Toast.makeText(modHolder.itemView.getContext(),
-                            R.string.mod_unavailable_reason, android.widget.Toast.LENGTH_SHORT).show();
+                            reason, android.widget.Toast.LENGTH_SHORT).show();
                 }
                 return;
             }
