@@ -1830,6 +1830,63 @@ import okhttp3.OkHttpClient;
         DynamicAnim.applyPressScale(binding.miscModHubRow);
         DynamicAnim.applyPressScale(binding.miscAccountsRow);
         DynamicAnim.applyPressScale(binding.miscQuickLaunchRow);
+        initLaunchQuickDock();
+    }
+
+    /**
+     * The Launch tab's quick dock: Mods, Cosmetics and the radial wheel.
+     *
+     * <p>Each entry opens the destination the spec names. Mods and Cosmetics open their tabs;
+     * the wheel entry asks the shared radial wheel to show, which is the same overlay the in-game
+     * bind uses, so the dock cannot drift from the in-game menu. The version label carries the
+     * real build version rather than a hardcoded string.
+     */
+    private void initLaunchQuickDock() {
+        View dock = findViewById(R.id.launch_quickdock);
+        if (dock == null) return;
+
+        View mods = findViewById(R.id.quickdock_mods);
+        if (mods != null) {
+            mods.setOnClickListener(v -> startActivity(new Intent(this, ModsFullscreenActivity.class)));
+            DynamicAnim.applyPressScale(mods);
+        }
+        View cosmetics = findViewById(R.id.quickdock_cosmetics);
+        if (cosmetics != null) {
+            cosmetics.setOnClickListener(v -> openCustomizeTab(CustomizeActivity.TAB_SKINS));
+            DynamicAnim.applyPressScale(cosmetics);
+        }
+        View wheel = findViewById(R.id.quickdock_wheel);
+        if (wheel != null) {
+            wheel.setOnClickListener(v -> openRadialWheelFromHome());
+            DynamicAnim.applyPressScale(wheel);
+        }
+
+        TextView version = findViewById(R.id.launch_version_label);
+        if (version != null) {
+            String name = org.chimeramc.client.BuildConfig.VERSION_NAME;
+            if (TextUtils.isEmpty(name)) name = "unknown";
+            version.setText(getString(R.string.launch_version_label, name));
+        }
+    }
+
+    /** Opens the Customize screen on a specific tab (Skins or Controller). */
+    private void openCustomizeTab(int tab) {
+        Intent intent = new Intent(this, CustomizeActivity.class);
+        intent.putExtra(CustomizeActivity.EXTRA_INITIAL_TAB, tab);
+        startActivity(intent);
+    }
+
+    /**
+     * Shows the radial wheel over the launcher, so the dock's wheel entry is the same menu the
+     * in-game bind opens. The wheel needs no game session to draw.
+     */
+    private void openRadialWheelFromHome() {
+        try {
+            org.chimeramc.client.core.mods.inbuilt.overlay.RadialMenuOverlay
+                    .showForActivity(this);
+        } catch (Throwable t) {
+            Toast.makeText(this, R.string.launch_quickdock_wheel_unavailable, Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void openModsFullscreen() {

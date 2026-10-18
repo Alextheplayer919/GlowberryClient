@@ -54,6 +54,49 @@ public class RadialMenuOverlay {
         this.windowManager = (WindowManager) activity.getSystemService(Context.WINDOW_SERVICE);
     }
 
+    /**
+     * Shows the wheel over a launcher screen (the Launch tab's quick dock).
+     *
+     * <p>The in-game wheel routes to the Mod Menu; over the launcher there is no game session, so
+     * the destinations are the launcher's own screens. The wheel itself is the same overlay, so a
+     * fix to the wheel geometry or the cursor reaches both homes.
+     */
+    public static void showForActivity(Activity activity) {
+        RadialMenuOverlay overlay = new RadialMenuOverlay(activity);
+        overlay.setDestinations(new Destinations() {
+            @Override
+            public void openMods() {
+                activity.startActivity(new android.content.Intent(
+                        activity, org.chimeramc.client.ui.activities.ModsFullscreenActivity.class));
+            }
+
+            @Override
+            public void openCloset() {
+                android.content.Intent intent = new android.content.Intent(
+                        activity, org.chimeramc.client.ui.activities.CustomizeActivity.class);
+                intent.putExtra(
+                        org.chimeramc.client.ui.activities.CustomizeActivity.EXTRA_INITIAL_TAB,
+                        org.chimeramc.client.ui.activities.CustomizeActivity.TAB_SKINS);
+                activity.startActivity(intent);
+            }
+
+            @Override
+            public void openSettings() {
+                activity.startActivity(new android.content.Intent(
+                        activity, org.chimeramc.client.ui.activities.SettingsActivity.class));
+            }
+
+            @Override
+            public void openHudEditor() {
+                // Over the launcher there is no game HUD; the HUD section lives in the Mod Menu,
+                // which needs a session, so this sector opens the Mod Menu's module list instead
+                // of silently doing nothing.
+                openMods();
+            }
+        });
+        overlay.show();
+    }
+
     public void setDestinations(Destinations destinations) {
         this.destinations = destinations;
     }

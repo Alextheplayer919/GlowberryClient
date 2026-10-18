@@ -28,6 +28,11 @@ public class CustomizeActivity extends BaseActivity {
     private static final String TAG_CONTROLLER = "customize_controller";
     private static final String TAG_SKINS = "customize_skins";
 
+    /** Which inner tab to open on create. */
+    public static final String EXTRA_INITIAL_TAB = "customize_initial_tab";
+    public static final int TAB_CONTROLLER = 0;
+    public static final int TAB_SKINS = 1;
+
     private TextView controllerTab;
     private TextView skinsTab;
     private int accent;
@@ -51,8 +56,15 @@ public class CustomizeActivity extends BaseActivity {
         DynamicAnim.applyPressScale(controllerTab);
         DynamicAnim.applyPressScale(skinsTab);
 
+        int initialTab = getIntent() == null
+                ? TAB_CONTROLLER
+                : getIntent().getIntExtra(EXTRA_INITIAL_TAB, TAB_CONTROLLER);
         if (savedInstanceState == null) {
-            showController();
+            if (initialTab == TAB_SKINS) {
+                showSkins();
+            } else {
+                showController();
+            }
         } else {
             boolean skinsVisible = getSupportFragmentManager().findFragmentByTag(TAG_SKINS) != null;
             styleTabs(!skinsVisible);

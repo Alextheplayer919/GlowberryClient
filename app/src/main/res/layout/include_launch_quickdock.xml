@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The Launch tab's quick dock: a compact glass strip of the three client entry points the spec
+    asks for — Mods, Cosmetics and the radial wheel (carried by the client's own mark). It sits
+    above the launch control, so the destinations are one tap away without scrolling to the page
+    sections, and it uses the same frosted-glass material as every other surface.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/launch_quickdock"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_gravity="center_horizontal"
+    android:background="@drawable/bg_launch_quickdock"
+    android:orientation="horizontal"
+    android:paddingHorizontal="10dp"
+    android:paddingVertical="8dp">
+
+    <LinearLayout
+        android:id="@+id/quickdock_mods"
+        style="@style/Widget.Glowberry.QuickDock.Item"
+        android:contentDescription="@string/nav_mods">
+
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_modules"
+            app:tint="@color/dock_text_primary" />
+
+        <TextView
+            style="@style/Widget.Glowberry.QuickDock.Label"
+            android:text="@string/nav_mods" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/quickdock_cosmetics"
+        style="@style/Widget.Glowberry.QuickDock.Item"
+        android:contentDescription="@string/customize_tab_skins">
+
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_glowberry_logo"
+            app:tint="@color/dock_text_primary" />
+
+        <TextView
+            style="@style/Widget.Glowberry.QuickDock.Label"
+            android:text="@string/customize_tab_skins" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/quickdock_wheel"
+        style="@style/Widget.Glowberry.QuickDock.Item"
+        android:contentDescription="@string/launch_quickdock_wheel">
+
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_nav_launch"
+            app:tint="@color/dock_text_primary" />
+
+        <TextView
+            style="@style/Widget.Glowberry.QuickDock.Label"
+            android:text="@string/launch_quickdock_wheel" />
+    </LinearLayout>
+</LinearLayout>
