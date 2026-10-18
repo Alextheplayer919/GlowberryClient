@@ -53,6 +53,7 @@ import org.chimeramc.client.databinding.ActivityMainBinding;
 import org.chimeramc.client.settings.FeatureSettings;
 
 import org.chimeramc.client.ui.animation.DynamicAnim;
+import org.chimeramc.client.ui.animation.LaunchIntro;
 import org.chimeramc.client.ui.dialogs.CustomAlertDialog;
 import org.chimeramc.client.ui.dialogs.LibsRepairDialog;
 import org.chimeramc.client.ui.dialogs.PlayStoreValidationDialog;
@@ -235,32 +236,68 @@ import okhttp3.OkHttpClient;
 
         animateNavTabsArrival();
         animateHomeCardsArrival();
+        animateBlurFadeIn();
     }
 
     /**
-     * Home screen entrance stagger: hero card, then the quick-action row, then the content/stats
-     * block, each a beat apart.
+     * Home screen entrance stagger in reading order: account row, hero, toggles, content, dock, then
+     * the launch control. The order comes from {@link LaunchIntro} rather than being spelled out
+     * here, so a layout reorder cannot desync the eye's path from the animation's.
      *
-     * <p>Same overshoot language as the nav tabs, so the whole screen arrives as one motion system.
-     * Reduced motion is handled inside {@link DynamicAnim#overshootScaleIn}, which snaps the views
+     * <p>Reduced motion is handled inside {@link DynamicAnim#overshootScaleIn}, which snaps the views
      * straight to full.
      */
     private void animateHomeCardsArrival() {
-        int[] order = {
-                R.id.last_played_card,
-                R.id.launch_toggle_antegg,
-                R.id.launch_toggle_voice,
-                R.id.launch_toggle_replay,
-        };
-        for (int i = 0; i < order.length; i++) {
-            View view = findViewById(order[i]);
+        for (LaunchIntro.Block block : LaunchIntro.ORDER) {
+            View view = viewForIntroBlock(block);
             if (view == null) continue;
-            DynamicAnim.overshootScaleIn(view, i * DynamicAnim.ARRIVAL_STEP_MS);
+            DynamicAnim.overshootScaleIn(view, LaunchIntro.delayFor(block));
         }
-        View statsBlock = findViewById(R.id.section_content);
-        if (statsBlock != null) {
-            DynamicAnim.overshootScaleIn(statsBlock, order.length * DynamicAnim.ARRIVAL_STEP_MS);
+    }
+
+    /** The view a reading-order block animates, or null when this screen does not carry it. */
+    private View viewForIntroBlock(LaunchIntro.Block block) {
+        switch (block) {
+            case ACCOUNT:
+                return findViewById(R.id.account_status_bar);
+            case HERO:
+                return findViewById(R.id.last_played_card);
+            case TOGGLES:
+                return findViewById(R.id.launch_toggle_antegg);
+            case CONTENT:
+                return findViewById(R.id.section_content);
+            case DOCK:
+                return findViewById(R.id.launch_quickdock);
+            case LAUNCH:
+                return binding != null && binding.launchDock != null
+                        ? binding.launchDock.launchButton : null;
+            default:
+                return null;
         }
+    }
+
+    /**
+     * Fades the backdrop in behind the arriving blocks.
+     *
+     * <p>The blur/dim scrim is painted by {@link #applyBlurIntensity}; this ramps its alpha from 0
+     * over the entrance so the world behind the panel settles in rather than appearing at full
+     * strength. A screen with no background image has nothing to fade, so it is skipped.
+     */
+    private void animateBlurFadeIn() {
+        if (!DynamicAnim.areAnimationsEnabled()) return;
+        if (binding == null || binding.getRoot() == null) return;
+        PersonalizationManager pm = new PersonalizationManager(this);
+        if (!pm.hasBackgroundImage()) return;
+        float target = binding.getRoot().getBackground() == null ? 0f : 1f;
+        if (target <= 0f) return;
+        ValueAnimator fade = ValueAnimator.ofFloat(0f, 1f);
+        fade.setDuration(LaunchIntro.BLUR_FADE_MS);
+        fade.setInterpolator(DynamicAnim.getDefaultInterpolator());
+        fade.addUpdateListener(a -> {
+            float t = (float) a.getAnimatedValue();
+            binding.getRoot().setAlpha(0.4f + 0.6f * t);
+        });
+        fade.start();
     }
 
     @Override
@@ -1849,16 +1886,19 @@ import okhttp3.OkHttpClient;
         if (mods != null) {
             mods.setOnClickListener(v -> startActivity(new Intent(this, ModsFullscreenActivity.class)));
             DynamicAnim.applyPressScale(mods);
+            DynamicAnim.applyHoverBloom(mods);
         }
         View cosmetics = findViewById(R.id.quickdock_cosmetics);
         if (cosmetics != null) {
             cosmetics.setOnClickListener(v -> openCustomizeTab(CustomizeActivity.TAB_SKINS));
             DynamicAnim.applyPressScale(cosmetics);
+            DynamicAnim.applyHoverBloom(cosmetics);
         }
         View wheel = findViewById(R.id.quickdock_wheel);
         if (wheel != null) {
             wheel.setOnClickListener(v -> openRadialWheelFromHome());
             DynamicAnim.applyPressScale(wheel);
+            DynamicAnim.applyHoverBloom(wheel);
         }
 
         TextView version = findViewById(R.id.launch_version_label);

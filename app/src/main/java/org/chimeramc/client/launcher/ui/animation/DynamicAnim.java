@@ -206,6 +206,41 @@ public final class DynamicAnim {
     }
 
     /**
+     * Hover/press feedback for a clickable surface: a soft bloom halo (elevation lift plus a scale
+     * on hover) that signals interactivity, then returns on exit.
+     *
+     * <p>On touch-only screens there is no hover, so this is a no-op there; it exists for the pointer
+     * and controller-cursor cases the spec's hover states describe. Reduced motion and the
+     * animations-disabled switch both skip it, and any failure is swallowed so feedback can never
+     * break a click.
+     */
+    public static void applyHoverBloom(final View view) {
+        if (view == null) return;
+        if (!animationsEnabled) return;
+        view.setOnHoverListener((v, event) -> {
+            switch (event.getActionMasked()) {
+                case android.view.MotionEvent.ACTION_HOVER_ENTER:
+                    animateElevation(v, PRESS_Z_DP * 1.5f, 140f);
+                    v.animate().scaleX(1.02f).scaleY(1.02f)
+                            .setDuration(140L)
+                            .setInterpolator(getDefaultInterpolator())
+                            .start();
+                    break;
+                case android.view.MotionEvent.ACTION_HOVER_EXIT:
+                    animateElevation(v, 0f, 180f);
+                    v.animate().scaleX(1f).scaleY(1f)
+                            .setDuration(180L)
+                            .setInterpolator(getDefaultInterpolator())
+                            .start();
+                    break;
+                default:
+                    break;
+            }
+            return false;
+        });
+    }
+
+    /**
      * Apply press feedback to a view that manages its own click, not its own touch.
      * Callers that need a touch listener must use the two-argument overload.
      */
