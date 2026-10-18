@@ -90,8 +90,16 @@ public final class NativeCosmeticsRuntime {
             if (s == null) return;
             // The Context-aware publish carries each piece's authored geometry and its own texture,
             // which is what the native renderer actually reads to draw the cape, hat and pet.
-            NativeCosmeticsBridge.publishLocal(context, s.getEquippedCapeForDisplay(),
+            CosmeticCatalog.Cape cape = s.getEquippedCapeForDisplay();
+            // A new equip invalidates the previous substitution's retry state.
+            capeTextureApplied = false;
+            NativeCosmeticsBridge.publishLocal(context, cape,
                     s.getEquippedAccessory(), s.getEquippedPet());
+            // The Vulkan-safe cape route: replace the cape *texture* the engine uploads, which works
+            // even when GLES is unavailable. It keys on the captured vanilla cape, so it is a no-op
+            // until the engine has loaded the local cape once; syncCapeTexture is retried on the
+            // frame tick once the capture arrives.
+            NativeCosmeticsBridge.publishCapeTexture(cape);
         } catch (Throwable ignored) {
             // A cosmetic must never take the process down; the preview still shows the selection.
         }
@@ -128,6 +136,8 @@ public final class NativeCosmeticsRuntime {
     private static double frameDistanceMoved;
     private static float[] lastPosition;
     private static float lastYaw;
+    /** True once the cape texture substitution has been registered for the current equipped cape. */
+    private static boolean capeTextureApplied;
 
     /** The gait the in-game pet animates with; set from the Mod Menu / instance settings. */
     public static void setFrameGait(CosmeticCatalog.PetLocomotion gait) {
@@ -209,6 +219,13 @@ public final class NativeCosmeticsRuntime {
                 if (framePetPhase > 1f) framePetPhase -= (float) Math.floor(framePetPhase);
                 FRAME_POSE.compute(pet.species, frameGait, framePetPhase);
                 pose = FRAME_POSE;
+            }
+
+            // Retry the cape texture substitution until the engine has handed us the local cape
+            // (the capture is its key). Cheap when already registered: the native call is a no-op
+            // unless a capture exists and the substitution is absent.
+            if (cape != null && !capeTextureApplied) {
+                capeTextureApplied = NativeCosmeticsBridge.publishCapeTexture(cape);
             }
 
             CosmeticFrame frame = CosmeticFrame.build(cape, accessory, pet, pose,

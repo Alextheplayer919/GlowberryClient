@@ -191,6 +191,34 @@ public class PreloaderInput {
     public static native void nativeClearCapturedSkin();
 
     /**
+     * Returns the player's captured cape texture, or null when none is held.
+     *
+     * <p>Same 16-byte header layout as {@link #nativeReadCapturedSkin}: {@code (width, height,
+     * format, stampMs)} then the payload (PNG when format 0, raw RGBA8 when format 4). A cape is a
+     * 2:1 panel (vanilla 64x32), so the native side tells it apart from a square skin atlas on the
+     * one seam that carries both.
+     */
+    public static native byte[] nativeReadCapturedCape();
+
+    /** True while a captured cape is held. */
+    public static native boolean nativeHasCapturedCape();
+
+    /** Discards the held cape capture. */
+    public static native void nativeClearCapturedCape();
+
+    /** Native declaration: registers the local player's custom cape pixels (2:1 RGBA8 panel). */
+    public static native void nativeSetCapeSubstitution(byte[] rgba, int width, int height);
+
+    /** Native declaration: removes the local cape substitution. */
+    public static native void nativeClearCapeSubstitution();
+
+    /** Native declaration: how many cape substitutions have fired this session. */
+    public static native int nativeCapeSubstitutionCount();
+
+    /** Native declaration: {hasCapture, capturedBytes, width | (substitutions << 32), height}. */
+    public static native long[] nativeReadCapeCaptureDiagnostics();
+
+    /**
      * A one-shot native render-path diagnostic, readable inside the app (logcat is not available to
      * the app without READ_LOGS, so the diagnostics screen reads this instead).
      *
@@ -768,6 +796,63 @@ public class PreloaderInput {
         try {
             nativeClearNextImageOverride();
         } catch (UnsatisfiedLinkError e) {
+        }
+    }
+
+    /** The player's captured cape texture bytes, or null when none is held. */
+    public static byte[] readCapturedCape() {
+        try {
+            return nativeReadCapturedCape();
+        } catch (UnsatisfiedLinkError e) {
+            return null;
+        }
+    }
+
+    public static boolean hasCapturedCape() {
+        try {
+            return nativeHasCapturedCape();
+        } catch (UnsatisfiedLinkError e) {
+            return false;
+        }
+    }
+
+    public static void clearCapturedCape() {
+        try {
+            nativeClearCapturedCape();
+        } catch (UnsatisfiedLinkError e) {
+        }
+    }
+
+    /** Registers the local player's custom cape pixels; a null/empty panel clears the substitution. */
+    public static void setCapeSubstitution(byte[] rgba, int width, int height) {
+        try {
+            nativeSetCapeSubstitution(rgba, width, height);
+        } catch (UnsatisfiedLinkError e) {
+        }
+    }
+
+    public static void clearCapeSubstitution() {
+        try {
+            nativeClearCapeSubstitution();
+        } catch (UnsatisfiedLinkError e) {
+        }
+    }
+
+    public static int capeSubstitutionCount() {
+        try {
+            return nativeCapeSubstitutionCount();
+        } catch (UnsatisfiedLinkError e) {
+            return 0;
+        }
+    }
+
+    /** {hasCapture, capturedBytes, width | (substitutions << 32), height}, or null when absent. */
+    public static long[] readCapeCaptureDiagnostics() {
+        try {
+            long[] value = nativeReadCapeCaptureDiagnostics();
+            return value != null && value.length >= 4 ? value : null;
+        } catch (UnsatisfiedLinkError e) {
+            return null;
         }
     }
 

@@ -593,6 +593,67 @@ public final class NativeCosmeticsBridge {
         return PreloaderInput.isTextureCacheFlushAvailable();
     }
 
+    // ---------------------------------------------------------------------------------------
+    // The Vulkan-safe cape route
+    // ---------------------------------------------------------------------------------------
+    //
+    // The raw GLES renderer could not draw on a Vulkan RenderDragon build (diagnostics reported
+    // "GL backend: Vulkan (GLES unavailable)"). This route never draws GL geometry: it replaces the
+    // cape *texture* the engine itself uploads, at the engine's image-loader seam, so it works
+    // regardless of the backend.
+    //
+    // The seam carries no player id, so the substitution is keyed on content: the engine hands the
+    // loader the local player's vanilla cape bytes, the loader detour captures them, and the
+    // launcher registers "when these exact bytes load, use my cape pixels instead". A peer's cape
+    // has different bytes and so a different key, so it is never touched; with no capture there is
+    // no key and nothing is replaced (fail-closed).
+
+    /** True while the engine has handed the loader a cape-shaped texture this session. */
+    public static boolean hasCapturedCape() {
+        return PreloaderInput.hasCapturedCape();
+    }
+
+    /**
+     * Registers the local player's cape pixels as the replacement for the captured vanilla cape.
+     *
+     * <p>This is the whole cape feature: paint the cape, hand the engine the pixels, and the engine
+     * uploads them where it would upload the player's own cape. It only takes effect once the engine
+     * has loaded the local cape at least once (the capture is the key); before that it is a no-op
+     * and the launcher retries when the capture arrives.
+     *
+     * @param cape the equipped cape, or null to remove the substitution
+     * @return true when a substitution is registered (or cleared)
+     */
+    public static boolean publishCapeTexture(CosmeticCatalog.Cape cape) {
+        if (cape == null) {
+            PreloaderInput.clearCapeSubstitution();
+            return true;
+        }
+        byte[] png = CapeTexturePainter.paint(cape.color, cape.trimColor, cape.accentColor,
+                cape.pattern, cape.branded);
+        Bitmap image = decode(png);
+        if (image == null) return false;
+        byte[] rgba = toRgba(image);
+        if (rgba == null) return false;
+        PreloaderInput.setCapeSubstitution(rgba, image.getWidth(), image.getHeight());
+        return true;
+    }
+
+    /** Removes the local cape substitution, leaving every other substitution intact. */
+    public static void clearCapeTexture() {
+        PreloaderInput.clearCapeSubstitution();
+    }
+
+    /** How many cape-shaped substitutions the engine has applied this session. */
+    public static int capeSubstitutionCount() {
+        return PreloaderInput.capeSubstitutionCount();
+    }
+
+    /** {hasCapture, capturedBytes, width | (substitutions << 32), height}, or null. */
+    public static long[] capeCaptureDiagnostics() {
+        return PreloaderInput.readCapeCaptureDiagnostics();
+    }
+
     /**
      * A bitmap's pixels as tightly packed RGBA, row-major, top-left origin — the layout the native
      * registry documents. A zero-size or null bitmap yields null.
