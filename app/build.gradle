@@ -16,12 +16,31 @@ def getGitTag() {
         exec {
             commandLine 'git', 'describe', '--tags', '--abbrev=0'
             standardOutput = stdout
+            errorOutput = new ByteArrayOutputStream()
         }
         tag = stdout.toString().trim()
         if (tag.startsWith("v")) {
             tag = tag.substring(1)
         }
     } catch (ignored) {
+    }
+    if (tag == null || tag.isEmpty() || tag == "unknown") {
+        // A shallow CI checkout (fetch-depth: 1) has no tags, so `git describe` fails and the
+        // version used to be stamped as "unknown" — which is what the in-app diagnostics report
+        // printed as "App version: unknown". Fall back to the committed version file so every
+        // build names a real version.
+        try {
+            def props = new Properties()
+            def versionFile = rootProject.file('version.properties')
+            if (versionFile.exists()) {
+                versionFile.withInputStream { props.load(it) }
+                def fromFile = props.getProperty('version.name', '').trim()
+                if (!fromFile.isEmpty()) {
+                    tag = fromFile
+                }
+            }
+        } catch (ignored) {
+        }
     }
     return tag
 }

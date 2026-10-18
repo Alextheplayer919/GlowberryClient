@@ -306,7 +306,26 @@ public class PreloaderInput {
                     minecraftVersion == null ? "" : minecraftVersion
             );
         } catch (UnsatisfiedLinkError e) {
+            // Silently swallowing this is what made a "revision 0" report possible with no clue
+            // why: the rules call never reached the library. Log it, with the path, so the
+            // diagnostics report and logcat both name the failing step.
+            android.util.Log.w("PreloaderSigs",
+                    "Signature rules were not delivered: libpreloader.so is not loaded"
+                            + " (rules=" + (rulesFile == null ? "<none>" : rulesFile.getAbsolutePath())
+                            + ", version=" + (minecraftVersion == null ? "<none>" : minecraftVersion) + ")");
         }
+    }
+
+    /**
+     * The revision the delivered rules file declares, or 0 when it cannot be read. Exposed so the
+     * diagnostics report can compare what was shipped against what was delivered.
+     */
+    public static int deliveredRevision(File rulesFile) {
+        if (rulesFile == null || !rulesFile.exists()) {
+            return 0;
+        }
+        return PreloaderRules.revision(
+                org.chimeramc.client.util.JsonIOUtils.read(rulesFile));
     }
 
     public static boolean isPauseMenuOpen() {

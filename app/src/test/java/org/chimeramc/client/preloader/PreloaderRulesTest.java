@@ -208,6 +208,41 @@ public class PreloaderRulesTest {
                 nextLine.has("isShowingMenuVtableIndex"));
     }
 
+    /**
+     * Phase 0.2: the rules the app packages must be the rules the source declares.
+     *
+     * <p>The device report showed "revision 0" for a source file at revision 7. One way that can
+     * happen is the APK carrying a stale or different asset than the source tree, so the revision
+     * the native side reads is not the one a developer sees in {@code resources/}. Gradle copies
+     * {@code resources/} into the merged assets verbatim, so this test asserts the merged asset (when
+     * a build has produced one) is byte-identical to the source, and that the revision is the one the
+     * source declares.
+     */
+    @Test
+    public void thePackagedRulesMatchTheSourceRules() throws Exception {
+        java.nio.file.Path source = realRulesPath();
+        org.junit.Assume.assumeTrue("bundled rules not found at " + source,
+                java.nio.file.Files.exists(source));
+        String sourceRules = new String(java.nio.file.Files.readAllBytes(source),
+                java.nio.charset.StandardCharsets.UTF_8);
+        int sourceRevision = PreloaderRules.revision(sourceRules);
+        assertTrue("source rules must declare a revision >= 7", sourceRevision >= 7);
+
+        java.nio.file.Path merged = java.nio.file.Paths.get(
+                "build/intermediates/assets/debug/mergeDebugAssets/preloader/preloader_signature_rules_source.json");
+        if (!java.nio.file.Files.exists(merged)) {
+            merged = java.nio.file.Paths.get(
+                    "../build/intermediates/assets/debug/mergeDebugAssets/preloader/preloader_signature_rules_source.json");
+        }
+        org.junit.Assume.assumeTrue("no merged asset yet (clean tree)", java.nio.file.Files.exists(merged));
+        String packaged = new String(java.nio.file.Files.readAllBytes(merged),
+                java.nio.charset.StandardCharsets.UTF_8);
+        assertEquals("the packaged rules revision must equal the source revision",
+                sourceRevision, PreloaderRules.revision(packaged));
+        assertEquals("the packaged rules must be byte-identical to the source",
+                sourceRules, packaged);
+    }
+
     private static java.nio.file.Path realRulesPath() {
         // Gradle runs unit tests with the module dir as the working directory, so the file is at
         // ../resources/preloader/...; fall back to a repo-relative path for other runners.
