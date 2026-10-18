@@ -105,16 +105,14 @@ public final class CosmeticFrame {
      * @param bodyYawDegrees the player's yaw, for the bounded turn-sway term
      * @param headPitchDeg   the head look pitch, for a head-worn accessory
      * @param headYawDeg     the head look yaw, for a head-worn accessory
-     * @param capeSegments   segments in the cape chain (CapeGeometry.SEGMENT_COUNT)
      */
     public static CosmeticFrame build(CosmeticCatalog.Cape cape, CosmeticCatalog.Accessory accessory,
                                       CosmeticCatalog.Pet pet, PetPose petPose,
                                       double moveSpeed, boolean jumping, double verticalSpeed,
                                       double distanceMoved, double capeFlap, double bodyYawDegrees,
-                                      float headPitchDeg, float headYawDeg, int capeSegments) {
+                                      float headPitchDeg, float headYawDeg) {
         return build(cape, accessory, pet, petPose, moveSpeed, jumping, verticalSpeed,
-                distanceMoved, capeFlap, bodyYawDegrees, headPitchDeg, headYawDeg, capeSegments,
-                false);
+                distanceMoved, capeFlap, bodyYawDegrees, headPitchDeg, headYawDeg, false);
     }
 
     /**
@@ -127,19 +125,16 @@ public final class CosmeticFrame {
                                       CosmeticCatalog.Pet pet, PetPose petPose,
                                       double moveSpeed, boolean jumping, double verticalSpeed,
                                       double distanceMoved, double capeFlap, double bodyYawDegrees,
-                                      float headPitchDeg, float headYawDeg, int capeSegments,
+                                      float headPitchDeg, float headYawDeg,
                                       boolean vfx) {
         int flags = 0;
+        // The cape no longer carries a bone chain. It reaches the game as a texture swap at the
+        // engine's image loader (see NativeCosmeticsBridge.publishCapeTexture), so the frame only
+        // needs to say that a cape is equipped - the segment lean/sway field stays in the wire
+        // layout, written empty, so the native parser needs no change.
         float[] leanSway = new float[0];
-        if (cape != null && capeSegments > 0) {
+        if (cape != null) {
             flags |= FLAG_CAPE;
-            leanSway = new float[capeSegments * 2];
-            for (int i = 1; i <= capeSegments; i++) {
-                leanSway[(i - 1) * 2] = (float) CapeAnimationCurve.segmentLeanDegrees(
-                        i, capeSegments, moveSpeed, jumping, verticalSpeed, distanceMoved, capeFlap);
-                leanSway[(i - 1) * 2 + 1] = (float) CapeAnimationCurve.segmentSwayDegrees(
-                        i, capeSegments, moveSpeed, distanceMoved, bodyYawDegrees);
-            }
         }
         int accessoryKind = 0;
         if (accessory != null && accessory.kind != CosmeticCatalog.AccessoryKind.NONE) {

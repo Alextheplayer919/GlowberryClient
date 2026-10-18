@@ -274,7 +274,11 @@ public final class NativeCosmeticsBridge {
                                        CosmeticCatalog.Accessory accessory,
                                        CosmeticCatalog.Pet pet) {
         java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream(4096);
-        appendGeometry(out, CapeGeometry.GEOMETRY_ID, CapeGeometry.modelJson(CapeGeometry.GEOMETRY_ID));
+        // The cape no longer ships a bone chain: it reaches the game as a texture swap at the
+        // engine's image loader, so there is no cape geometry to publish. The id is still sent with
+        // an empty mesh so any older native parser that expects the entry finds one that resolves
+        // and draws nothing.
+        appendGeometry(out, CapeGeometry.GEOMETRY_ID, CapeGeometry.emptyGeometryJson());
 
         String hatJson = AccessoryGeometry.emptyGeometryJson();
         if (accessory != null && accessory.kind != CosmeticCatalog.AccessoryKind.NONE) {

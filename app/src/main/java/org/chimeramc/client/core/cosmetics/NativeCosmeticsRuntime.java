@@ -164,8 +164,10 @@ public final class NativeCosmeticsRuntime {
     /**
      * Computes and pushes one frame of cosmetic transforms, called from the game's own frame tick.
      *
-     * <p>This is where the launcher's animation state ({@link PetPose}, {@link CapeAnimationCurve})
-     * is turned into the byte buffer the native render hook draws from. It reads the local player's
+     * <p>This is where the launcher's animation state ({@link PetPose}) is turned into the byte
+     * buffer the native render hook draws from. The cape is not animated here: it reaches the game
+     * as a texture swap at the engine's image loader (see
+     * {@link NativeCosmeticsBridge#publishCapeTexture}). It reads the local player's
      * position/rotation (the same feed the nametag icons use) to derive speed, distance moved and
      * yaw, advances the pet gait phase, computes the pose, packs a {@link CosmeticFrame} and pushes
      * it. Fail-closed: with no cosmetics equipped the frame is empty, and a build without the native
@@ -225,12 +227,12 @@ public final class NativeCosmeticsRuntime {
             // (the capture is its key). Cheap when already registered: the native call is a no-op
             // unless a capture exists and the substitution is absent.
             if (cape != null && !capeTextureApplied) {
-                capeTextureApplied = NativeCosmeticsBridge.publishCapeTexture(cape);
+                capeTextureApplied = NativeCosmeticsBridge.publishCapeTexture(context, cape);
             }
 
             CosmeticFrame frame = CosmeticFrame.build(cape, accessory, pet, pose,
                     moveSpeed, jumping, verticalSpeed, frameDistanceMoved, 0.0, yaw,
-                    0f, 0f, CapeGeometry.SEGMENT_COUNT, isVfxEnabled());
+                    0f, 0f, isVfxEnabled());
             PreloaderInput.pushCosmeticFrame(frame.toBytes());
         } catch (Throwable ignored) {
             // A cosmetic frame must never take the game down; the next tick retries.

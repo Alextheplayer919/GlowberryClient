@@ -39,7 +39,7 @@ public class CosmeticFrameTest {
         CosmeticFrame frame = CosmeticFrame.build(
                 CosmeticCatalog.cape("chimera"), CosmeticCatalog.accessory("headphones"),
                 CosmeticCatalog.pet("cat"), pose,
-                0.5, false, 0.0, 1.25, 0.0, 30.0, 0f, 0f, CapeGeometry.SEGMENT_COUNT);
+                0.5, false, 0.0, 1.25, 0.0, 30.0, 0f, 0f);
         byte[] bytes = frame.toBytes();
         ByteBuffer buf = le(bytes);
 
@@ -49,12 +49,10 @@ public class CosmeticFrameTest {
         assertTrue("accessory flag", (flags & CosmeticFrame.FLAG_ACCESSORY) != 0);
         assertTrue("pet flag", (flags & CosmeticFrame.FLAG_PET) != 0);
 
+        // The cape carries no bone chain any more: it is a texture swap, so the segment count is
+        // written as zero and the native parser skips the (empty) lean/sway array.
         int capeSegments = buf.getInt();
-        assertEquals(CapeGeometry.SEGMENT_COUNT, capeSegments);
-        for (int i = 0; i < capeSegments * 2; i++) {
-            float value = buf.getFloat();
-            assertTrue("cape value finite", Float.isFinite(value));
-        }
+        assertEquals(0, capeSegments);
         assertEquals(CosmeticCatalog.AccessoryKind.HEADPHONES.ordinal(), buf.getInt());
         buf.getFloat(); // head pitch
         buf.getFloat(); // head yaw
@@ -80,7 +78,7 @@ public class CosmeticFrameTest {
     @Test
     public void noCapeMeansNoSegmentsAndTheFlagIsClear() {
         CosmeticFrame frame = CosmeticFrame.build(null, null, null, null,
-                0.0, false, 0.0, 0.0, 0.0, 0.0, 0f, 0f, CapeGeometry.SEGMENT_COUNT);
+                0.0, false, 0.0, 0.0, 0.0, 0.0, 0f, 0f);
         byte[] bytes = frame.toBytes();
         ByteBuffer buf = le(bytes);
         assertEquals(CosmeticFrame.MAGIC, buf.getInt());
