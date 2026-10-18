@@ -68,8 +68,13 @@ public final class PvpModuleScopes {
                 "combat_shield_timer",     // armed on a shield use
                 "combat_hit_marker",       // flashes on the client's own landed hit
                 "combat_no_sprint_reset",  // re-sends sprint after the client's own attack
+                "combat_w_tap",            // re-sends sprint after the client's own hit (a W-tap)
                 "util_keep_sprint",        // re-sends sprint after the client's own action
-                "move_sprint_swing");      // re-sends sprint after the client's own swing
+                "move_sprint_swing",       // re-sends sprint after the client's own swing
+                // look shaping: filters the delta the launcher is about to send, reads no game data
+                "combat_rotation_smoother",// eases the sent look delta to remove jitter
+                // actions on the launcher's own surface
+                "util_screenshot");        // captures our own window; no capture consent needed
 
         // --- Game options file -----------------------------------------------------------------
         // Each writes a key in the instance's minecraftpe/options.txt, which the game applies on
@@ -87,7 +92,9 @@ public final class PvpModuleScopes {
         // Reaches other players through the proximity-voice peer feed, which needs no game hook.
         // Vanilla players are invisible to it and the readout says so.
         put(map, ModuleScope.PEER_FEED,
-                "combat_reach_circle");    // distance to the nearest peer vs the reach radius
+                "combat_reach_circle",     // distance to the nearest peer vs the reach radius
+                "combat_target_hud",       // nearest peer's name and distance
+                "hud_target_info");        // nearest peer's name and distance
 
         // --- Local-player feed (position / rotation / health) -----------------------------------
         // Read through the already-installed native local-player feed (the ClientInstance

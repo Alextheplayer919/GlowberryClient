@@ -4,6 +4,7 @@ import android.app.Activity;
 
 import org.chimeramc.client.core.mods.inbuilt.catalog.PvpModuleScopes;
 import org.chimeramc.client.core.mods.inbuilt.manager.InbuiltModManager;
+import org.chimeramc.client.launcher.core.mods.inbuilt.overlay.RotationSmootherMod;
 
 /**
  * Routes a reachable catalogue module's enable/disable to the right implementation.
@@ -40,12 +41,13 @@ public final class CatalogModuleHost {
             "move_fall_damage_warn", "world_waypoints", "world_death_waypoint",
             "combat_attack_cooldown", "combat_attack_indicator", "combat_crit_timer",
             "combat_pearl_timer", "combat_gapple_timer", "combat_shield_timer",
-            "combat_hit_marker", "combat_reach_circle"));
+            "combat_hit_marker", "combat_reach_circle",
+            "combat_target_hud", "hud_target_info"));
 
     /** The catalogue ids that perform a one-shot when switched on. */
     private static final java.util.Set<String> ACTIONS = new java.util.HashSet<>(java.util.Arrays.asList(
             "util_drop_all", "util_chat_macro", "util_command_bind",
-            "util_auto_gg", "util_auto_tip"));
+            "util_auto_gg", "util_auto_tip", "util_screenshot"));
 
     /** The catalogue ids that write the instance's options file. */
     private static final java.util.Set<String> OPTIONS_WRITES = new java.util.HashSet<>(java.util.Arrays.asList(
@@ -59,7 +61,17 @@ public final class CatalogModuleHost {
      * the server arbitrates, so it is honest as a device-input helper.
      */
     private static final java.util.Set<String> SPRINT_HELPERS = new java.util.HashSet<>(java.util.Arrays.asList(
-            "combat_no_sprint_reset", "move_sprint_swing", "util_keep_sprint"));
+            "combat_no_sprint_reset", "move_sprint_swing", "util_keep_sprint",
+            "combat_w_tap"));
+
+    /**
+     * The catalogue ids that shape the look input the launcher sends.
+     *
+     * <p>Owned by the look path, not by an overlay: switching one on only flips the shaper's flag,
+     * and the dispatch site picks the active shaper. Nothing is shown here.
+     */
+    private static final java.util.Set<String> SHAPERS = new java.util.HashSet<>(java.util.Arrays.asList(
+            "combat_rotation_smoother"));
 
     /**
      * True when this id is a reachable catalogue module the host can drive.
@@ -72,7 +84,8 @@ public final class CatalogModuleHost {
     public static boolean handles(String modId) {
         return PvpModuleScopes.isReachable(modId)
                 && (READOUTS.contains(modId) || ACTIONS.contains(modId)
-                || OPTIONS_WRITES.contains(modId) || SPRINT_HELPERS.contains(modId));
+                || OPTIONS_WRITES.contains(modId) || SPRINT_HELPERS.contains(modId)
+                || SHAPERS.contains(modId));
     }
 
     /** True when the module draws a draggable text readout, so the dialog offers its appearance. */
@@ -125,6 +138,10 @@ public final class CatalogModuleHost {
             overlayManager.catalogRuntime().setSprintHelper(modId, true);
             return;
         }
+        if (SHAPERS.contains(modId)) {
+            RotationSmootherMod.setEnabled(true);
+            return;
+        }
         if (OPTIONS_WRITES.contains(modId)) {
             applyOptionsWrite(activity, modId);
         }
@@ -137,6 +154,9 @@ public final class CatalogModuleHost {
         }
         if (SPRINT_HELPERS.contains(modId)) {
             overlayManager.catalogRuntime().setSprintHelper(modId, false);
+        }
+        if (SHAPERS.contains(modId)) {
+            RotationSmootherMod.setEnabled(false);
         }
         // An action or an options write has nothing to tear down: the action already ran, and the
         // options file is re-read by the game on its next load.

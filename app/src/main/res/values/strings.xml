@@ -1087,6 +1087,8 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="catalog_waypoint_distance">Waypoint: %1$s blocks</string>
     <string name="catalog_reach_circle">Reach: %1$s blocks</string>
     <string name="catalog_hit_marker">Hit</string>
+    <string name="catalog_screenshot_saved">Screenshot saved to the instance\'s Screenshots folder</string>
+    <string name="catalog_screenshot_failed">Could not save the screenshot</string>
     <string name="mod_overlay_no_peers">No players nearby</string>
     <string name="mod_overlay_players_title">Players (%1$d)</string>
     <string name="mod_overlay_debug_title">Debug</string>

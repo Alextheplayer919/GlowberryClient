@@ -631,13 +631,18 @@ class MinecraftActivity : MainActivity(), PojavControlsHost {
     }
 
     override fun pojavSendLookDelta(deltaX: Float, deltaY: Float) {
-        // Either shaper, never both: each carries its own smoothing, so stacking them would
-        // compound the damping. Hit Registration supersedes Aim Settings' shaping when it is
-        // on; Aim Settings keeps drawing its crosshair either way, since that is separate.
+        // One shaper, never more: each carries its own smoothing, so stacking them would
+        // compound the damping. Hit Registration supersedes the others when it is on; the
+        // catalogue's Rotation Smoother is next; Aim Settings is the default. Aim Settings keeps
+        // drawing its crosshair regardless, since that is separate.
         val smoothed = if (org.chimeramc.client.core.mods.inbuilt.overlay.HitRegistrationMod
                 .isActive()) {
             org.chimeramc.client.core.mods.inbuilt.overlay.HitRegistrationMod
                 .shapeLookDelta(deltaX, deltaY)
+        } else if (org.chimeramc.client.launcher.core.mods.inbuilt.overlay.RotationSmootherMod
+                .isActive()) {
+            org.chimeramc.client.launcher.core.mods.inbuilt.overlay.RotationSmootherMod
+                .smoothLookDelta(deltaX, deltaY)
         } else {
             org.chimeramc.client.core.mods.inbuilt.overlay.AimSettingsMod
                 .smoothLookDelta(deltaX, deltaY)

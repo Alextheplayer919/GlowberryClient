@@ -12,6 +12,7 @@ import org.chimeramc.client.core.mods.inbuilt.catalog.CatalogTimerRules;
 import org.chimeramc.client.core.mods.inbuilt.catalog.ChatInjector;
 import org.chimeramc.client.core.mods.inbuilt.catalog.KeyStateTracker;
 import org.chimeramc.client.core.mods.inbuilt.catalog.LocalPlayerReadouts;
+import org.chimeramc.client.core.mods.inbuilt.catalog.PeerTargets;
 import org.chimeramc.client.core.mods.inbuilt.manager.InbuiltModManager;
 import org.chimeramc.client.preloader.PreloaderInput;
 
@@ -308,6 +309,9 @@ public final class CatalogModuleRuntime {
                 return timerText("combat_shield_timer");
             case "combat_reach_circle":
                 return reachCircleText();
+            case "combat_target_hud":
+            case "hud_target_info":
+                return targetText();
             case "combat_hit_marker":
                 return hitMarkerText();
             case "hud_saturation":
@@ -352,6 +356,25 @@ public final class CatalogModuleRuntime {
         if (best == Double.MAX_VALUE) return null;
         return activity.getString(org.chimeramc.client.R.string.catalog_reach_circle,
                 String.format(java.util.Locale.US, "%.1f", best));
+    }
+
+    /**
+     * The nearest peer's name and distance, for the target readouts.
+     *
+     * <p>Reads the proximity-voice peer feed, which needs no game hook. Vanilla players are
+     * invisible to it; with no peer in range the readout is null and the overlay shows the honest
+     * empty state rather than a fabricated target.
+     */
+    private String targetText() {
+        float[] position = PreloaderInput.readLocalPlayerPosition();
+        if (position == null || position.length < 3) return null;
+        java.util.List<ReachIndicator.VoicePeerPosition> peers = PeerPositions.read();
+        if (peers.isEmpty()) return null;
+        java.util.List<PeerTargets.Peer> converted = new java.util.ArrayList<>(peers.size());
+        for (ReachIndicator.VoicePeerPosition peer : peers) {
+            converted.add(new PeerTargets.Peer(peer.id, peer.name, peer.x, peer.y, peer.z));
+        }
+        return PeerTargets.describe(PeerTargets.nearest(position, converted));
     }
 
     /**
@@ -456,9 +479,68 @@ public final class CatalogModuleRuntime {
                 }
                 break;
             }
+            case "util_screenshot":
+                captureScreenshot();
+                break;
             default:
                 break;
         }
+    }
+
+    /**
+     * Saves a PNG of the launcher's own window into the instance's {@code Screenshots} folder.
+     *
+     * <p>PixelCopy of our own window needs no capture consent, unlike the media-projection flow the
+     * Replay feature uses for the game surface. The result is reported either way, so a device whose
+     * compositor excludes the game's surface still tells the player what was saved rather than
+     * silently doing nothing.
+     */
+    private void captureScreenshot() {
+        java.io.File dir = screenshotsDir();
+        if (dir == null) {
+            toast(org.chimeramc.client.R.string.catalog_options_no_instance);
+            return;
+        }
+        org.chimeramc.client.launcher.core.content.ScreenshotCapture.capture(activity, dir,
+                new org.chimeramc.client.launcher.core.content.ScreenshotCapture.Callback() {
+                    @Override
+                    public void onSaved(java.io.File file) {
+                        toast(org.chimeramc.client.R.string.catalog_screenshot_saved);
+                    }
+
+                    @Override
+                    public void onFailed() {
+                        toast(org.chimeramc.client.R.string.catalog_screenshot_failed);
+                    }
+                });
+    }
+
+    /** The selected instance's Screenshots folder, resolved as the content screen resolves it. */
+    private java.io.File screenshotsDir() {
+        org.chimeramc.client.core.versions.VersionManager manager =
+                org.chimeramc.client.core.versions.VersionManager.getIfInitialized();
+        if (manager == null) return null;
+        org.chimeramc.client.core.versions.GameVersion version = manager.getSelectedVersion();
+        if (version == null) return null;
+        android.content.SharedPreferences prefs = activity.getSharedPreferences(
+                org.chimeramc.client.util.LauncherStorage.CONTENT_MANAGEMENT_PREFS_NAME,
+                android.content.Context.MODE_PRIVATE);
+        org.chimeramc.client.settings.FeatureSettings.StorageType stored =
+                org.chimeramc.client.settings.FeatureSettings.StorageType.INTERNAL;
+        try {
+            stored = org.chimeramc.client.settings.FeatureSettings.StorageType.valueOf(prefs.getString(
+                    org.chimeramc.client.util.LauncherStorage.CONTENT_STORAGE_TYPE_KEY,
+                    org.chimeramc.client.settings.FeatureSettings.StorageType.INTERNAL.name()));
+        } catch (Throwable ignored) {
+            // A malformed preference reads as the default rather than aborting the capture.
+        }
+        org.chimeramc.client.settings.FeatureSettings.StorageType resolved =
+                org.chimeramc.client.util.LauncherStorage.normalizeContentStorageType(
+                        stored, version.versionIsolation);
+        java.io.File gameDataDir = org.chimeramc.client.util.LauncherStorage.getContentGameDataDir(
+                activity, version.getStorageProfileId(), resolved);
+        if (gameDataDir == null) return null;
+        return new java.io.File(gameDataDir, "Screenshots");
     }
 
     private void sendChat(String line) {
