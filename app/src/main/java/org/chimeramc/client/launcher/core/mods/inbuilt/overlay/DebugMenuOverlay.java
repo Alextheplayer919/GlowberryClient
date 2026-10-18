@@ -3,18 +3,24 @@ package org.chimeramc.client.core.mods.inbuilt.overlay;
 import android.app.Activity;
 
 import org.chimeramc.client.R;
+import org.chimeramc.client.core.mods.inbuilt.catalog.LocalPlayerReadouts;
 import org.chimeramc.client.core.mods.inbuilt.model.ModIds;
 import org.chimeramc.client.preloader.PreloaderInput;
 
-import java.util.Locale;
-
 /**
- * A client-side debug readout: position, chunk, view rotation, health and the frame rate.
+ * A client-side debug readout in the shape of the Java Edition F3 screen: position, the chunk and
+ * its corner, facing and pitch, health and the frame rate.
  *
  * <p>Everything here comes from data the client already reads — the local-player feed
  * ({@link LocalPlayerFeed}/{@link PreloaderInput}) and the frame meter — so it needs no native
- * entity feed. The entity count is not shown: this build cannot read the game's entity list, and a
- * fabricated number would be worse than omitting it.
+ * entity feed. The formatting is delegated to {@link LocalPlayerReadouts}, the same class the
+ * catalogue's coordinates/direction/chunk modules use, so the debug menu and those readouts cannot
+ * disagree about which way is north or where a chunk starts.
+ *
+ * <p>Lines the Java F3 screen shows but this build cannot source are omitted rather than faked: the
+ * entity count, the biome and the light level all need the game's own world structures, which the
+ * shipped builds do not expose (game classes export no symbols). A missing line reads as "not
+ * available"; an invented one would read as a real measurement.
  */
 public class DebugMenuOverlay extends TextOverlay {
 
@@ -51,23 +57,32 @@ public class DebugMenuOverlay extends TextOverlay {
     protected String buildText() {
         StringBuilder b = new StringBuilder(activity.getString(R.string.mod_overlay_debug_title));
         float[] pos = PreloaderInput.readLocalPlayerPosition();
-        if (pos != null && pos.length >= 3) {
-            b.append('\n').append(activity.getString(R.string.mod_overlay_pos,
-                    String.format(Locale.US, "%.1f, %.1f, %.1f", pos[0], pos[1], pos[2])));
-            b.append('\n').append(activity.getString(R.string.mod_overlay_chunk,
-                    (int) Math.floor(pos[0]) >> 4, (int) Math.floor(pos[2]) >> 4));
+        String coords = LocalPlayerReadouts.coordinates(pos);
+        if (coords != null) {
+            b.append('\n').append(activity.getString(R.string.mod_overlay_pos, coords));
+            String chunk = LocalPlayerReadouts.chunk(pos);
+            if (chunk != null) {
+                b.append('\n').append(activity.getString(R.string.mod_overlay_chunk, chunk));
+            }
+            String origin = LocalPlayerReadouts.chunkOrigin(pos);
+            if (origin != null) {
+                b.append('\n').append(activity.getString(R.string.mod_overlay_chunk_origin, origin));
+            }
         } else {
             b.append('\n').append(activity.getString(R.string.mod_overlay_data_unavailable));
         }
         float[] rot = PreloaderInput.readLocalPlayerRotation();
-        if (rot != null && rot.length >= 2) {
-            b.append('\n').append(activity.getString(R.string.mod_overlay_yaw,
-                    String.format(Locale.US, "%.0f / %.0f", rot[0], rot[1])));
+        String direction = LocalPlayerReadouts.direction(rot);
+        if (direction != null) {
+            b.append('\n').append(activity.getString(R.string.mod_overlay_facing, direction));
         }
-        float[] health = PreloaderInput.readLocalPlayerHealth();
-        if (health != null && health.length >= 1) {
-            b.append('\n').append(activity.getString(R.string.mod_overlay_health,
-                    String.format(Locale.US, "%.0f", health[0])));
+        String pitch = LocalPlayerReadouts.pitch(rot);
+        if (pitch != null) {
+            b.append('\n').append(activity.getString(R.string.mod_overlay_pitch, pitch));
+        }
+        String health = LocalPlayerReadouts.health(PreloaderInput.readLocalPlayerHealth());
+        if (health != null) {
+            b.append('\n').append(activity.getString(R.string.mod_overlay_health, health));
         }
         int fps = frameMeter.currentFps();
         if (fps > 0) {
