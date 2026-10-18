@@ -783,6 +783,11 @@ public final class ReplayPanel {
                     }
 
                     @Override
+                    public void onCinematic(ReplayClip c) {
+                        openCinematicEditor(c);
+                    }
+
+                    @Override
                     public void onDelete(ReplayClip c) {
                         confirmDelete(c);
                     }
@@ -865,6 +870,19 @@ public final class ReplayPanel {
                 }
             });
         }));
+    }
+
+    private void openCinematicEditor(ReplayClip clip) {
+        if (clip == null) return;
+        ReplayCameraPath existing = clip.cameraPath();
+        ReplayCamera camera = new ReplayCamera();
+        // Seed the camera from the clip's own duration so a preset spans the whole shot.
+        ReplayCinematicDialog.show(activity, style, existing, camera, clip.durationMs(), path -> {
+            clip.setCameraPath(path);
+            repository.updateSidecar(clip);
+            Toast.makeText(activity, R.string.replay_cinematic_saved, Toast.LENGTH_SHORT).show();
+            refreshLibrary();
+        });
     }
 
     private void openClip(ReplayClip clip) {
@@ -976,6 +994,46 @@ public final class ReplayPanel {
     /** Opens the trim dialog for the selected clip. */
     public void trimSelected() {
         if (selected != null) trimClip(selected);
+    }
+
+    /** Opens the cinematic camera editor for the selected clip. */
+    public void cinematicSelected() {
+        if (selected != null) openCinematicEditor(selected);
+    }
+
+    /** Toggles the detached free camera while a clip is playing. */
+    public void toggleFreeCamera() {
+        if (playerView != null) playerView.toggleFreeCamera();
+    }
+
+    /** True when a clip is open in the embedded player. */
+    public boolean isPlayerOpen() {
+        return playerView != null;
+    }
+
+    /**
+     * Toggles playback of the open clip, for the Replay controller route.
+     *
+     * @return true when a player was open and the toggle applied.
+     */
+    public boolean togglePlayback() {
+        if (playerView == null) return false;
+        playerView.togglePlayback();
+        return true;
+    }
+
+    /** Steps the playback speed of the open clip, for the Replay controller route. */
+    public boolean stepPlaybackSpeed() {
+        if (playerView == null) return false;
+        playerView.stepSpeed();
+        return true;
+    }
+
+    /** Seeks the open clip by a fraction, for the Replay controller's scrub route. */
+    public boolean scrubPlayback(float fraction) {
+        if (playerView == null) return false;
+        playerView.seekByFraction(fraction);
+        return true;
     }
 
     /** Moves the selection through the filtered list, used by the controller's bumper cycle. */

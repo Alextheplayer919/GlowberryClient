@@ -24,6 +24,7 @@ public final class ReplaySidecar {
     private static final String KEY_GAME_MODE = "gameMode";
     private static final String KEY_FAVORITE = "favorite";
     private static final String KEY_HIGHLIGHT = "highlight";
+    private static final String KEY_CAMERA_PATH = "cameraPath";
 
     private final Map<String, String> values = new LinkedHashMap<>();
 
@@ -95,6 +96,17 @@ public final class ReplaySidecar {
 
     public ReplaySidecar setHighlight(boolean highlight) {
         return set(KEY_HIGHLIGHT, highlight ? "1" : "0");
+    }
+
+    /** The stored cinematic camera path, or an empty path when none was authored. */
+    public ReplayCameraPath cameraPath() {
+        return ReplayCameraPathCodec.parse(get(KEY_CAMERA_PATH, ""));
+    }
+
+    /** Stores the cinematic camera path; an empty path clears the key. */
+    public ReplaySidecar setCameraPath(ReplayCameraPath path) {
+        String encoded = ReplayCameraPathCodec.serialize(path);
+        return set(KEY_CAMERA_PATH, encoded);
     }
 
     public String serialize() {

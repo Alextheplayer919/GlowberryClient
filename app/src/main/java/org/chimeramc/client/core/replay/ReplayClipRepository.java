@@ -59,6 +59,8 @@ public final class ReplayClipRepository {
         ReplayClip clip = new ReplayClip(file, durationMs, file.length(), recordedAt,
                 sidecar.world(), sidecar.gameVersion(), sidecar.gameMode());
         sidecar.applyTo(clip);
+        ReplayCameraPath path = sidecar.cameraPath();
+        clip.setCameraPath(path != null && !path.isEmpty() ? path : null);
         return clip;
     }
 
@@ -121,6 +123,9 @@ public final class ReplayClipRepository {
         sidecar.set("gameMode", clip.gameMode());
         sidecar.setFavorite(clip.favorite());
         sidecar.setHighlight(clip.highlight());
+        if (clip.cameraPath() != null && !clip.cameraPath().isEmpty()) {
+            sidecar.setCameraPath(clip.cameraPath());
+        }
         ReplayStorage.writeSidecar(clip.file(), sidecar.serialize());
     }
 

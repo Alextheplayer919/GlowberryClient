@@ -5,6 +5,7 @@ import android.graphics.Typeface;
 import android.media.MediaPlayer;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.SurfaceHolder;
@@ -52,9 +53,6 @@ public final class ReplayPlayerView {
         void onPlaybackEnded();
     }
 
-    /** Playback speed steps, cycled by the speed button. */
-    private static final float[] SPEEDS = {1.0f, 1.5f, 2.0f};
-
     private final Activity activity;
     private final ReplayStyle style;
     private final Callbacks callbacks;
@@ -64,16 +62,25 @@ public final class ReplayPlayerView {
     private TextView title;
     private TextView playPause;
     private TextView speedButton;
+    private TextView cameraButton;
     private SeekBar seekBar;
     private TextView positionText;
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
+    /** The transport state (position, speed, play/pause) shared with the camera path. */
+    private final ReplayTimeline timeline = new ReplayTimeline(0L);
+    /** The detached spectator camera, used while the free camera is on. */
+    private final ReplayCamera camera = new ReplayCamera();
+    /** The cinematic camera path being played back, if the clip has one. */
+    private ReplayCameraPath cameraPath;
+    private boolean freeCamera;
+    /** Wall-clock anchor for the reverse/stepped seek tick. */
+    private long lastTickMs;
+
     private MediaPlayer player;
     private ReplayClip clip;
-    private int speedIndex;
     private boolean prepared;
-    private boolean playing;
     /** Whether the gate is currently latched by this view, so callbacks alternate. */
     private boolean gateLatched;
     /** True while the user drags the scrub bar, so the tick does not fight the thumb. */
@@ -82,8 +89,14 @@ public final class ReplayPlayerView {
     private final Runnable progressTick = new Runnable() {
         @Override
         public void run() {
+            long now = SystemClock.uptimeMillis();
+            long elapsed = lastTickMs == 0L ? 0L : now - lastTickMs;
+            lastTickMs = now;
+            if (timeline.isReversed()) {
+                stepReversed(elapsed);
+            }
             updateProgress();
-            if (playing) mainHandler.postDelayed(this, 250L);
+            if (timeline.isPlaying()) mainHandler.postDelayed(this, 100L);
         }
     };
 
@@ -140,10 +153,17 @@ public final class ReplayPlayerView {
         title.setText(clip == null ? "" : clip.displayName());
         releasePlayer();
         prepared = false;
-        playing = false;
-        speedIndex = 0;
+        timeline.pause();
+        timeline.setDurationMs(0L);
+        timeline.seekMs(0L);
+        timeline.setSpeed(1f);
         updateSpeedLabel();
         updateProgress();
+        // A clip may carry an authored cinematic camera path in its sidecar; load it so the free
+        // camera can play the shot, otherwise the camera starts from the recorded view.
+        cameraPath = loadCameraPath(clip);
+        freeCamera = false;
+        updateCameraLabel();
         if (clip == null) return;
         startPlayer(clip.file());
     }
@@ -153,8 +173,57 @@ public final class ReplayPlayerView {
         mainHandler.removeCallbacks(progressTick);
         releasePlayer();
         prepared = false;
-        playing = false;
+        timeline.pause();
         unlatchGate();
+    }
+
+    /** The sidecar's authored camera path for a clip, or null when it has none. */
+    private ReplayCameraPath loadCameraPath(ReplayClip clip) {
+        if (clip == null) return null;
+        try {
+            ReplayCameraPath path = clip.cameraPath();
+            return path == null || path.isEmpty() ? null : path;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /** The transport state, exposed so a host (the panel) can drive or read it. */
+    public ReplayTimeline timeline() {
+        return timeline;
+    }
+
+    /** The free camera, exposed for a host that wants to move it from a controller/stick. */
+    public ReplayCamera camera() {
+        return camera;
+    }
+
+    public boolean isFreeCamera() {
+        return freeCamera;
+    }
+
+    /** Toggles the detached spectator camera on or off. */
+    public void toggleFreeCamera() {
+        freeCamera = !freeCamera;
+        updateCameraLabel();
+    }
+
+    /** Toggles play/pause, for a controller route into the open player. */
+    public void togglePlayback() {
+        togglePlayPause();
+    }
+
+    /** Steps the playback speed, for a controller route into the open player. */
+    public void stepSpeed() {
+        cycleSpeed();
+    }
+
+    /** Seeks by a fraction of the clip, for a controller's scrub route. */
+    public void seekByFraction(float fraction) {
+        if (player == null || !prepared) return;
+        timeline.seekFraction(fraction);
+        player.seekTo((int) timeline.positionMs());
+        updateProgress();
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -170,18 +239,19 @@ public final class ReplayPlayerView {
             player.setOnPreparedListener(mp -> {
                 prepared = true;
                 mp.setLooping(false);
+                timeline.setDurationMs(mp.getDuration());
                 applySpeed();
                 attachSurface(surface.getHolder());
                 startPlayback();
             });
             player.setOnCompletionListener(mp -> {
-                playing = false;
+                timeline.pause();
                 unlatchGate();
                 playPause.setText("▶");
                 updateProgress();
             });
             player.setOnErrorListener((mp, what, extra) -> {
-                playing = false;
+                timeline.pause();
                 unlatchGate();
                 Toast.makeText(activity, R.string.replay_playback_hint, Toast.LENGTH_SHORT)
                         .show();
@@ -203,37 +273,78 @@ public final class ReplayPlayerView {
 
     private void togglePlayPause() {
         if (player == null || !prepared) return;
-        if (playing) {
+        if (timeline.isPlaying()) {
+            timeline.pause();
             player.pause();
-            playing = false;
             unlatchGate();
             playPause.setText("▶");
             mainHandler.removeCallbacks(progressTick);
         } else {
-            startPlayback();
+            timeline.seekMs(player.getCurrentPosition());
+            timeline.play();
+            if (timeline.isPlaying()) startPlayback();
         }
     }
 
     private void startPlayback() {
         if (player == null || !prepared) return;
+        if (timeline.isReversed()) {
+            // Reverse is a stepped seek; the decoder stays paused and the tick moves the position.
+            timeline.play();
+            if (!timeline.isPlaying()) return;
+            playPause.setText("⏸");
+            latchGate();
+            lastTickMs = SystemClock.uptimeMillis();
+            mainHandler.removeCallbacks(progressTick);
+            mainHandler.post(progressTick);
+            return;
+        }
         try {
             player.start();
         } catch (Throwable t) {
             return;
         }
-        playing = true;
+        timeline.play();
+        if (!timeline.isPlaying()) return;
         playPause.setText("⏸");
         latchGate();
+        lastTickMs = SystemClock.uptimeMillis();
         mainHandler.removeCallbacks(progressTick);
         mainHandler.post(progressTick);
+    }
+
+    /**
+     * Drives a reversed transport, which the platform player cannot do itself, by stepping the
+     * position backwards on the tick. The forward path keeps using the decoder's own speed.
+     */
+    private void stepReversed(long elapsedMs) {
+        if (player == null || !prepared) return;
+        if (timeline.advance(elapsedMs)) {
+            player.seekTo((int) timeline.positionMs());
+            player.pause();
+            unlatchGate();
+            playPause.setText("▶");
+            mainHandler.removeCallbacks(progressTick);
+            return;
+        }
+        player.seekTo((int) timeline.positionMs());
     }
 
     /** Re-seeks the current speed after a start, since some decoders reset the params. */
     private void applySpeed() {
         if (player == null) return;
+        float speed = timeline.speed();
+        if (speed < 0f) {
+            // Reverse is a stepped seek, not a decoder rate; keep the decoder paused between steps.
+            try {
+                player.setPlaybackParams(player.getPlaybackParams().setSpeed(1f));
+            } catch (Throwable ignored) {
+            }
+            return;
+        }
         try {
             android.media.PlaybackParams params = player.getPlaybackParams();
-            params.setSpeed(SPEEDS[speedIndex]);
+            params.setSpeed(speed);
             player.setPlaybackParams(params);
         } catch (Throwable ignored) {
             // Pre-N decoders may not support speed; playback stays at 1x.
@@ -241,21 +352,34 @@ public final class ReplayPlayerView {
     }
 
     private void cycleSpeed() {
-        speedIndex = (speedIndex + 1) % SPEEDS.length;
+        timeline.cycleSpeed();
         applySpeed();
         updateSpeedLabel();
     }
 
     private void updateSpeedLabel() {
-        speedButton.setText(SPEEDS[speedIndex] == 1.0f
+        float speed = timeline.speed();
+        speedButton.setText(speed == 1.0f
                 ? activity.getString(R.string.replay_player_speed_1x)
-                : activity.getString(R.string.replay_player_speed, SPEEDS[speedIndex]));
+                : activity.getString(R.string.replay_player_speed, speed));
+    }
+
+    private void updateCameraLabel() {
+        if (cameraButton == null) return;
+        cameraButton.setText(freeCamera
+                ? R.string.replay_camera_free : R.string.replay_camera_recorded);
     }
 
     private void updateProgress() {
         if (player == null || !prepared) return;
         int duration = player.getDuration();
-        int position = player.getCurrentPosition();
+        if (duration > 0) timeline.setDurationMs(duration);
+        int position = timeline.isReversed() ? (int) timeline.positionMs()
+                : player.getCurrentPosition();
+        if (!timeline.isReversed()) timeline.seekMs(position);
+        // While the free camera plays an authored path, drive the camera from the same timeline so
+        // the shot and the clip stay in step.
+        if (freeCamera && cameraPath != null) cameraPath.sample(position, camera);
         if (duration > 0) {
             seekBar.setMax(duration);
             if (!scrubbing) seekBar.setProgress(position);
@@ -417,6 +541,25 @@ public final class ReplayPlayerView {
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         speedParams.setMarginStart(ReplayStyle.dpInt(activity, 8));
         row.addView(speedButton, speedParams);
+
+        // The free-camera toggle: detaches the view from the recorded first-person pose so the clip
+        // can be watched like a spectator, and replays the clip's authored camera path when it has
+        // one. Its label always names the active mode so the state is never ambiguous.
+        cameraButton = new TextView(activity);
+        cameraButton.setTextColor(style.textPrimary());
+        cameraButton.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f);
+        cameraButton.setTypeface(null, Typeface.BOLD);
+        cameraButton.setBackground(ReplayStyle.rippled(
+                ReplayStyle.pill(style.surfaceElevated(), activity), style.accentFill(60), activity));
+        cameraButton.setPadding(ReplayStyle.dpInt(activity, 10), ReplayStyle.dpInt(activity, 5),
+                ReplayStyle.dpInt(activity, 10), ReplayStyle.dpInt(activity, 5));
+        cameraButton.setOnClickListener(v -> toggleFreeCamera());
+        DynamicAnim.applyPressScale(cameraButton);
+        LinearLayout.LayoutParams cameraParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        cameraParams.setMarginStart(ReplayStyle.dpInt(activity, 8));
+        row.addView(cameraButton, cameraParams);
+        updateCameraLabel();
 
         column.addView(row);
         return column;

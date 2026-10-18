@@ -42,6 +42,8 @@ final class ReplayClipActionsDialog {
 
         void onRename(ReplayClip clip);
 
+        void onCinematic(ReplayClip clip);
+
         void onDelete(ReplayClip clip);
     }
 
@@ -96,6 +98,11 @@ final class ReplayClipActionsDialog {
                 v -> {
                     dialog.dismiss();
                     if (actions != null) actions.onRename(clip);
+                }));
+        root.addView(actionRow(activity, style, R.string.replay_cinematic_title, false,
+                v -> {
+                    dialog.dismiss();
+                    if (actions != null) actions.onCinematic(clip);
                 }));
         root.addView(actionRow(activity, style, R.string.replay_action_delete, true,
                 v -> {

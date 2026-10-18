@@ -2110,6 +2110,22 @@ public class ModMenuOverlay {
             case android.view.KeyEvent.KEYCODE_BUTTON_Y:
                 replayPanel.favoriteSelected();
                 return true;
+            case android.view.KeyEvent.KEYCODE_BUTTON_START:
+                // While a clip is open, Start is the transport play/pause rather than a close.
+                if (replayPanel.isPlayerOpen() && replayPanel.togglePlayback()) return true;
+                return false;
+            case android.view.KeyEvent.KEYCODE_BUTTON_L2:
+                replayPanel.scrubPlayback(-0.1f);
+                return true;
+            case android.view.KeyEvent.KEYCODE_BUTTON_R2:
+                replayPanel.scrubPlayback(0.1f);
+                return true;
+            case android.view.KeyEvent.KEYCODE_BUTTON_SELECT:
+                replayPanel.stepPlaybackSpeed();
+                return true;
+            case android.view.KeyEvent.KEYCODE_BUTTON_THUMBR:
+                replayPanel.cinematicSelected();
+                return true;
             default:
                 return false;
         }

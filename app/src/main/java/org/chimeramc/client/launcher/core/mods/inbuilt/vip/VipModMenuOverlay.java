@@ -1406,6 +1406,21 @@ public class VipModMenuOverlay {
             case KeyEvent.KEYCODE_BUTTON_Y:
                 replayPanel.favoriteSelected();
                 return true;
+            case KeyEvent.KEYCODE_BUTTON_START:
+                if (replayPanel.isPlayerOpen() && replayPanel.togglePlayback()) return true;
+                return false;
+            case KeyEvent.KEYCODE_BUTTON_L2:
+                replayPanel.scrubPlayback(-0.1f);
+                return true;
+            case KeyEvent.KEYCODE_BUTTON_R2:
+                replayPanel.scrubPlayback(0.1f);
+                return true;
+            case KeyEvent.KEYCODE_BUTTON_SELECT:
+                replayPanel.stepPlaybackSpeed();
+                return true;
+            case KeyEvent.KEYCODE_BUTTON_THUMBR:
+                replayPanel.cinematicSelected();
+                return true;
             default:
                 return false;
         }

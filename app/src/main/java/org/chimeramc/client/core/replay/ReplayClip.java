@@ -26,6 +26,16 @@ public final class ReplayClip {
 
     private boolean favorite;
     private boolean highlight;
+    /** The authored cinematic camera path stored in the sidecar, or null when none was saved. */
+    private ReplayCameraPath cameraPath;
+
+    public ReplayCameraPath cameraPath() {
+        return cameraPath;
+    }
+
+    public void setCameraPath(ReplayCameraPath cameraPath) {
+        this.cameraPath = cameraPath;
+    }
 
     public ReplayClip(File file, long durationMs, long sizeBytes, long recordedAtMs,
                       String world, String gameVersion, String gameMode) {
