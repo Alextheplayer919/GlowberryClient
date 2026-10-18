@@ -61,8 +61,15 @@ public final class CatalogModuleHost {
     private static final java.util.Set<String> SPRINT_HELPERS = new java.util.HashSet<>(java.util.Arrays.asList(
             "combat_no_sprint_reset", "move_sprint_swing", "util_keep_sprint"));
 
-    /** True when this id is a reachable catalogue module the host can drive. */
-    static boolean handles(String modId) {
+    /**
+     * True when this id is a reachable catalogue module the host can drive.
+     *
+     * <p>Public so a test can assert that <em>every</em> reachable id is wired into one of the four
+     * shapes. A reachable id with no shape is the exact "toggle flips, nothing happens" defect the
+     * scope classification was meant to remove, so the invariant is pinned rather than left to
+     * review.
+     */
+    public static boolean handles(String modId) {
         return PvpModuleScopes.isReachable(modId)
                 && (READOUTS.contains(modId) || ACTIONS.contains(modId)
                 || OPTIONS_WRITES.contains(modId) || SPRINT_HELPERS.contains(modId));
