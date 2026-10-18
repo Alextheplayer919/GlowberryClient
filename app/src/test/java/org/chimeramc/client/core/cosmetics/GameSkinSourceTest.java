@@ -53,15 +53,17 @@ public class GameSkinSourceTest {
     @Test
     public void theResolutionOrderPrefersTheGameSkin() {
         assertEquals(SkinResolution.Source.GAME,
-                SkinResolution.pick(true, true, true, true));
+                SkinResolution.pick(true, true, true, true, true));
         assertEquals(SkinResolution.Source.IMPORTED,
-                SkinResolution.pick(false, true, true, true));
+                SkinResolution.pick(false, true, true, true, true));
+        assertEquals(SkinResolution.Source.ACCOUNT,
+                SkinResolution.pick(false, false, true, true, true));
         assertEquals(SkinResolution.Source.APPLIED_PACK,
-                SkinResolution.pick(false, false, true, true));
+                SkinResolution.pick(false, false, false, true, true));
         assertEquals(SkinResolution.Source.STEVE,
-                SkinResolution.pick(false, false, false, true));
+                SkinResolution.pick(false, false, false, false, true));
         assertEquals(SkinResolution.Source.PLACEHOLDER,
-                SkinResolution.pick(false, false, false, false));
+                SkinResolution.pick(false, false, false, false, false));
     }
 
     @Test

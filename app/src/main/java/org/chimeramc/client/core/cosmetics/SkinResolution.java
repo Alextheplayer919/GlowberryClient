@@ -15,6 +15,8 @@ public final class SkinResolution {
         GAME,
         /** A skin file the player imported in the launcher. */
         IMPORTED,
+        /** The signed-in player's own Bedrock skin, resolved from their XUID. */
+        ACCOUNT,
         /** The first texture of the applied skin pack. */
         APPLIED_PACK,
         /** The built-in Steve character. */
@@ -27,13 +29,19 @@ public final class SkinResolution {
     }
 
     /**
-     * Picks the rung. A rung is available only when its flag is true; the placeholder is the
-     * terminal fallback and is always selected when nothing else is.
+     * Picks the rung when every candidate is already known to be usable.
+     *
+     * <p>This is the plain priority order and is kept for callers that do not need the identity check
+     * (the game capture is trusted here). The live skin choice for the preview goes through
+     * {@link SkinIdentity#resolve}, which additionally refuses to attribute a capture that disagrees
+     * with the account skin; prefer that when a capture is involved.
      */
     public static Source pick(boolean gameAvailable, boolean importedAvailable,
-                              boolean appliedPackAvailable, boolean steveAvailable) {
+                              boolean accountAvailable, boolean appliedPackAvailable,
+                              boolean steveAvailable) {
         if (gameAvailable) return Source.GAME;
         if (importedAvailable) return Source.IMPORTED;
+        if (accountAvailable) return Source.ACCOUNT;
         if (appliedPackAvailable) return Source.APPLIED_PACK;
         if (steveAvailable) return Source.STEVE;
         return Source.PLACEHOLDER;
@@ -44,6 +52,7 @@ public final class SkinResolution {
         switch (source) {
             case GAME: return "Your Minecraft skin";
             case IMPORTED: return "Imported skin";
+            case ACCOUNT: return "Your Minecraft account skin";
             case APPLIED_PACK: return "Applied skin pack";
             case STEVE: return "Steve";
             default: return "Chimera default";

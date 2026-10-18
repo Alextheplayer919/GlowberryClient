@@ -97,7 +97,14 @@ public final class PlayerSkinProvider {
 
     /**
      * Resolves the player's skin, in the fallback chain the preview promises:
-     * imported skin → Steve (default) → grey placeholder (only if the Steve asset fails).
+     * imported skin → account skin → the game's captured skin → applied pack → Steve → grey
+     * placeholder.
+     *
+     * <p>Phase 1: the game capture is <em>content, not attribution</em> — the image-loader seam
+     * carries no player id — so it is only claimed as the player's own skin when it agrees with the
+     * account skin (whose owner is known). The decision lives in {@link SkinIdentity#resolve}, one
+     * rule shared with the tests; this method only gathers the candidates and maps the chosen rung to
+     * a bitmap.
      *
      * <p>Never throws and never returns null: a decode failure degrades to the next rung, because
      * a cosmetics screen that crashes is worse than one showing a generic character.
@@ -105,53 +112,66 @@ public final class PlayerSkinProvider {
     public static SkinBitmap resolve(Context context) {
         // 1. A skin the player explicitly set in the launcher: an explicit override always wins.
         String custom = getCustomSkinPath(context);
-        if (custom != null && !custom.isEmpty()) {
-            Bitmap decoded = decodeFile(new File(custom));
-            if (decoded != null) {
-                return new SkinBitmap(normalise(decoded), false, false, new File(custom).getName());
-            }
-        }
+        Bitmap imported = custom != null && !custom.isEmpty() ? decodeFile(new File(custom)) : null;
+        String importedName = imported == null ? null : new File(custom).getName();
 
-        // 2. The game's own live skin, read through an engine hook when a provider is installed.
-        SkinBitmap fromGame = GameSkinSource.read(context);
-        if (fromGame != null && fromGame.bitmap != null) {
-            return fromGame;
-        }
-
-        // 3. The cached last capture, so the launcher (which runs before the game) still shows the
-        //    real skin after the first session.
-        SkinBitmap cached = GameSkinFeed.readCachedStatic(context);
-        if (cached != null && cached.bitmap != null) {
-            return cached;
-        }
-
-        // 4. The account lookup: the signed-in player's own Bedrock skin, resolved from their XUID.
+        // 2. The account lookup: the signed-in player's own Bedrock skin, resolved from their XUID.
         //    On after a Microsoft sign-in (the sign-in is the consent) so a newly signed-in player
         //    sees their real skin; a failure falls through to the next rung.
-        Bitmap fromAccount = readAccountSkin(context);
-        if (fromAccount != null) {
-            return new SkinBitmap(fromAccount, false, false, "Your Minecraft account skin");
+        Bitmap account = readAccountSkin(context);
+
+        // 3. The game's own live skin, read through an engine hook when a provider is installed,
+        //    falling back to the cached last capture so the launcher (which runs before the game)
+        //    still shows the real skin after the first session.
+        SkinBitmap game = GameSkinSource.read(context);
+        if (game == null || game.bitmap == null) {
+            game = GameSkinFeed.readCachedStatic(context);
         }
 
-        // 5. The applied skin pack's first texture.
-        File applied = findAppliedSkinFile(context);
-        if (applied != null) {
-            Bitmap decoded = decodeFile(applied);
-            if (decoded != null) {
-                return new SkinBitmap(normalise(decoded), false, false, applied.getName());
-            }
-        }
+        // 4. The applied skin pack's first texture.
+        File appliedFile = findAppliedSkinFile(context);
+        Bitmap applied = appliedFile == null ? null : decodeFile(appliedFile);
 
-        // 6. No skin at all: show Steve, the standard character, rather than a grey stand-in. The
-        // shipped atlas is preferred (it is the exact skin the project uses), and the procedural
-        // painter is the fallback when the asset cannot be read. The grey placeholder is only
-        // reached if neither works.
+        // 5. Steve, the standard character, is the last real skin. The shipped atlas is preferred
+        //    (it is the exact skin the project uses); the procedural painter is the fallback when the
+        //    asset cannot be read. The grey placeholder is only reached if neither works.
         Bitmap steve = steveSkinFromAssets(context);
         if (steve == null) steve = steveSkin();
-        if (steve != null) {
-            return new SkinBitmap(steve, false, true, "Steve");
+
+        SkinIdentity.Verdict verdict =
+                SkinIdentity.compare(atlasOf(game == null ? null : game.bitmap), atlasOf(account));
+        SkinIdentity.Choice choice = SkinIdentity.resolve(
+                imported != null, account != null, game != null && game.bitmap != null,
+                verdict, applied != null, steve != null);
+
+        switch (choice.source) {
+            case IMPORTED:
+                return new SkinBitmap(normalise(imported), false, false, importedName);
+            case ACCOUNT:
+                return new SkinBitmap(account, false, false, choice.label);
+            case GAME:
+                return new SkinBitmap(game.bitmap, false, false, choice.label);
+            case APPLIED_PACK:
+                return new SkinBitmap(normalise(applied), false, false, appliedFile.getName());
+            case STEVE:
+                return new SkinBitmap(steve, false, true, choice.label);
+            default:
+                return new SkinBitmap(fallbackSkin(), true, false, choice.label);
         }
-        return new SkinBitmap(fallbackSkin(), true, false, "Chimera default");
+    }
+
+    /** The 64x64 ARGB atlas of a normalised skin bitmap, or null when it cannot be read. */
+    private static int[] atlasOf(Bitmap bitmap) {
+        if (bitmap == null) return null;
+        try {
+            int w = bitmap.getWidth();
+            int h = bitmap.getHeight();
+            int[] argb = new int[w * h];
+            bitmap.getPixels(argb, 0, w, 0, 0, w, h);
+            return argb;
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     /**
