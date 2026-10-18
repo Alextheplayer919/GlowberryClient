@@ -1,32 +1,28 @@
 package org.chimeramc.client.core.cosmetics;
 
 /**
- * Verlet cloth simulation for the cape, sized to Minecraft's cape geometry.
+ * A rigid cape: one 10x16 pixel panel hinged at the shoulders, with a single smoothed swing.
  *
- * <p>A Minecraft cape is a 10x16 pixel quad: 0.625 blocks wide (10/16) and one block tall
- * (16/16), hanging from the shoulders. This simulates a grid of that shape so the cloth is the
- * right size on screen, not an arbitrary trapezoid.
+ * <p>The cape used to be a Verlet cloth simulation with gravity, stiffness, an ambient breeze and
+ * travelling flutter. On a real device that read as a cape that never stopped moving - it swayed at
+ * rest, flapped on every flick and looked like a flag rather than fabric. A Minecraft cape is a flat
+ * quad, so the honest model is a flat quad: it hangs straight and only leans back when the player
+ * moves.
  *
- * <p>The integration is the standard position-Verlet scheme with per-particle previous
- * positions. Verlet is chosen over a spring-mass solve because it is unconditionally cheap:
- * one add, one subtract and a couple of multiplies per particle, no matrix, no iteration
- * count that scales with stiffness. That is what keeps it lag-free — the cost is fixed per
- * frame regardless of how hard the cape is moving.
+ * <p>The panel is exposed as the same {@code COLS x ROWS} particle grid the mesh builder walks, so
+ * {@link PreviewCapeScene} is unchanged; every particle simply shares one rotation about the top
+ * hinge. The swing itself is a first-order lag toward an angle derived from the player's speed, so a
+ * flick eases out instead of snapping, and a still player's cape is perfectly still.
  *
- * <p>Everything is preallocated in the constructor and mutated in place. {@link #step} allocates
- * nothing, so a cape swinging every frame does not churn the heap and provoke a GC pause in the
- * middle of a fight.
- *
- * <p>Pure float maths with no Android types so the motion is unit-testable: a settled cape must
- * hang straight regardless of frame rate, and a cape that was pushed must come back to rest
- * rather than oscillating forever.
+ * <p>Everything is preallocated and mutated in place, and the maths is pure float arithmetic with no
+ * Android types, so the shape and the smoothing are unit-testable without a device.
  */
 public final class CapeSimulator {
 
     /**
-     * Grid resolution: enough columns and rows that the hem curves and the fold reads as cloth,
-     * few enough to stay trivially cheap. Raised from 7x9 so the mesh has enough rings for the
-     * trailing fold to bend smoothly instead of faceting into a handful of flat panels.
+     * Grid resolution of the panel. The cape is a flat quad, so the grid is only the tessellation
+     * the mesh builder walks; a modest resolution keeps the face count low while still giving the
+     * rasteriser interior vertices to depth-sort against the body.
      */
     public static final int COLS = 9;
     public static final int ROWS = 11;
@@ -38,69 +34,41 @@ public final class CapeSimulator {
     public static final float HEIGHT_BLOCKS = 1f;
 
     /**
-     * Fixed timestep in seconds. Cloth blowing up is almost always a variable timestep feeding a
-     * stiff integrator, so time is accumulated and consumed in fixed slices; a background frame
-     * hitch cannot make the cape explode.
+     * Fixed timestep in seconds. Time is accumulated and consumed in fixed slices so a background
+     * frame hitch cannot make the swing jump.
      */
     public static final float FIXED_DT = 1f / 60f;
 
     /** Cap on slices per call, so a long stall cannot spiral into a catch-up loop. */
     public static final int MAX_SUBSTEPS = 4;
 
-    /** Gravity in blocks/s^2. Gentler than 9.8 so the cloth falls with a fabric's weight. */
-    public static final float GRAVITY = 14f;
+    /** The furthest the panel leans back, in degrees, at a full-speed run. */
+    public static final float MAX_SWING_DEG = 22f;
+
+    /** The speed (blocks/s) that maps to a full swing; a walk leans only a little. */
+    public static final float FULL_SWING_SPEED = 2.6f;
 
     /**
-     * Velocity retained per second (air drag). Well below 1 so the cape settles quickly instead of
-     * ringing: the old value of 0.86 left the cloth almost undamped, so a flick set it flapping for
-     * seconds and a still character kept jittering — the "way too much physics" report. Fabric
-     * loses energy fast, so the preview should too.
+     * Swing smoothing time constant, in seconds. The panel eases toward its target angle with this
+     * lag, so a flick trails out over a fraction of a second instead of snapping to full lean and
+     * snapping back - the "single smoothed swing" the design calls for.
      */
-    public static final float DAMPING = 0.22f;
-
-    /**
-     * How strongly a particle is pulled back to its anchor's rest offset, per second.
-     *
-     * <p>Raised with the damping so the cape returns to a clean hanging shape instead of drooping
-     * and swinging. High stiffness alone would be stiff cloth; paired with strong drag it reads as
-     * heavy fabric that moves a little and stops.
-     */
-    public static final float STIFFNESS = 52f;
-
-    /** Maximum stretch of a structural link, as a fraction of its rest length. */
-    public static final float MAX_STRETCH = 1.35f;
-
-    /**
-     * A gentle ambient breeze on the world X axis, in "wind units" (the same scale as
-     * {@code speedBlocks}). Without it a still character's cape hangs perfectly flat and reads as
-     * a rigid board; the breeze keeps the hem moving so the cloth always looks like fabric. It is
-     * deliberately a slow oscillation, not a constant push, so the cape sways rather than leaning
-     * permanently to one side. It is applied on X only, which keeps the hanging pose (Y) and the
-     * back plane (Z) at rest.
-     */
-    public static final float BREEZE_STRENGTH = 12.0f;
-
-    /** Radians per second of the breeze oscillation. */
-    public static final float BREEZE_FREQUENCY = 1.4f;
+    public static final float SWING_SMOOTHING_SECONDS = 0.18f;
 
     private final float[] px = new float[COLS * ROWS];
     private final float[] py = new float[COLS * ROWS];
     private final float[] pz = new float[COLS * ROWS];
-    private final float[] prevX = new float[COLS * ROWS];
-    private final float[] prevY = new float[COLS * ROWS];
-    private final float[] prevZ = new float[COLS * ROWS];
     private final float[] restX = new float[COLS * ROWS];
     private final float[] restY = new float[COLS * ROWS];
-    private final float[] restZ = new float[COLS * ROWS];
 
     private float accumulator;
     private boolean initialised;
 
-    /** Elapsed simulated time, used to phase the ambient breeze. */
-    private float clock;
+    /** The current swing angle in degrees; negative leans the hem back. */
+    private float swingDeg;
 
     /**
-     * Anchor-space offset per particle: a point on the cape's rest quad relative to the top
+     * Anchor-space offset per particle: a point on the panel's rest quad relative to the top
      * centre (the shoulders). x spans the cape's width, y hangs negative downward.
      */
     private void computeRestOffsets() {
@@ -111,35 +79,27 @@ public final class CapeSimulator {
                 int i = r * COLS + c;
                 restX[i] = u * WIDTH_BLOCKS;
                 restY[i] = -v * HEIGHT_BLOCKS;
-                restZ[i] = 0f;
             }
         }
     }
 
-    /** Resets the cloth to its rest shape beneath the given anchor. */
+    /** Resets the panel to its rest shape beneath the given anchor, hanging straight. */
     public void reset(float anchorX, float anchorY, float anchorZ) {
         computeRestOffsets();
-        for (int i = 0; i < px.length; i++) {
-            px[i] = anchorX + restX[i];
-            py[i] = anchorY + restY[i];
-            pz[i] = anchorZ + restZ[i];
-            prevX[i] = px[i];
-            prevY[i] = py[i];
-            prevZ[i] = pz[i];
-        }
+        swingDeg = 0f;
         accumulator = 0f;
-        clock = 0f;
         initialised = true;
+        place(anchorX, anchorY, anchorZ);
     }
 
     /**
-     * Advances the cloth.
+     * Advances the swing.
      *
-     * @param dtSeconds      real elapsed time; consumed in fixed slices
-     * @param anchorX/Y/Z    the shoulder point this frame, already moved by the body
-     * @param forwardZ       the body's facing direction on the world Z axis
-     * @param forwardX       the body's facing direction on the world X axis
-     * @param speedBlocks    the body's speed, used to billow the cape behind it
+     * @param dtSeconds   real elapsed time; consumed in fixed slices
+     * @param anchorX/Y/Z the shoulder point this frame, already moved by the body
+     * @param forwardZ    the body's facing direction on the world Z axis (unused by a rigid panel)
+     * @param forwardX    the body's facing direction on the world X axis (unused by a rigid panel)
+     * @param speedBlocks the body's speed, which drives how far the panel leans back
      */
     public void step(float dtSeconds, float anchorX, float anchorY, float anchorZ,
                      float forwardX, float forwardZ, float speedBlocks) {
@@ -151,104 +111,41 @@ public final class CapeSimulator {
         accumulator += Math.min(dtSeconds, FIXED_DT * MAX_SUBSTEPS);
         int steps = 0;
         while (accumulator >= FIXED_DT && steps < MAX_SUBSTEPS) {
-            integrate(FIXED_DT, anchorX, anchorY, anchorZ, forwardX, forwardZ, speedBlocks);
+            integrate(FIXED_DT, speedBlocks);
             accumulator -= FIXED_DT;
             steps++;
         }
         if (steps == MAX_SUBSTEPS) {
             accumulator = 0f;
         }
+        place(anchorX, anchorY, anchorZ);
     }
 
-    private void integrate(float dt, float anchorX, float anchorY, float anchorZ,
-                           float forwardX, float forwardZ, float speedBlocks) {
-        // Air drag as a per-step factor derived from the per-second damping, so the cloth's
-        // settling time does not change with the timestep.
-        float dampingPerStep = (float) Math.pow(DAMPING, dt);
-        // The cape trails behind the direction of travel: the wind pushes opposite to forward.
-        // The ambient breeze is added on X so a still character's hem still moves.
-        clock += dt;
-        float breezeX = (float) Math.sin(clock * BREEZE_FREQUENCY) * BREEZE_STRENGTH;
-        float windX = -forwardX * speedBlocks * 0.11f + breezeX * 0.11f;
-        float windZ = -forwardZ * speedBlocks * 0.11f;
+    private void integrate(float dt, float speedBlocks) {
+        // A full-speed run leans the panel fully back; slower movement leans proportionally less,
+        // and a still player's target is exactly zero, so the cape hangs straight.
+        float speed = Float.isFinite(speedBlocks) ? Math.max(0f, speedBlocks) : 0f;
+        float fraction = Math.min(1f, speed / FULL_SWING_SPEED);
+        float target = -MAX_SWING_DEG * fraction;
+        // First-order lag: an exponential approach whose per-step factor derives from the time
+        // constant, so the settling time does not change with the timestep.
+        float alpha = 1f - (float) Math.exp(-dt / SWING_SMOOTHING_SECONDS);
+        swingDeg += (target - swingDeg) * alpha;
+    }
 
+    /** Positions every particle as one rigid rotation of the rest quad about the top hinge. */
+    private void place(float anchorX, float anchorY, float anchorZ) {
+        double radians = Math.toRadians(swingDeg);
+        float cos = (float) Math.cos(radians);
+        float sin = (float) Math.sin(radians);
         for (int i = 0; i < px.length; i++) {
-            if (isAnchored(i)) {
-                px[i] = anchorX + restX[i];
-                py[i] = anchorY + restY[i];
-                pz[i] = anchorZ + restZ[i];
-                prevX[i] = px[i];
-                prevY[i] = py[i];
-                prevZ[i] = pz[i];
-                continue;
-            }
-
-            float vx = (px[i] - prevX[i]) * dampingPerStep;
-            float vy = (py[i] - prevY[i]) * dampingPerStep;
-            float vz = (pz[i] - prevZ[i]) * dampingPerStep;
-
-            prevX[i] = px[i];
-            prevY[i] = py[i];
-            prevZ[i] = pz[i];
-
-            // Restoring pull toward the anchor-space rest pose plus gravity and wind.
-            float pullX = (anchorX + restX[i] - px[i]) * STIFFNESS * dt;
-            float pullY = (anchorY + restY[i] - py[i]) * STIFFNESS * dt;
-            float pullZ = (anchorZ + restZ[i] - pz[i]) * STIFFNESS * dt;
-
-            px[i] += vx + pullX + windX * dt;
-            py[i] += vy + pullY - GRAVITY * dt * dt;
-            pz[i] += vz + pullZ + windZ * dt;
+            float lx = restX[i];
+            float ly = restY[i];
+            // Rotation about the world X axis through the hinge at the top centre.
+            px[i] = anchorX + lx;
+            py[i] = anchorY + ly * cos;
+            pz[i] = anchorZ + ly * sin;
         }
-
-        // One relaxation pass over the structural links. A single pass is enough to stop the
-        // cloth shearing apart and costs O(n), which is the point.
-        for (int r = 0; r < ROWS; r++) {
-            for (int c = 0; c < COLS; c++) {
-                int i = r * COLS + c;
-                if (c + 1 < COLS) link(i, i + 1, MAX_STRETCH);
-                if (r + 1 < ROWS) link(i, i + COLS, MAX_STRETCH);
-            }
-        }
-    }
-
-    /** The top row is pinned to the shoulders; everything below hangs. */
-    private boolean isAnchored(int i) {
-        return i < COLS;
-    }
-
-    /**
-     * Stops a link stretching past {@code maxStretch} of its rest length by splitting the
-     * correction between the two ends, but never moving an anchored particle.
-     */
-    private void link(int a, int b, float maxStretch) {
-        float dx = px[b] - px[a];
-        float dy = py[b] - py[a];
-        float dz = pz[b] - pz[a];
-        float dist = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
-        float restLen = restLen(a, b);
-        float limit = restLen * maxStretch;
-        if (dist <= limit || dist < 1e-5f) return;
-
-        float correction = (dist - limit) / dist;
-        boolean anchorA = isAnchored(a);
-        boolean anchorB = isAnchored(b);
-        if (anchorA && anchorB) return;
-        float shareA = anchorA ? 0f : (anchorB ? 1f : 0.5f);
-        float shareB = anchorB ? 0f : (anchorA ? 1f : 0.5f);
-        px[a] += dx * correction * shareA;
-        py[a] += dy * correction * shareA;
-        pz[a] += dz * correction * shareA;
-        px[b] -= dx * correction * shareB;
-        py[b] -= dy * correction * shareB;
-        pz[b] -= dz * correction * shareB;
-    }
-
-    private float restLen(int a, int b) {
-        float dx = restX[b] - restX[a];
-        float dy = restY[b] - restY[a];
-        float dz = restZ[b] - restZ[a];
-        return (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
 
     public int size() {
