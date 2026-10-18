@@ -22,6 +22,9 @@ public class InbuiltModManager {
     private static final String KEY_NOTIFICATIONS_ENABLED = "notifications_enabled";
     private static final String KEY_MOD_MENU_OPACITY = "mod_menu_opacity";
     private static final String KEY_MOD_MENU_BUTTON_OPACITY = "mod_menu_button_opacity";
+    private static final String KEY_MOD_MENU_PRIMARY_OPACITY = "mod_menu_primary_opacity";
+    private static final String KEY_MOD_MENU_ACCENT_START = "mod_menu_accent_start";
+    private static final String KEY_MOD_MENU_ACCENT_END = "mod_menu_accent_end";
     private static final String KEY_MOD_MENU_COMPACT = "mod_menu_compact";
     private static final String KEY_MOD_MENU_KEYBIND = "mod_menu_keybind";
     private static final String KEY_MOD_MENU_CONTROLLER_BIND = "mod_menu_controller_bind";
@@ -274,6 +277,62 @@ public class InbuiltModManager {
 
     public void setModMenuOpacity(int opacity) {
         prefs.edit().putInt(KEY_MOD_MENU_OPACITY, Math.max(MIN_MOD_MENU_OPACITY, Math.min(100, opacity))).apply();
+    }
+
+    /**
+     * The primary (accent) opacity, independent of the background opacity.
+     *
+     * <p>The spec asks for the two to be adjustable separately: a player may want a clear panel with
+     * a solid accent, or the reverse. Both feed {@code UiThemeState}, which owns the resolution.
+     */
+    public int getModMenuPrimaryOpacity() {
+        return prefs.getInt(KEY_MOD_MENU_PRIMARY_OPACITY,
+                org.chimeramc.client.ui.components.UiThemeState.DEFAULT_PRIMARY_OPACITY);
+    }
+
+    public void setModMenuPrimaryOpacity(int opacity) {
+        prefs.edit().putInt(KEY_MOD_MENU_PRIMARY_OPACITY,
+                org.chimeramc.client.ui.components.UiThemeState.clampOpacity(opacity)).apply();
+    }
+
+    /** The first stop of the accent (a flat RGB value when the two stops match). */
+    public int getModMenuAccentStart() {
+        return prefs.getInt(KEY_MOD_MENU_ACCENT_START, 0);
+    }
+
+    /** The second stop of the accent gradient, or the same value for a flat accent. */
+    public int getModMenuAccentEnd() {
+        return prefs.getInt(KEY_MOD_MENU_ACCENT_END, 0);
+    }
+
+    /** Stores the accent stops; 0 means "use the user's personalization accent". */
+    public void setModMenuAccent(int start, int end) {
+        prefs.edit()
+                .putInt(KEY_MOD_MENU_ACCENT_START, start)
+                .putInt(KEY_MOD_MENU_ACCENT_END, end)
+                .apply();
+    }
+
+    /**
+     * The theme the mod menu should draw with: the two opacities plus the accent shape.
+     *
+     * <p>Read in one place so the touch menu and the VIP menu cannot resolve the accent differently.
+     * An unset accent falls back to the personalization accent as a flat colour.
+     */
+    public org.chimeramc.client.ui.components.UiThemeState getModMenuThemeState(
+            android.content.Context context) {
+        int start = getModMenuAccentStart();
+        int end = getModMenuAccentEnd();
+        org.chimeramc.client.ui.components.UiThemeState.Accent accent;
+        if (start == 0) {
+            accent = org.chimeramc.client.ui.components.UiThemeState.Accent
+                    .flat(org.chimeramc.client.ui.components.UiTokens.resolveAccent(context));
+        } else {
+            accent = org.chimeramc.client.ui.components.UiThemeState.Accent
+                    .gradient(start, end == 0 ? start : end);
+        }
+        return new org.chimeramc.client.ui.components.UiThemeState(
+                getModMenuOpacity(), getModMenuPrimaryOpacity(), accent);
     }
 
     public int getModMenuButtonOpacity() {

@@ -873,6 +873,9 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="mod_menu_notifications_desc">Show notification when enabling mods</string>
     <string name="mod_menu_opacity">Mod Menu Opacity</string>
     <string name="mod_menu_button_opacity">Mod Menu Button Opacity</string>
+    <string name="mod_menu_primary_opacity">Primary Colour Opacity</string>
+    <string name="mod_menu_primary_opacity_desc">How solid the accent (buttons, toggles, selected rows) is. Independent of the panel opacity, so a clear panel can keep a bold accent.</string>
+    <string name="mod_menu_background_opacity_desc">How solid the menu panel itself is.</string>
     <string name="mod_menu_compact">Compact Mod Menu</string>
     <string name="mod_menu_compact_desc">Use a smaller menu with a dense module list and compact filters</string>
     <string name="mod_menu_cosmetics">Cosmetics</string>

@@ -815,6 +815,64 @@
 
                             </LinearLayout>
 
+                            <!-- Primary (accent) opacity, independent of the panel opacity above:
+                                 a clear panel can keep a bold accent, and vice versa. -->
+                            <LinearLayout
+                                android:id="@+id/setting_mod_menu_primary_opacity"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="12dp"
+                                android:background="@drawable/bg_mod_status_disabled"
+                                android:orientation="vertical"
+                                android:padding="12dp">
+
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center_vertical"
+                                    android:orientation="horizontal">
+
+                                    <ImageView
+                                        android:layout_width="24dp"
+                                        android:layout_height="24dp"
+                                        android:contentDescription="@string/app_name"
+                                        android:src="@drawable/ic_edit"
+                                        android:tint="@color/primary" />
+
+                                    <TextView
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginStart="12dp"
+                                        android:layout_weight="1"
+                                        android:text="@string/mod_menu_primary_opacity"
+                                        android:textColor="#FFFFFF"
+                                        android:textSize="13sp"
+                                        android:textStyle="bold" />
+
+                                    <TextView
+                                        android:id="@+id/text_mod_menu_primary_opacity"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/mod_menu_default_percent"
+                                        android:textColor="@color/primary"
+                                        android:textSize="12sp"
+                                        android:textStyle="bold" />
+
+                                </LinearLayout>
+
+                                <SeekBar
+                                    android:id="@+id/seekbar_mod_menu_primary_opacity"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="8dp"
+                                    android:max="100"
+                                    android:min="20"
+                                    android:progress="100"
+                                    android:progressTint="@color/primary"
+                                    android:thumbTint="@color/primary" />
+
+                            </LinearLayout>
+
                             <LinearLayout
                                 android:id="@+id/setting_mod_menu_button_opacity"
                                 android:layout_width="match_parent"

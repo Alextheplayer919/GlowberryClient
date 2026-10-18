@@ -1,0 +1,280 @@
+Bug fixes: GLOWBERRYCLIENT COSMETICS FIX PLAN
+Base: the newest GlowberryClient-main zip (rules revision 7). Work one phase at a time.
+Run the unit tests after every step. Commit each step separately as Lynxifyy.
+Written from reading the code and a device diagnostics report. Nothing here was run on a device.
+
+
+
+
+
+
+ALREADY DONE IN THE NEWEST ZIP (do not redo; verify only)
+- Controller cursor Y inversion removed in MenuCursorOverlay (stick Y passed through unchanged).
+- Cursor drawing reworked in MenuCursorOverlay.
+- Account skin lookup now turns on after a Microsoft sign-in (AccountSkinPrefs).
+- Module catalogue sorted by the route each module needs (docs/MODULE_PHASES.md, ModuleScope);
+  the "needs native feed" badge now reads that classification.
+- Preloader signature rules are at revision 7 with per-version signatures.
+- Changed but NOT yet reviewed: RadialHeadTurn, RadialWheelLayout, RadialMenuView, CosmeticsPanel.
+  Check that the head follows the cursor and the active-module list sits next to the wheel.
+
+
+PHASE 0 - MAKE THE HOOKS ARM (nothing else works until this does)
+Evidence: diagnostics said "Rules source: bundled (revision 0)", "Rules delivered to native: no",
+"Hook installed: no", Minecraft 1.26.33.1.
+0.1 Version coverage. The rules list 1.26.33 as an exact version (min=max=1.26.33). By the compare
+    logic in PreloaderRules.compareVersions, 1.26.33.1 is above that max, so it probably does not
+    match. Verify with a unit test using the string "1.26.33.1". If the 1.26.33.x signatures are
+    unchanged, widen the range to 1.26.33.99; otherwise derive new ones with tools/verify-binary.
+0.2 Revision 0. The source file is revision 7 but the device reported 0. Confirm
+    preloader/preloader_signature_rules_source.json is actually inside the APK assets
+    (PreloaderSignatureRulesManager.ASSET_DEFAULT_RULES), log why loading is skipped, and add a test
+    that fails if the packaged revision differs from the source revision.
+0.3 Diagnostics. CosmeticsDiagnosticsReport must print the FIRST failing stage and whether it was
+    generated inside a world. Add the app version (it printed "unknown").
+Acceptance: in a world on a supported version, the report shows rules delivered, hook installed,
+frames seen > 0.
+
+
+PHASE 1 - SKIN
+1.1 Compare the skin captured from the game (GameSkinFeed, SkinCaptureValidator) against the
+    account skin before using it. The capture is "most recent skin-shaped upload", not proven to be yours.
+1.2 Show the built-in default only if both sources fail. Never show it silently.
+Acceptance: the radial wheel head and the cosmetics preview show the signed-in player's real skin.
+
+
+PHASE 2 - CAPES (engine-native)
+Evidence: the diagnostics reported "GL backend: Vulkan (GLES unavailable)". The raw OpenGL ES
+renderer cannot draw on Vulkan, so capes must go through the engine's own texture.
+2.1 Route capes through the mce_image_hook cape texture swap (preloader). It must work on Vulkan.
+2.2 Replace the generated 10x16-pixel cloth (CapePatterns, CapeTexturePainter) with 20-30 authored
+    cape images and hand-written names. Test whether the engine accepts sizes above 64x32.
+2.3 Replace the preview cloth simulation (CapeSimulator, PreviewCapeScene) with one rigid
+    10x16x1 box hinged at the top and a single smoothed swing. No breeze, flutter or sway.
+    Quick test first: set BREEZE_STRENGTH, FLUTTER_AMPLITUDE_DEG, SWAY_AMPLITUDE_DEG to 0.
+2.4 After 2.1 works, remove the 16-bone chain (CapeGeometry) and CapeAnimationCurve from the
+    in-game path.
+Acceptance: the cape is visible in third person on a Vulkan device and matches the preview.
+
+
+PHASE 3 - HATS (research spike, go/no-go)
+3.1 Test whether the local player's skin texture AND geometry can be replaced so the game draws
+    the hat. The image hook only covers pixels; geometry may need another hook.
+3.2 If no-go, label hats "preview only" in the UI. Do not ship a feature that silently draws nothing.
+Acceptance (go): the hat is visible in third person on Vulkan.
+
+
+PHASE 4 - PETS
+Measured problems: copper golem has 6 cubes in 17 bones; shark has 2 bones; seraphim geometry is a
+flat 40 x 8 x 2.8 strip; owl texture is 100% opaque with 86% never sampled by any face; fox, bee,
+Chica and Steve are not shipped (5 of 9).
+4.1 Re-export all nine from the original Blockbench projects as Bedrock geometry. Keep per-face UVs.
+4.2 Add a CI check that fails when more than about 10% of painted texture pixels are never
+    referenced by any face, and render a turntable PNG per pet.
+4.3 Mark pets "preview only" until a real in-game route exists.
+Acceptance: every pet renders complete in the preview and passes the CI check.
+
+
+PHASE 5 - CLEANUP
+5.1 Remove the raw OpenGL ES renderer once Phases 2 and 3 land.
+5.2 Fix stale comments (for example the CosmeticCatalog header that still describes resource packs).
+
+
+PHASE 6 - BIG-SERVER SKINS (measurement first)
+6.1 Using the existing packet-read hook and image hook, log per join: skin entries received in
+    player-list packets, skin images the game actually loads, and which players end up as defaults.
+6.2 Compare a big server with a small one. The step that loses skins decides the fix. A client-side
+
+
+
+
+
+
+    skin cache that re-applies skins is plausible only if skins are being dropped.
+Acceptance: a written finding that names the failing step, before any fix is written.
+
+
+
+
+
+
+
+
+
+
+Phase 7- Make ALL modules fully functional and upgrade the UI for each of them the debug menu should also work just like the Java edition debug menu
+7.1, enable all functional modules after fix
+
+
+
+
+Phase 8- on the cosmetics tab in the mod menu instead of names for each cosmetics section it should be icons also, in the cosmetics tab instead of cosmetics being a name button you press to show them it should be a preview of how the cosmetic will look (just the standalone cosmetic like the capes cosmetic section) and names should be below them each one should have its own rounded box 
+
+
+
+
+Phase 9- (Replay system fix, right now it's currently a recorder instead of a real replay system) 🎥 Core Function: Record & Replay
+
+
+· Gameplay Capture: Records your actions, including block changes, entity movements, player states, and interactions with mobs.
+· Free Camera Playback: During playback, you are not locked to your original first-person view. You can detach the camera and fly around to watch the recorded session from any perspective like a spectator.
+
+
+🎬 Cinematic & Creator Features
+
+
+· Cinematic Camera Tools: Built-in tools to create professional-looking shots. This includes camera keyframes to set specific positions, custom camera paths for smooth movement, and dozens of presets (like orbit shots, dolly zooms, or drone views).
+· Timeline Controls: Playback can be paused, resumed, slowed down, reversed, or scrubbed through to find the exact moment you need.
+
+
+💾 Management & Compatibility
+
+
+· Replay Library: Recordings are saved as files that you can browse, rename, and organize from a main menu or in-game interface for later viewing.
+· Multiplayer Support: Some advanced tools support recording sessions with multiple players, and you can watch the replay later even if those players are offline.
+
+
+🛠️ How It Typically Works
+
+
+While different tools have unique menus, the general workflow is: you start a recording via a command or item, play normally, stop the recording, and then open the saved file to edit and view your cinematic shots.
+
+
+Phase 10- reorganize the mod menu, right now modules are everywhere maybe they should be alphabetically organized 
+
+
+
+
+Phase 11- (FULL CLIENT UI REVAMP) 
+Here is the complete, deep-dive breakdown of the client's entire UI ecosystem, from the first launch screen to the in-game overlays, focusing on the smooth, glassmorphic design language that ties it all together.
+
+
+🚀 The Launch Tab: The First Impression
+
+
+The launch screen is the client's handshake—a clean, modern layout that immediately communicates its design philosophy. It's built on a frosted glass panel that blurs the game's menu panorama behind it, creating a sense of depth.
+
+
+· Layout & Hierarchy: The screen is anchored by a central logo at the top, with the primary "Singleplayer" and "Multiplayer" buttons placed directly underneath it for immediate access. Your account information sits in the top-left corner, and a "Quit" button is in the top-right, with the client version number subtly placed in the bottom-left.
+· The Dock: A smaller, secondary dock runs along the bottom or side, housing icons for "Mods", "Cosmetics", and the radial menu (often represented by the client's logo). This dock uses the same translucent, rounded-edge glass style as the main panels.
+· Motion & Polish: The entire interface is designed to feel alive. The intro animation plays in "reading order," guiding your eye from the logo down to the dock. The background blur fades in smoothly as the screen opens, and every button has a satisfying, animated hover state.
+
+
+🖥️ The Mod Menu: A Customizable Control Center
+
+
+The mod menu is a "Liquid Glass Screen"—a smooth, modern configuration hub that feels like an operating system from the future. It is the central place to toggle features, adjust settings, and customize the UI itself.
+
+
+· Glassmorphic Construction: Every panel, button, and widget is rendered as frosted glass, blurring the game world behind it. This isn't a simple transparency; it's a real-time blur effect that creates a "liquid glass" aesthetic.
+· Deep Customization: The menu is built for control. You can adjust the opacity of the background and primary colors independently, allowing you to dial in the perfect balance between a solid panel and a clear glass pane. A theme manager supports RGB and gradient colors for a fully personalized look.
+· Layout & Interaction: Features are organized into a clean, sidebar-driven layout with categories like Modules, HUD, Cosmetics, and Settings. The menu supports full drag-and-drop HUD editing, meaning you can open the menu and move any interface element—like the hotbar or armor status—anywhere on your screen in real time.
+· Modular HUD Elements: The client includes a modular HUD system with displays for FPS, ping, coordinates, keystrokes, CPS, armor durability, health, and hunger. These are presented as sleek, translucent glass widgets that match the overall design.
+
+
+🎡 The Radial Wheel: The Signature Glass Interaction
+
+
+The radial wheel is the client's most distinctive interaction model—a smooth, glassmorphic quick-action menu that appears at the center of the screen. It is designed for speed and fluidity, allowing you to trigger commands, toggle modules, or access utilities without opening a full menu.
+
+
+· Visual Design: The wheel is a circular overlay divided into segments (up to 8 or more). The entire wheel is rendered with the same frosted glass effect, with a thin, glowing border that matches your chosen accent color. Each segment contains a glyph or icon and can be assigned a custom color for instant recognition.
+· Opening & Selection: It is a hold-to-open menu. When you press the hotkey, the wheel scales up from the center with a smooth pop animation. You can make a selection by flicking your mouse toward a segment or by clicking it directly.
+· Profiles & Nested Wheels: The wheel is highly configurable. You can create multiple local profiles (e.g., one for survival, one for PvP) and even organize them into nested sub-wheels for an unlimited number of actions without clutter. A built-in manager lets you create, rename, reorder, and delete profiles and entries on the fly.
+
+
+✨ The Unified Design System: The "Glue"
+
+
+To rebuild this faithfully, you must implement a consistent design language across every screen.
+
+
+· The Core Material: Frosted Glass: The foundation is a real-time blur applied to everything behind the UI. This requires a custom rendering pipeline (shader) that samples the scene behind each panel. The blur is independently adjustable for the world background, menu panels, and individual widgets (buttons, dock).
+· Geometry & Edges: The design uses rounded corners on every element, from large panels to small buttons, creating a soft, modern silhouette. Edges are often defined by a subtle, 1px stroke that catches the light.
+· Depth & Lighting: Beyond blur, the glass effect is sold through subtle shadows and inner glows. Panels feel like they are floating above the game world, with soft drop shadows giving them physical presence. Hovered elements may emit a soft bloom-halo or a gradient highlight to signal interactivity.
+· Typography: A clean, modern sans-serif font is used throughout, with clear hierarchy (bold headers, lighter body text). Text is anti-aliased and often accompanied by a subtle drop shadow to ensure readability against the blurred background.
+
+
+The player head model sits at the exact visual and interactive center of the launch tab, acting as the living anchor that ties the entire glassmorphic layout together. It is far more than a simple avatar—it is a fully interactive, real-time 3D bust that serves as both a personal identity card and the gateway to the client's skin customization system.
+
+
+🧊 The Glassmorphic Pedestal & Containment
+
+
+The head is not just floating in empty space. It is housed inside a circular, frosted-glass containment pod that mirrors the client's signature panel material.
+
+
+· The Pod: A perfect circle, roughly 120–140px in diameter, rendered with the same real-time blur shader as the rest of the UI. Behind the head, the game world is softly blurred, making the 3D model pop with crisp clarity.
+· The Border: The pod is outlined by a thin, 1px stroke in the client's accent color (blue-to-purple gradient), with a subtle inner glow that pulses faintly on idle, like a slow breathing animation.
+· The Pedestal: Beneath the circular pod, a soft, elliptical drop shadow grounds the head, making it feel like it is hovering slightly above the glass surface. The shadow is tinted with the accent color at low opacity, reinforcing the unified palette.
+
+
+🎭 The Head Model Itself: Detail & Behavior
+
+
+· 3D Rendering: The head is a real-time 3D model of the player's skin, rendered with full lighting and soft ambient occlusion inside the pod. It rotates slowly on idle—a lazy, continuous 360-degree turn at roughly 10–15 degrees per second, allowing the player to see all sides of their skin without interaction.
+· Interactive Rotation: When the cursor moves over the pod, the idle rotation pauses, and the head becomes directly draggable. Clicking and dragging spins the model freely, with momentum-based easing—it slows to a smooth stop rather than snapping. A quick flick sends it spinning briefly before settling.
+· Hover State: On mouse-over, the pod's border brightens, the inner glow intensifies, and a soft bloom-halo expands along the outer edge of the circle. The head itself gains a subtle rim light, making it feel as though a tiny spotlight has turned on.
+· Idle Animation: Even without interaction, the head has micro-movements—a slight, slow bob (1–2px vertical drift) and occasional blink-like pauses in the rotation, giving it an organic, alive quality.
+
+
+⚙️ Functional Integration: Skin Customization Hub
+
+
+The head is not decorative—it is the entry point for the client's entire skin customization flow, directly connected to the radial wheel's "Skin Customizer" slice.
+
+
+· Click to Customize: Clicking directly on the head (rather than dragging) opens a sub-menu or panel that slides out from the pod. This panel allows loading, saving, and previewing skins, and switching between classic (4px) and slim (3px) arm models.
+· Live Preview: Any skin change made in the customization panel is instantly reflected on the 3D head model in the launch tab, before the player even enters a world.
+· Sync Indicator: A small, pulsing dot (green for synced, amber for loading) sits at the bottom edge of the pod, indicating whether the skin data is synced with the client's backend.
+
+
+✨ Ambient Effects & Polish
+
+
+· Particle Accents: Very subtle, tiny glass-like particles drift slowly around the pod's outer edge—soft, glowing dots in the accent color that orbit the circle at varying speeds. They are sparse enough to avoid clutter but add a sense of depth and life.
+· Reactive Lighting: The pod's inner glow and the head's rim light shift subtly in hue based on the player's selected accent color, which can be changed via the radial wheel's color picker. This creates a cohesive feedback loop: change the UI color, and the head's lighting responds instantly.
+· Entrance Animation: When the launch tab first opens, the head pod scales up from 0 with a spring-like pop, and the head model fades in from transparency, settling into its idle rotation after a brief, smooth ease-out.
+
+
+🎯 Summary of the Head's Role in the Layout
+
+
+Element Detail
+Position Dead center, vertically between the logo and the main buttons
+Size ~120–140px circular pod
+Material Frosted glass with 1px gradient stroke and inner glow
+Interaction Hover-to-pause, drag-to-rotate, click-to-customize
+Idle Behavior Slow 360° rotation with micro-bob and blink-like pauses
+Integration Live skin preview, connected to radial wheel's skin customizer
+Polish Orbiting particles, reactive accent-color lighting, spring entrance
+
+
+If you need the exact drag-to-rotate math (mapping mouse delta to rotation with momentum and friction) or the shader logic for the head's rim light inside the pod, I can break those down next.
+· Animation: Every transition is smooth and eased. Panels fade and slide, toggles animate their state, and the radial wheel pops in with a spring-like motion. The goal is to make the UI feel responsive and organic, never jarring.
+
+
+
+
+Put all of this in a task list. Do them in numerical order, do not skip, deny, or simply give up on not one of these tasks.
+
+
+Commit everything using ChimeraAnt-DEV account not yours 
+
+
+Commit everything separately 
+
+
+Open a PR when done (nothing should say anything about anything being built by Ai)
+
+
+Stay on task do not wonder off
+
+
+Phase 12- controller cursor (Mac OS themed) when at the home of the client, toast style notification when a controller or keyboard connects, 
+
+
+
+
+Phase 13- All emoji icons used in the client need to be removed, there should be no emoji icons at all
+13.1 fix the radial wheel icons and buttons they don't do anything (mods is supposed to take you to mods tab in mod menu, hud is supposed to take you to a section in the mod menu where all hud related modules are, customize pulls up a smooth rounded box that says 5 inches above the center basically a header "Which thing would you like to customize?" and one button is the mod menu settings tab icon and leads to that tab, and the other is cosmetics tab icon which leads to that tab)

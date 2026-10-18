@@ -70,6 +70,8 @@ public class ModMenuOverlay {
     private final Runnable searchRunnable = this::applyFilters;
     private ModMenuAdapter adapter;
     private ModMenuTheme theme;
+    /** The destination the rail is currently showing, so a theme rebuild can restore it. */
+    private ModMenuPage activePage;
     private boolean hasStaggeredOnce = false;
     private EditText searchInput;
     private ImageButton clearSearchBtn;
@@ -112,6 +114,8 @@ public class ModMenuOverlay {
     private Switch compactModeSwitch;
     private SeekBar modMenuOpacitySeekBar;
     private TextView modMenuOpacityText;
+    private SeekBar modMenuPrimaryOpacitySeekBar;
+    private TextView modMenuPrimaryOpacityText;
     private SeekBar modMenuButtonOpacitySeekBar;
     private TextView modMenuButtonOpacityText;
     private SeekBar hudButtonSizeSeekBar;
@@ -653,6 +657,33 @@ public class ModMenuOverlay {
             @Override
             public void onStopTrackingTouch(android.widget.SeekBar seekBar) {}
         });
+
+        modMenuPrimaryOpacitySeekBar = overlayView.findViewById(R.id.seekbar_mod_menu_primary_opacity);
+        modMenuPrimaryOpacityText = overlayView.findViewById(R.id.text_mod_menu_primary_opacity);
+        if (modMenuPrimaryOpacitySeekBar != null) {
+            int currentPrimaryOpacity = modManager.getModMenuPrimaryOpacity();
+            modMenuPrimaryOpacitySeekBar.setProgress(currentPrimaryOpacity);
+            if (modMenuPrimaryOpacityText != null) {
+                modMenuPrimaryOpacityText.setText(
+                        activity.getString(R.string.mod_menu_percent_value, currentPrimaryOpacity));
+            }
+            modMenuPrimaryOpacitySeekBar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+                @Override
+                public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
+                    if (!fromUser) return;
+                    if (modMenuPrimaryOpacityText != null) {
+                        modMenuPrimaryOpacityText.setText(
+                                activity.getString(R.string.mod_menu_percent_value, progress));
+                    }
+                    modManager.setModMenuPrimaryOpacity(progress);
+                    applyMenuOpacity();
+                }
+                @Override
+                public void onStartTrackingTouch(android.widget.SeekBar seekBar) {}
+                @Override
+                public void onStopTrackingTouch(android.widget.SeekBar seekBar) {}
+            });
+        }
 
         modMenuButtonOpacitySeekBar = overlayView.findViewById(R.id.seekbar_mod_menu_button_opacity);
         modMenuButtonOpacityText = overlayView.findViewById(R.id.text_mod_menu_button_opacity);
@@ -1869,6 +1900,7 @@ public class ModMenuOverlay {
             else if (replay) page = ModMenuPage.REPLAY;
             if (page != null) rail.setSelected(page);
             if (page != null) updateTopBarTitle(page);
+            if (page != null) activePage = page;
         }
     }
 
@@ -1995,13 +2027,53 @@ public class ModMenuOverlay {
         loadMods();
     }
 
+    /**
+     * Applies the player's two independent opacities to the menu window.
+     *
+     * <p>The container's alpha is the background opacity; the accent surfaces inside (the rail's
+     * selection, the enabled cards, the filter chips) read the primary opacity from the theme, so a
+     * clear panel with a solid accent — or the reverse — is expressible. Setting the container alpha
+     * alone was the whole of the old behaviour, which is why the two could not move separately.
+     */
     private void applyMenuOpacity() {
-        if (overlayView != null) {
-            View menuContainer = overlayView.findViewById(R.id.mod_menu_container);
-            if (menuContainer != null) {
-                int opacity = InbuiltModManager.getInstance(activity).getModMenuOpacity();
-                menuContainer.setAlpha(opacity / 100f);
+        if (overlayView == null) return;
+        View menuContainer = overlayView.findViewById(R.id.mod_menu_container);
+        if (menuContainer == null) return;
+        InbuiltModManager manager = InbuiltModManager.getInstance(activity);
+        int opacity = manager.getModMenuOpacity();
+        menuContainer.setAlpha(opacity / 100f);
+        // Re-resolve the theme so a change to the accent or its opacity redraws the accent surfaces
+        // without recreating the overlay.
+        theme = new ModMenuTheme(activity, manager.getModMenuThemeState(activity));
+        applyThemeToSurfaces();
+    }
+
+    /**
+     * Re-tints the accent surfaces from the current theme.
+     *
+     * <p>The rail's selection, the filter chips and the enabled cards all derive their colour from
+     * the accent, so they must follow a theme change; leaving them on the value they were built with
+     * is how a live colour change "only half applies".
+     */
+    private void applyThemeToSurfaces() {
+        if (overlayView == null || theme == null) return;
+        try {
+            // The rail bakes the accent into its icons and pills when it is built, so a colour
+            // change means rebuilding it rather than patching each tile. Only rebuild a rail that
+            // already exists — at first setup the rail is built later, by its own path.
+            if (rail != null) {
+                buildRail();
+                if (activePage != null) rail.setSelected(activePage);
             }
+            if (compactFilterSelector != null) {
+                compactFilterSelector.setTextColor(getAccentColor());
+            }
+            // The adapter carries the theme, so a re-bind repaints every card in the new accent.
+            if (adapter != null) {
+                adapter.setTheme(theme);
+            }
+        } catch (Throwable ignored) {
+            // Theme re-application is cosmetic; never let it break the open menu.
         }
     }
 
