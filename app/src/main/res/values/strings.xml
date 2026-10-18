@@ -1515,7 +1515,6 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="discord_join">Join our Discord</string>
     <string name="discord_join_url" translatable="false">https://discord.gg/r8d7ckEG53</string>
     <string name="discord_join_failed">No app can open that link.</string>
-    <string name="dock_skin_head_desc">Your Minecraft skin head</string>
     <string name="screenshot_date_format">Date: %1$s</string>
     <string name="pagination_page_of">Page %1$d of %2$s</string>
     <string name="pagination_page_one">Page 1</string>
@@ -2156,7 +2155,6 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="dock_profile_default">Default Profile</string>
     <string name="launch_quickdock_wheel">Radial Menu</string>
     <string name="launch_quickdock_wheel_unavailable">The radial menu is not available here</string>
-    <string name="launch_version_label">GlowberryClient %1$s</string>
     <string name="launch_toggle_antegg">AntEgg Mod Packs</string>
     <string name="launch_toggle_voice">Voice Chat</string>
     <string name="launch_toggle_replay">Replays</string>

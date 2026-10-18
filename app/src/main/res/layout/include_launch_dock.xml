@@ -21,33 +21,17 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@drawable/bg_launch_dock"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="14dp">
 
-        <!-- The player's real Minecraft skin head, above the launch control. -->
-        <ImageView
-            android:id="@+id/dock_skin_head"
-            android:layout_width="52dp"
-            android:layout_height="52dp"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="12dp"
-            android:contentDescription="@string/dock_skin_head_desc"
-            android:scaleType="fitCenter"
-            android:src="@drawable/ic_glowberry_logo" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingHorizontal="16dp"
-            android:paddingVertical="14dp">
-
-        <!-- Profile + version picker: tap to open the version list. -->
+        <!-- Profile + version picker, above the launch action. Tapping it drops the instance list
+             downward into the page; at the very bottom of the screen that popup had nowhere to go,
+             so the picker sits on top of the dock. -->
         <LinearLayout
             android:id="@+id/select_version_button"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:minHeight="56dp"
             android:background="@drawable/bg_dock_selector"
             android:gravity="center_vertical"
@@ -98,12 +82,12 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Main launch action. A FrameLayout so the loading shimmer can sit over the button. -->
+        <!-- Main launch action, below the picker. A FrameLayout so the loading shimmer can sit
+             over the button. -->
         <FrameLayout
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="56dp"
-            android:layout_marginStart="14dp"
-            android:layout_weight="1">
+            android:layout_marginTop="10dp">
 
             <Button
                 android:id="@+id/launch_button"
@@ -136,15 +120,13 @@
                 android:background="@drawable/bg_dock_shimmer"
                 android:visibility="gone" />
         </FrameLayout>
-        </LinearLayout>
 
         <ProgressBar
             android:id="@+id/progress_loader"
             style="?android:attr/progressBarStyleHorizontal"
             android:layout_width="match_parent"
             android:layout_height="4dp"
-            android:layout_marginHorizontal="16dp"
-            android:layout_marginBottom="10dp"
+            android:layout_marginTop="10dp"
             android:indeterminate="true"
             android:visibility="gone"
             android:indeterminateTint="@color/primary" />

@@ -521,18 +521,6 @@
         android:paddingHorizontal="16dp"
         android:paddingBottom="16dp">
 
-        <!-- The client version, bottom-left, subtle. -->
-        <TextView
-            android:id="@+id/launch_version_label"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="6dp"
-            android:fontFamily="@font/misans"
-            android:textColor="@color/dock_text_secondary"
-            android:textSize="10sp"
-            app:layout_constraintBottom_toTopOf="@id/launch_dock"
-            app:layout_constraintStart_toStartOf="parent" />
-
         <!-- The quick dock: Mods, Cosmetics and the radial wheel, one tap away. -->
         <include
             layout="@layout/include_launch_quickdock"
