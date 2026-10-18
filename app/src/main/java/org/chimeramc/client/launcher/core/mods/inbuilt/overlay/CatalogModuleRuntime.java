@@ -8,6 +8,7 @@ import android.view.KeyEvent;
 
 import org.chimeramc.client.core.mods.inbuilt.catalog.ActionTimers;
 import org.chimeramc.client.core.mods.inbuilt.catalog.CatalogSessionCounters;
+import org.chimeramc.client.core.mods.inbuilt.catalog.CatalogTimerRules;
 import org.chimeramc.client.core.mods.inbuilt.catalog.ChatInjector;
 import org.chimeramc.client.core.mods.inbuilt.catalog.KeyStateTracker;
 import org.chimeramc.client.core.mods.inbuilt.catalog.LocalPlayerReadouts;
@@ -54,6 +55,8 @@ public final class CatalogModuleRuntime {
     private float[] lastPosition;
     private long lastPositionMs;
     private double lastSpeed;
+    private final float[] lastVelocity = new float[3];
+    private boolean hasVelocity;
     private float fallStartY = Float.NaN;
     private float[] waypoint;
     private final Map<String, ActionTimers> timers = new HashMap<>();
@@ -108,6 +111,7 @@ public final class CatalogModuleRuntime {
         lastCreditedKill = null;
         lastPosition = null;
         lastSpeed = 0;
+        hasVelocity = false;
         fallStartY = Float.NaN;
         waypoint = null;
     }
@@ -128,7 +132,7 @@ public final class CatalogModuleRuntime {
             // The client's own landed hit arms the hit marker and the swing timers, so the marker
             // and the counter cannot disagree about when a hit landed.
             long now = SystemClock.uptimeMillis();
-            timer("combat_hit_marker").arm(now, 250L);
+            timer("combat_hit_marker").arm(now, CatalogTimerRules.HIT_MARKER_MS);
         }
         // A death: the local health feed dropping to zero from a live reading.
         float[] health = PreloaderInput.readLocalPlayerHealth();
@@ -153,9 +157,17 @@ public final class CatalogModuleRuntime {
             long now = SystemClock.uptimeMillis();
             if (lastPosition != null && now > lastPositionMs) {
                 double dx = position[0] - lastPosition[0];
+                double dy = position[1] - lastPosition[1];
                 double dz = position[2] - lastPosition[2];
                 double dt = (now - lastPositionMs) / 1000.0;
                 lastSpeed = Math.hypot(dx, dz) / dt;
+                // Per-axis velocity is measured from the same two samples the speed uses, so the
+                // velocity readout cannot disagree with the speed readout. It is not fabricated:
+                // the vertical component is the real Δy/Δt, which the old code dropped entirely.
+                lastVelocity[0] = (float) (dx / dt);
+                lastVelocity[1] = (float) (dy / dt);
+                lastVelocity[2] = (float) (dz / dt);
+                hasVelocity = true;
             }
             lastPosition = position;
             lastPositionMs = now;
@@ -181,16 +193,24 @@ public final class CatalogModuleRuntime {
      * game's value.
      */
     public void onAttackAction(long nowMs) {
-        timer("combat_crit_timer").arm(nowMs, 625L);
-        timer("combat_attack_cooldown").arm(nowMs, 625L);
-        timer("combat_attack_indicator").arm(nowMs, 625L);
+        for (CatalogTimerRules.Arm arm : CatalogTimerRules.forAttack()) {
+            timer(arm.modId).arm(nowMs, arm.durationMs);
+        }
         applySprintHelpers(nowMs);
     }
 
-    /** Arms the item-use timers (a thrown pearl, an eaten gapple). */
+    /**
+     * Arms the item-use timers (a thrown pearl, an eaten gapple, a raised shield).
+     *
+     * <p>The shield timer is armed here too: in Bedrock the off-hand use key is what raises a
+     * shield, so it is the same input that starts the shield window. Leaving it unarmed was the
+     * "enabled but not working" defect — the readout existed and was wired, but no input ever
+     * started its timer, so it showed the empty state forever.
+     */
     public void onUseAction(long nowMs) {
-        timer("combat_pearl_timer").arm(nowMs, 1000L);
-        timer("combat_gapple_timer").arm(nowMs, 1600L);
+        for (CatalogTimerRules.Arm arm : CatalogTimerRules.forUse()) {
+            timer(arm.modId).arm(nowMs, arm.durationMs);
+        }
     }
 
     /** Enables/disables a sprint helper; a helper re-sends the sprint key after an action. */
@@ -263,7 +283,9 @@ public final class CatalogModuleRuntime {
             case "move_speed_display":
                 return LocalPlayerReadouts.speed(lastSpeed);
             case "move_velocity_display":
-                return LocalPlayerReadouts.velocity(0f, 0f, (float) lastSpeed);
+                return hasVelocity
+                        ? LocalPlayerReadouts.velocity(lastVelocity[0], lastVelocity[1], lastVelocity[2])
+                        : null;
             case "hud_health_display":
                 return LocalPlayerReadouts.health(PreloaderInput.readLocalPlayerHealth());
             case "move_fall_damage_warn":
