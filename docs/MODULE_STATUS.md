@@ -72,8 +72,8 @@ accessor-name strings are stripped).
 |---|---|---|---|
 | Cape/hat/pet preview | Pure Java rasteriser (`PreviewRaster`/`PreviewScene`) | n/a (client-side) | working (golden-image tested) |
 | Cosmetic sync (peer visibility) | LAN multicast / voice relay (`CosmeticSyncProtocol`) | yes | working (tested) |
-| In-game cape/hat/pet render | `LivePlayerRenderer` slot 17 render hook → `CosmeticFrame` → native mesh draw | slot 17 **verified by static analysis**; draw reaching the screen **unverified** | unverified (device) |
-| Debug cube (draw self-test) | Same render hook; now reachable with nothing equipped (Stage 2 fix) | slot 17 verified; visible cube **unverified** | unverified (device) |
+| In-game cape render | Cape texture swap at the engine's `mce::Image` loader (`CapeImagePipeline` → `mce_image_hook`) | loader signature per build; the swap is fail-closed to the vanilla cape | unverified (device) |
+| In-game accessory/pet render | `LivePlayerRenderer` slot 17 render hook → `CosmeticFrame` → native mesh draw | slot 17 **verified by static analysis**; draw reaching the screen **unverified** | unverified (device) |
 | Real skin capture | `mce::ImageUtils::loadImageFromMemory` byte signature | **no** on 1.26.33.1 (configured pattern matches 0) | needs-hook (fail-closed to the imported/applied skin) |
 | Cape pixel substitution | `SerializedSkinRef +0xa8` `mce::Image` swap | **unverified** (accessor names stripped on this build) | needs-hook (fail-closed) |
 

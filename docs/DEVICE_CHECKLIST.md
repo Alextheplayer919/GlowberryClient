@@ -32,11 +32,11 @@ Record the whole report. The lines that matter most:
 | `Player-render slot` | Which vtable slot the hook resolved, and whether by the render-diagnostic string scan or by the configured index. | This is the **slot 17 verification**. If it says a different number, or `unknown`, tell us. |
 | `Hook installed` | Did the detour install? | If `no`, the slot did not resolve to executable code. |
 | `Frames seen` | How many render ticks the hook has seen. | Should climb while you play. |
-| `Renderer drawable` | Did a GLES surface resolve? | If `no`, the renderer is Vulkan-only and cannot draw. |
-| `GL backend` | `GLES`, `Vulkan (GLES unavailable)`, or `unknown`. | Tells us whether a Vulkan path is needed. |
-| `EGL context current` | Is an EGL context current on the render thread? | If `no` while `GL backend: GLES`, a draw would go nowhere. |
-| `Successful draws this session` | How many meshes were actually rasterised. | The honest measure of "did anything draw". |
-| `Last GL error` | `none` or a hex code. | A code here narrows down a failed draw. |
+| `Cape engine texture route` | Did the cape reach the game through the engine's own image loader? | This is the Vulkan-safe cape path; `yes` means a cape appears with no GL renderer. |
+| `Engine image pipeline live` | Did the `mce::Image` loader seam resolve? | The cape swap needs this; `no` on a build whose loader signature did not match. |
+| `GL backend` | `GLES`, `Vulkan (GLES unavailable)`, or `unknown`. | Informational now — the cape route does not need GLES. |
+| `EGL context current` | Is an EGL context current on the render thread? | Informational; the engine texture route does not depend on it. |
+| `Last GL error` | `none` or a hex code. | A code here narrows down a failed engine-image load. |
 | `Published geometry bytes` | Did the launcher publish the equipped geometry? | A size > 0 confirms the launcher half. |
 | `Piece atlases` | Which of cape/hat/pet textures were published. | Confirms per-piece textures. |
 | `Local cosmetics published under key` | Should read `"local"`. | Confirms the key scheme. |
@@ -49,35 +49,37 @@ Record the whole report. The lines that matter most:
 | `libpreloader.so copies mapped` | Must be exactly `1`. | `> 1` = **SPLIT**: JNI and the hook are in different copies; nothing can ever draw. |
 | `Local player feed` | `live x=… y=… z=… yaw=… pitch=…` with plausible values. | Cosmetics are scoped to a live local player. |
 | `Camera anchor source` | `engine view-projection` or `first-person fallback`. | A pass/fail test must not accept the fallback as the engine camera. |
-| `Last draw decision` | `draw` or a named `skip: …`. | The report now names *why* a frame did not draw. |
+| `Status` | The route the client reports as live this session. | The honest summary line: which pieces reach the game and which are preview-only. |
 
 ---
 
-## Step 2 — The debug cube (the draw self-test)
+## Step 2 — The cape engine texture route (the Vulkan-safe path)
 
-This is the decisive test: it draws a bright cube above your character regardless of what you have
-equipped, so a screenshot either shows it or does not.
+The cape no longer needs a GLES draw surface: it reaches the game as a texture swap at the engine's
+own image loader, so it works on a Vulkan-only RenderDragon build. This step confirms that route.
 
 1. Still in the world, open **Cosmetics → Diagnostics**.
-2. Tick **Draw test cube above local player**.
-3. Close the menu and look at your character (third-person view is easiest).
+2. Confirm the report reads `Cape engine texture route: yes` and `Engine image pipeline live: yes`.
+3. Equip a cape, close the menu and look at your character (third-person view is easiest).
 4. Take a screenshot.
 
 Report back:
-- Does a bright cube appear above your character's head? **yes / no**.
-- If yes, the native draw path works on this build. If no, copy the diagnostics report again after
-  toggling the cube on — the draw count and last GL error tell us where it stopped.
+- Does the equipped cape appear on your character's back? **yes / no**.
+- If no, copy the diagnostics report again — the `Cape engine texture route`, `Engine image pipeline
+  live` and `Last GL error` lines tell us where the route stopped.
 
 ---
 
-## Step 3 — An equipped cosmetic
+## Step 3 — An equipped accessory and pet
 
-1. Equip a cape, a hat and a pet in the Cosmetics section.
+1. Equip a hat and a pet in the Cosmetics section.
 2. Return to the world; watch your character.
 3. Take a screenshot with each piece if possible.
 
-Report back which, if any, of cape / hat / pet appear, and whether they are attached in a sensible
-place (cape on the back, hat on the head, pet beside you) or floating/off-screen.
+Accessories and pets reach the game through the native player-render hook, so on a build where that
+hook is not live they show in the preview only (the panel says so). Report back which, if any, of
+cape / hat / pet appear, and whether they are attached in a sensible place (cape on the back, hat on
+the head, pet beside you) or floating/off-screen.
 
 ---
 
@@ -95,6 +97,6 @@ EGL context).
 
 ## Honesty note
 
-Nothing in this document claims the cube or the cosmetics appear. It is a procedure to find out.
-The app's own wording (`Renderer drawable`, `Successful draws this session`, the status line) never
-claims a draw that did not happen, and neither should any result you report.
+Nothing in this document claims the cape, accessory or pet appear. It is a procedure to find out.
+The app's own wording (`Cape engine texture route`, `Engine image pipeline live`, the status line)
+never claims a route that is not live, and neither should any result you report.
