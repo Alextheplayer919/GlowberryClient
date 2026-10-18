@@ -101,6 +101,12 @@ public final class CosmeticsDiagnosticsReport {
         public String lastCrashReport = "";
         /** True when the crash report was truncated for display. */
         public boolean lastCrashTruncated;
+        /** True when the report was generated while a world was loaded (not in a menu). */
+        public boolean inWorld;
+        /** True when a game session is running (the launcher's own session flag). */
+        public boolean sessionActive;
+        /** The HUD hook's "a HUD screen is open" reading, or false when the hook has not fired. */
+        public boolean hudScreenOpen;
         /** Mod-menu build-step failures captured by the containment guard (formatted). */
         public String menuGuardFailures = "  none\n";
         public long timestampMs;
@@ -172,6 +178,19 @@ public final class CosmeticsDiagnosticsReport {
         } catch (Throwable ignored) {
         }
         in.debugCubeArmed = PreloaderInput.isDebugCubeEnabled();
+        try {
+            in.sessionActive =
+                    org.chimeramc.client.settings.LowLatencyNetworkManager.isGameSessionActive();
+        } catch (Throwable ignored) {
+        }
+        try {
+            in.hudScreenOpen = PreloaderInput.isHudScreenOpen();
+        } catch (Throwable ignored) {
+        }
+        // "In a world" is the HUD hook having reported a world at least once and no HUD screen being
+        // open right now. Before the hook fires there is no reading at all, so the report says so
+        // rather than claiming a menu.
+        in.inWorld = in.sessionActive && !in.hudScreenOpen;
         try {
             in.skinCaptured = PreloaderInput.nativeHasCapturedSkin();
         } catch (Throwable ignored) {
@@ -249,8 +268,12 @@ public final class CosmeticsDiagnosticsReport {
         StringBuilder b = new StringBuilder(1024);
         b.append("GlowberryClient — Cosmetics diagnostics\n");
         b.append("Generated: ").append(timestamp(v.timestampMs)).append('\n');
+        b.append("Generated inside a world: ").append(yesNo(v.inWorld)).append('\n');
         b.append("App version: ").append(v.appVersion).append('\n');
         b.append("Minecraft version: ").append(v.minecraftVersion).append('\n');
+        b.append('\n');
+
+        b.append("FIRST FAILING STAGE: ").append(firstFailingStage(v)).append('\n');
         b.append('\n');
 
         b.append("Native library loaded: ").append(yesNo(v.nativeLoaded)).append('\n');
@@ -440,5 +463,54 @@ public final class CosmeticsDiagnosticsReport {
             return "hook active and drawable, but no cosmetic mesh has been drawn yet this session.";
         }
         return "native renderer active (" + v.drawsThisSession + " draw(s) this session).";
+    }
+
+    /**
+     * Names the first stage that did not complete, in the order the native path is built.
+     *
+     * <p>A bare "Status" line says the end result but not which link broke; with the install
+     * deferred to the game's frame tick, "not installed" could mean the library never loaded, the
+     * rules never arrived, no rule matched the version, or the runtime never came up. This walks the
+     * same order the preloader does and stops at the first failure, so a device report points at one
+     * step instead of leaving the reader to guess. Every stage is a real reading; nothing is
+     * inferred.
+     */
+    static String firstFailingStage(Inputs v) {
+        if (!v.nativeLoaded) {
+            return "0. native library — libpreloader.so is not loaded, so nothing below ran.";
+        }
+        if (v.rulesRevision <= 0) {
+            return "1. rules file — the delivered rules declared revision 0 (or none was delivered);"
+                    + " the file did not reach the native side or is unreadable.";
+        }
+        if (!v.rulesLoadAttempted) {
+            return "2. rules load — the hook install never ran, so the rules file was never read"
+                    + " (the install is deferred to the game's frame tick; see the install state).";
+        }
+        if (!v.rulesHaveRenderIndex) {
+            return "3. rule match — no matching rule for Minecraft " + v.minecraftVersion
+                    + " carried a playerRenderVtableIndex, so the render slot could not resolve.";
+        }
+        if (v.hookInstallState == 0) {
+            return "4. install armed — the deferred install was never armed; the game activity did"
+                    + " not reach the pump.";
+        }
+        if (v.hookInstallState == 1) {
+            return "4. install armed — waiting for the game runtime (" + v.hookInstallFrameTicks
+                    + " frame tick(s)); if this persists the runtime never came up.";
+        }
+        if (!v.hookInstalled) {
+            return "5. render slot — the install ran but the render hook is not live; the slot did"
+                    + " not resolve to an executable address on this build.";
+        }
+        if (!v.rendererDrawable) {
+            return "6. draw surface — the hook is live but the draw surface is unavailable on this"
+                    + " backend/build.";
+        }
+        if (v.drawsThisSession <= 0) {
+            return "none reached a draw — every stage up to the renderer is live; no cosmetic mesh"
+                    + " has been drawn yet (equip a cosmetic and enter a world).";
+        }
+        return "none — the native render path completed a draw this session.";
     }
 }

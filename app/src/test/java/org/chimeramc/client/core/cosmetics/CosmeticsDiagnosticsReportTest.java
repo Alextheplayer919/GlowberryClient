@@ -51,6 +51,58 @@ public class CosmeticsDiagnosticsReportTest {
     }
 
     @Test
+    public void theReportNamesTheFirstFailingStage() {
+        // Phase 0.3: the report must point at one broken link, not just the end result.
+        String report = CosmeticsDiagnosticsReport.format(fullInputs());
+        assertTrue(report.contains("FIRST FAILING STAGE: none — the native render path completed"));
+
+        CosmeticsDiagnosticsReport.Inputs noLib = fullInputs();
+        noLib.nativeLoaded = false;
+        assertTrue(CosmeticsDiagnosticsReport.firstFailingStage(noLib).startsWith("0. native library"));
+
+        CosmeticsDiagnosticsReport.Inputs noRules = fullInputs();
+        noRules.rulesRevision = 0;
+        assertTrue(CosmeticsDiagnosticsReport.firstFailingStage(noRules).startsWith("1. rules file"));
+
+        CosmeticsDiagnosticsReport.Inputs notLoaded = fullInputs();
+        notLoaded.rulesLoadAttempted = false;
+        assertTrue(CosmeticsDiagnosticsReport.firstFailingStage(notLoaded).startsWith("2. rules load"));
+
+        CosmeticsDiagnosticsReport.Inputs noSlot = fullInputs();
+        noSlot.rulesHaveRenderIndex = false;
+        assertTrue(CosmeticsDiagnosticsReport.firstFailingStage(noSlot).startsWith("3. rule match"));
+
+        CosmeticsDiagnosticsReport.Inputs notArmed = fullInputs();
+        notArmed.hookInstallState = 0;
+        assertTrue(CosmeticsDiagnosticsReport.firstFailingStage(notArmed).startsWith("4. install armed"));
+
+        CosmeticsDiagnosticsReport.Inputs waiting = fullInputs();
+        waiting.hookInstallState = 1;
+        assertTrue(CosmeticsDiagnosticsReport.firstFailingStage(waiting).contains("waiting for the game runtime"));
+
+        CosmeticsDiagnosticsReport.Inputs noHook = fullInputs();
+        noHook.hookInstalled = false;
+        assertTrue(CosmeticsDiagnosticsReport.firstFailingStage(noHook).startsWith("5. render slot"));
+
+        CosmeticsDiagnosticsReport.Inputs notDrawable = fullInputs();
+        notDrawable.rendererDrawable = false;
+        assertTrue(CosmeticsDiagnosticsReport.firstFailingStage(notDrawable).startsWith("6. draw surface"));
+
+        CosmeticsDiagnosticsReport.Inputs noDraw = fullInputs();
+        noDraw.drawsThisSession = 0;
+        assertTrue(CosmeticsDiagnosticsReport.firstFailingStage(noDraw).contains("no cosmetic mesh has been drawn"));
+    }
+
+    @Test
+    public void theReportSaysWhetherItWasGeneratedInsideAWorld() {
+        CosmeticsDiagnosticsReport.Inputs in = fullInputs();
+        in.inWorld = true;
+        assertTrue(CosmeticsDiagnosticsReport.format(in).contains("Generated inside a world: yes"));
+        in.inWorld = false;
+        assertTrue(CosmeticsDiagnosticsReport.format(in).contains("Generated inside a world: no"));
+    }
+
+    @Test
     public void theReportCarriesEveryRequestedField() {
         String report = CosmeticsDiagnosticsReport.format(fullInputs());
         assertTrue(report.contains("App version: v1.2.3"));
