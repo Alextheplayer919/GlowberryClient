@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The Launch tab's head pod: a circular frosted-glass disc with the player's real skin head as a
+    live 3D turntable. It is the interactive anchor of the launch screen — hover pauses the idle
+    spin and brightens the rim, a drag rotates the model and carries momentum, and a click opens the
+    skin customizer. The pod is centred above the hero panel so it reads as the visual anchor of the
+    tab without pushing the instance identity off screen.
+-->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/launch_head_pod_row"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:paddingTop="6dp"
+    android:paddingBottom="10dp">
+
+    <org.chimeramc.client.ui.components.HeadPodView
+        android:id="@+id/launch_head_pod"
+        android:layout_width="132dp"
+        android:layout_height="132dp"
+        android:contentDescription="@string/launch_head_pod_description" />
+
+    <TextView
+        android:id="@+id/launch_head_pod_hint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:fontFamily="@font/misans"
+        android:text="@string/launch_head_pod_hint"
+        android:textColor="@color/dock_text_secondary"
+        android:textSize="10sp" />
+</LinearLayout>

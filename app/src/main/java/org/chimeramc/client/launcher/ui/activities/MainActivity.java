@@ -1201,7 +1201,29 @@ import okhttp3.OkHttpClient;
         // the hero preview's animation on every resume.
         bindLaunchPreviewCosmetics();
         if (launchPreview != null) launchPreview.startPreview();
+        bindHeadPod();
         refreshLaunchToggles();
+    }
+
+    /**
+     * Wires the launch tab's head pod: the live 3D skin bust in a glass disc.
+     *
+     * <p>It re-resolves the skin on every bind because the skin can change on the Customize screen,
+     * and gates its idle motion on the personalization "show animations" flag. A tap opens the skin
+     * customizer, which is the pod's documented job.
+     */
+    private void bindHeadPod() {
+        View pod = findViewById(R.id.launch_head_pod);
+        if (!(pod instanceof org.chimeramc.client.ui.components.HeadPodView)) return;
+        org.chimeramc.client.ui.components.HeadPodView headPod =
+                (org.chimeramc.client.ui.components.HeadPodView) pod;
+        headPod.refreshSkin();
+        headPod.setListener(() -> openCustomizeTab(CustomizeActivity.TAB_SKINS));
+        try {
+            headPod.setAnimationsEnabled(new PersonalizationManager(this).isShowAnimations());
+        } catch (Throwable ignored) {
+            headPod.setAnimationsEnabled(true);
+        }
     }
 
     private void applyPersonalization() {
@@ -1484,6 +1506,9 @@ import okhttp3.OkHttpClient;
 
         // The player's real skin head above the Play button.
         bindDockSkinHead();
+
+        // The launch tab's interactive head pod (live 3D skin bust in a glass disc).
+        bindHeadPod();
 
         // Setup the docked launch controls' shimmer feedback
         setupDockFeedback();

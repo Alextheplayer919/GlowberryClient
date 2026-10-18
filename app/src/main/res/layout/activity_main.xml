@@ -112,6 +112,15 @@
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintWidth_max="@dimen/page_max_width">
 
+                <!-- The head pod: the interactive anchor. A live 3D bust of the player's skin in a
+                     glass disc; hover pauses the idle spin, drag rotates, click opens the skin
+                     customizer. It sits above the hero panel so it reads as the tab's centrepiece. -->
+                <include
+                    layout="@layout/include_launch_head_pod"
+                    android:id="@+id/launch_head_pod_row"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+
                 <!-- Hero panel: live 3D player preview (left) + instance identity and stats (right). -->
                 <include
                     layout="@layout/include_hero_panel"
