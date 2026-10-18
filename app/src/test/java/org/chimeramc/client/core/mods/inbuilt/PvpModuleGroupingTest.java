@@ -12,14 +12,19 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * The Mod Menu draws one section header per contiguous run of a group id, so PvP modules must be
- * adjacent or the PvP section renders twice. These pin the ordering that guarantees it.
+ * The Mod Menu draws one section header per contiguous run of a group id and lists each section
+ * alphabetically, so these pin both: the PvP modules must stay adjacent, and every section must be
+ * sorted by display name.
  */
 public class PvpModuleGroupingTest {
 
-    private static UnifiedMod mod(String id) {
-        return new UnifiedMod(id, id, id, "inbuilt", UnifiedMod.Source.INBUILT,
+    private static UnifiedMod mod(String id, String name) {
+        return new UnifiedMod(id, name, name, "inbuilt", UnifiedMod.Source.INBUILT,
                 false, null, false, "inbuilt", "Inbuilt Features", null, null);
+    }
+
+    private static UnifiedMod mod(String id) {
+        return mod(id, id);
     }
 
     private static List<String> ids(List<UnifiedMod> mods) {
@@ -31,11 +36,11 @@ public class PvpModuleGroupingTest {
     @Test
     public void pvpModulesAreContiguousAtTheEnd() {
         List<UnifiedMod> ordered = InbuiltModuleProvider.groupPvpLast(Arrays.asList(
-                mod(ModIds.AIM_SETTINGS),
-                mod(ModIds.QUICK_DROP),
-                mod(ModIds.CPS_DISPLAY),
-                mod(ModIds.ZOOM),
-                mod(ModIds.SNAPLOOK)));
+                mod(ModIds.AIM_SETTINGS, "Aim Settings"),
+                mod(ModIds.QUICK_DROP, "Quick Drop"),
+                mod(ModIds.CPS_DISPLAY, "CPS Display"),
+                mod(ModIds.ZOOM, "Zoom"),
+                mod(ModIds.SNAPLOOK, "Snaplook")));
 
         assertEquals(Arrays.asList(
                 ModIds.QUICK_DROP, ModIds.ZOOM,
@@ -62,11 +67,47 @@ public class PvpModuleGroupingTest {
         assertEquals("PvP modules must form a single section", 1, runs);
     }
 
+    /** Each section is sorted by display name, not by declaration order. */
     @Test
-    public void nonPvpOrderIsPreserved() {
+    public void sectionsAreSortedAlphabetically() {
         List<UnifiedMod> ordered = InbuiltModuleProvider.groupPvpLast(Arrays.asList(
-                mod(ModIds.QUICK_DROP), mod(ModIds.ZOOM), mod(ModIds.FPS_DISPLAY)));
-        assertEquals(Arrays.asList(ModIds.QUICK_DROP, ModIds.ZOOM, ModIds.FPS_DISPLAY), ids(ordered));
+                mod(ModIds.QUICK_DROP, "Quick Drop"),
+                mod(ModIds.ZOOM, "Zoom"),
+                mod(ModIds.FPS_DISPLAY, "FPS Display")));
+        assertEquals(Arrays.asList(ModIds.FPS_DISPLAY, ModIds.QUICK_DROP, ModIds.ZOOM),
+                ids(ordered));
+    }
+
+    @Test
+    public void sortingIsCaseInsensitive() {
+        List<UnifiedMod> ordered = InbuiltModuleProvider.groupPvpLast(Arrays.asList(
+                mod("a", "banana"),
+                mod("b", "Apple"),
+                mod("c", "cherry")));
+        assertEquals(Arrays.asList("b", "a", "c"), ids(ordered));
+    }
+
+    @Test
+    public void sortingTiesBreakOnIdForStability() {
+        List<UnifiedMod> ordered = InbuiltModuleProvider.groupPvpLast(Arrays.asList(
+                mod("b", "Same"),
+                mod("a", "Same")));
+        assertEquals(Arrays.asList("a", "b"), ids(ordered));
+    }
+
+    /** A group boundary must survive the sort, or its header would render twice. */
+    @Test
+    public void distinctGroupsAreSortedWithinTheirOwnRun() {
+        List<UnifiedMod> ordered = InbuiltModuleProvider.groupPvpLast(Arrays.asList(
+                mod(ModIds.QUICK_DROP, "Quick Drop"),
+                mod(ModIds.ZOOM, "Zoom"),
+                new UnifiedMod(ModIds.VOICE_CHAT, "Voice Chat", "Voice Chat", "inbuilt",
+                        UnifiedMod.Source.INBUILT, false, null, false,
+                        ModIds.GROUP_VOICE, "Voice", null, null),
+                mod(ModIds.FPS_DISPLAY, "FPS Display")));
+
+        assertEquals(Arrays.asList(ModIds.FPS_DISPLAY, ModIds.QUICK_DROP, ModIds.ZOOM,
+                ModIds.VOICE_CHAT), ids(ordered));
     }
 
     @Test
@@ -83,19 +124,19 @@ public class PvpModuleGroupingTest {
         assertFalse(ModIds.isPvpModule(null));
     }
 
-    /** The new combat modules must also fold into the single PvP run. */
+    /** The combat modules must also fold into the single PvP run, sorted among themselves. */
     @Test
     public void theCombatModulesJoinTheSinglePvpRun() {
         List<UnifiedMod> ordered = InbuiltModuleProvider.groupPvpLast(Arrays.asList(
-                mod(ModIds.HIT_TIMING),
-                mod(ModIds.QUICK_DROP),
-                mod(ModIds.HITBOX),
-                mod(ModIds.HIT_REGISTRATION),
-                mod(ModIds.ZOOM)));
+                mod(ModIds.HIT_TIMING, "Hit Timing"),
+                mod(ModIds.QUICK_DROP, "Quick Drop"),
+                mod(ModIds.HITBOX, "Hitboxes"),
+                mod(ModIds.HIT_REGISTRATION, "Hit Registration"),
+                mod(ModIds.ZOOM, "Zoom")));
 
         assertEquals(Arrays.asList(
                 ModIds.QUICK_DROP, ModIds.ZOOM,
-                ModIds.HIT_TIMING, ModIds.HITBOX, ModIds.HIT_REGISTRATION),
+                ModIds.HIT_REGISTRATION, ModIds.HIT_TIMING, ModIds.HITBOX),
                 ids(ordered));
     }
 
@@ -104,7 +145,7 @@ public class PvpModuleGroupingTest {
         assertTrue(InbuiltModuleProvider.groupPvpLast(new ArrayList<>()).isEmpty());
 
         List<UnifiedMod> allPvp = InbuiltModuleProvider.groupPvpLast(Arrays.asList(
-                mod(ModIds.AIM_SETTINGS), mod(ModIds.CPS_DISPLAY)));
+                mod(ModIds.AIM_SETTINGS, "Aim Settings"), mod(ModIds.CPS_DISPLAY, "CPS Display")));
         assertEquals(Arrays.asList(ModIds.AIM_SETTINGS, ModIds.CPS_DISPLAY), ids(allPvp));
     }
 }

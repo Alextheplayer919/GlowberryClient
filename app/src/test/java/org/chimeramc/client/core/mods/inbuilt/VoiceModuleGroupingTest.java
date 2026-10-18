@@ -17,8 +17,8 @@ import java.util.List;
  */
 public class VoiceModuleGroupingTest {
 
-    private static UnifiedMod mod(String id, String group) {
-        return new UnifiedMod(id, id, id, "inbuilt", UnifiedMod.Source.INBUILT,
+    private static UnifiedMod mod(String id, String name, String group) {
+        return new UnifiedMod(id, name, name, "inbuilt", UnifiedMod.Source.INBUILT,
                 false, null, false, group, group, null, null);
     }
 
@@ -44,10 +44,10 @@ public class VoiceModuleGroupingTest {
         // Declaration order mirroring the provider: voice is added after the other non-PvP
         // inbuilt modules and before the combat modules, which the reorder then moves to the end.
         List<UnifiedMod> ordered = InbuiltModuleProvider.groupPvpLast(Arrays.asList(
-                mod(ModIds.QUICK_DROP, "inbuilt"),
-                mod(ModIds.ZOOM, "inbuilt"),
-                mod(ModIds.VOICE_CHAT, ModIds.GROUP_VOICE),
-                mod(ModIds.HITBOX, ModIds.GROUP_PVP)));
+                mod(ModIds.QUICK_DROP, "Quick Drop", "inbuilt"),
+                mod(ModIds.ZOOM, "Zoom", "inbuilt"),
+                mod(ModIds.VOICE_CHAT, "Voice Chat", ModIds.GROUP_VOICE),
+                mod(ModIds.HITBOX, "Hitboxes", ModIds.GROUP_PVP)));
 
         int runs = 0;
         boolean inVoiceRun = false;
@@ -57,6 +57,8 @@ public class VoiceModuleGroupingTest {
             inVoiceRun = voice;
         }
         assertEquals("Voice must form a single section", 1, runs);
+        // Each contiguous run is sorted; voice is its own run, so the inbuilt pair keeps its
+        // alphabetical order and voice stays between it and the PvP section.
         assertEquals(Arrays.asList(ModIds.QUICK_DROP, ModIds.ZOOM, ModIds.VOICE_CHAT, ModIds.HITBOX),
                 ids(ordered));
     }

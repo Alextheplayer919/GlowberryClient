@@ -370,19 +370,61 @@ public final class InbuiltModuleProvider {
     }
 
     /**
-     * Moves PvP modules to the end, preserving the declared order within each bucket. The menu
-     * draws one section header per contiguous group, and the combat modules are declared apart
-     * from each other, so without this the PvP section would render twice.
+     * Orders the menu: one contiguous run per group id, each sorted alphabetically by display name,
+     * with the PvP group last.
+     *
+     * <p>Two invariants meet here. The menu draws one section header per contiguous run of a group
+     * id, so every entry of a group must be adjacent — the voice module is declared in the middle of
+     * the inbuilt list, and the PvP catalogue entries are appended apart from the hand-declared PvP
+     * modules, so neither may simply be left in declaration order. Grouping by the id (rather than
+     * only splitting PvP out) fixes both and keeps each header single.
+     *
+     * <p>And the player scans a section by name, so each run is sorted case-insensitively by display
+     * name, with the id as a tie-break for a stable order. The sort is per run, never across the
+     * whole list, or it would interleave the groups and split their headers again.
      */
     static List<UnifiedMod> groupPvpLast(List<UnifiedMod> mods) {
+        // First-appearance order for the non-PvP groups, so the menu's section order stays the
+        // order the provider declares rather than a hash order.
+        java.util.LinkedHashMap<String, List<UnifiedMod>> byGroup = new java.util.LinkedHashMap<>();
+        List<UnifiedMod> pvp = new ArrayList<>();
+        for (UnifiedMod mod : mods) {
+            if (ModIds.isPvpModule(mod.getId())) {
+                pvp.add(mod);
+                continue;
+            }
+            String group = mod.getGroupId() == null ? "" : mod.getGroupId();
+            List<UnifiedMod> bucket = byGroup.get(group);
+            if (bucket == null) {
+                bucket = new ArrayList<>();
+                byGroup.put(group, bucket);
+            }
+            bucket.add(mod);
+        }
         List<UnifiedMod> ordered = new ArrayList<>(mods.size());
-        for (UnifiedMod mod : mods) {
-            if (!ModIds.isPvpModule(mod.getId())) ordered.add(mod);
+        for (List<UnifiedMod> bucket : byGroup.values()) {
+            bucket.sort(UnifiedModuleComparator.BY_NAME);
+            ordered.addAll(bucket);
         }
-        for (UnifiedMod mod : mods) {
-            if (ModIds.isPvpModule(mod.getId())) ordered.add(mod);
-        }
+        pvp.sort(UnifiedModuleComparator.BY_NAME);
+        ordered.addAll(pvp);
         return ordered;
+    }
+
+    /** The name-then-id comparator shared by the section sort. */
+    private static final class UnifiedModuleComparator {
+        static final java.util.Comparator<UnifiedMod> BY_NAME = (a, b) -> {
+            String an = a.getName() == null ? "" : a.getName();
+            String bn = b.getName() == null ? "" : b.getName();
+            int byName = an.compareToIgnoreCase(bn);
+            if (byName != 0) return byName;
+            String ai = a.getId() == null ? "" : a.getId();
+            String bi = b.getId() == null ? "" : b.getId();
+            return ai.compareTo(bi);
+        };
+
+        private UnifiedModuleComparator() {
+        }
     }
 
     private static UnifiedMod create(Activity activity, InbuiltModManager manager,
