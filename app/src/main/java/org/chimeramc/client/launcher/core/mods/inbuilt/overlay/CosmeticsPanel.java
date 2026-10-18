@@ -52,19 +52,39 @@ public final class CosmeticsPanel {
         final String label;
         final Runnable apply;
         final boolean equipped;
-        /** The cape to render as a thumbnail, or null for a card that has no visual. */
+        /** The cape to render as a thumbnail, or null for a card that has no cape visual. */
         final CosmeticCatalog.Cape cape;
+        /** The accessory to render as a thumbnail, or null for a card that has no hat/back visual. */
+        final CosmeticCatalog.Accessory accessory;
+        /** The pet to render as a thumbnail, or null for a card that has no pet visual. */
+        final CosmeticCatalog.Pet pet;
 
         Card(String id, String label, boolean equipped, Runnable apply) {
-            this(id, label, equipped, apply, null);
+            this(id, label, equipped, apply, null, null, null);
         }
 
         Card(String id, String label, boolean equipped, Runnable apply, CosmeticCatalog.Cape cape) {
+            this(id, label, equipped, apply, cape, null, null);
+        }
+
+        Card(String id, String label, boolean equipped, Runnable apply,
+             CosmeticCatalog.Accessory accessory) {
+            this(id, label, equipped, apply, null, accessory, null);
+        }
+
+        Card(String id, String label, boolean equipped, Runnable apply, CosmeticCatalog.Pet pet) {
+            this(id, label, equipped, apply, null, null, pet);
+        }
+
+        Card(String id, String label, boolean equipped, Runnable apply, CosmeticCatalog.Cape cape,
+             CosmeticCatalog.Accessory accessory, CosmeticCatalog.Pet pet) {
             this.id = id;
             this.label = label;
             this.equipped = equipped;
             this.apply = apply;
             this.cape = cape;
+            this.accessory = accessory;
+            this.pet = pet;
         }
     }
 
@@ -96,7 +116,8 @@ public final class CosmeticsPanel {
     private EditText manualPeerInput;
 
     private Category category = Category.CAPES;
-    private final List<TextView> railButtons = new ArrayList<>();
+    private final List<View> railButtons = new ArrayList<>();
+    private final List<org.chimeramc.client.ui.components.UiIconView> railIcons = new ArrayList<>();
 
     public CosmeticsPanel(Activity activity, boolean compact) {
         this.activity = activity;
@@ -263,20 +284,40 @@ public final class CosmeticsPanel {
 
     private void buildRail() {
         for (Category c : Category.values()) {
-            TextView b = new TextView(activity);
-            b.setText(categoryLabel(c));
-            b.setTextSize(11f);
-            b.setGravity(Gravity.CENTER);
-            b.setSingleLine(true);
-            b.setPadding(dp(6), dp(10), dp(6), dp(10));
+            // The rail is icons, not a column of words: a category is recognised by its glyph, and
+            // the label stays as the content description so the section is still named for a screen
+            // reader and for the grid title.
+            LinearLayout cell = new LinearLayout(activity);
+            cell.setOrientation(LinearLayout.VERTICAL);
+            cell.setGravity(Gravity.CENTER);
+            cell.setPadding(dp(6), dp(10), dp(6), dp(10));
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             lp.bottomMargin = dp(UiTokens.SPACE_2);
-            b.setLayoutParams(lp);
-            b.setOnClickListener(v -> selectCategory(c));
-            DynamicAnim.applyPressScale(b);
-            railColumn.addView(b);
-            railButtons.add(b);
+            cell.setLayoutParams(lp);
+            org.chimeramc.client.ui.components.UiIconView icon =
+                    new org.chimeramc.client.ui.components.UiIconView(activity);
+            int iconSize = dp(22);
+            cell.addView(icon, new LinearLayout.LayoutParams(iconSize, iconSize));
+            icon.setIcon(iconFor(c));
+            cell.setContentDescription(categoryLabel(c));
+            cell.setOnClickListener(v -> selectCategory(c));
+            DynamicAnim.applyPressScale(cell);
+            railColumn.addView(cell);
+            railButtons.add(cell);
+            railIcons.add(icon);
+        }
+    }
+
+    private org.chimeramc.client.ui.components.UiIcons.Icon iconFor(Category c) {
+        switch (c) {
+            case CAPES: return org.chimeramc.client.ui.components.UiIcons.Icon.CAPE;
+            case HATS: return org.chimeramc.client.ui.components.UiIcons.Icon.HAT;
+            case PETS: return org.chimeramc.client.ui.components.UiIcons.Icon.PAW;
+            case BACK: return org.chimeramc.client.ui.components.UiIcons.Icon.BACKPACK;
+            case OFFHAND: return org.chimeramc.client.ui.components.UiIcons.Icon.OFFHAND;
+            case EFFECTS: return org.chimeramc.client.ui.components.UiIcons.Icon.SPARKLE;
+            default: return org.chimeramc.client.ui.components.UiIcons.Icon.CUBE;
         }
     }
 
@@ -286,14 +327,16 @@ public final class CosmeticsPanel {
         refreshRouteNote();
         for (int i = 0; i < railButtons.size(); i++) {
             boolean selected = Category.values()[i] == c;
-            TextView b = railButtons.get(i);
+            View b = railButtons.get(i);
             GradientDrawable bg = new GradientDrawable();
             bg.setShape(GradientDrawable.RECTANGLE);
             bg.setCornerRadius(dp(UiTokens.RADIUS_CARD));
             bg.setColor(selected ? getAccent() : UiTokens.BG_SURFACE);
             if (!selected) bg.setStroke(dp(1), UiTokens.STROKE_HAIRLINE);
             b.setBackground(bg);
-            b.setTextColor(selected ? Color.WHITE : UiTokens.TEXT_SECONDARY);
+            if (i < railIcons.size()) {
+                railIcons.get(i).setIconColor(selected ? Color.WHITE : UiTokens.TEXT_SECONDARY);
+            }
         }
         rebuildGrid();
     }
@@ -344,32 +387,18 @@ public final class CosmeticsPanel {
         bg.setStroke(dp(1), card.equipped ? getAccent() : UiTokens.STROKE_HAIRLINE);
         cardView.setBackground(bg);
 
-        // The cape is shown, not named: a thumbnail of the back of the cloth, so a player can see
-        // what a cape looks like without equipping it. The name sits underneath, on its own line.
+        // Every cosmetic is shown, not named: a standalone thumbnail of the piece itself, so a player
+        // can see what it looks like without equipping it. The name sits underneath, on its own line.
         if (card.cape != null) {
-            android.widget.ImageView thumb = new android.widget.ImageView(activity);
             int thumbHeight = dp(64);
-            int thumbWidth = Math.max(dp(28), (int) (thumbHeight * org.chimeramc.client.core
-                    .cosmetics.CapeThumbnail.ASPECT));
-            LinearLayout.LayoutParams thumbParams =
-                    new LinearLayout.LayoutParams(thumbWidth, thumbHeight);
-            thumbParams.gravity = Gravity.CENTER_HORIZONTAL;
-            thumb.setLayoutParams(thumbParams);
-            thumb.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-            // A rounded frame around the swatch, so each cape reads as its own separate tile and the
-            // bitmap's square corners do not poke out of the rounded card.
-            GradientDrawable frame = new GradientDrawable();
-            frame.setShape(GradientDrawable.RECTANGLE);
-            frame.setCornerRadius(dp(8));
-            frame.setColor(UiTokens.BG_SURFACE_HOVER);
-            frame.setStroke(dp(1), UiTokens.STROKE_HAIRLINE);
-            thumb.setBackground(frame);
-            thumb.setClipToOutline(true);
-            android.graphics.Bitmap bmp = capeThumbnailBitmap(card.cape, thumbWidth, thumbHeight);
-            if (bmp != null) {
-                thumb.setImageBitmap(bmp);
-            }
-            cardView.addView(thumb);
+            int thumbWidth = Math.max(dp(28),
+                    (int) (thumbHeight * org.chimeramc.client.core.cosmetics.CapeThumbnail.ASPECT));
+            cardView.addView(thumbnailView(
+                    capeThumbnailBitmap(card.cape, thumbWidth, thumbHeight), thumbWidth, thumbHeight));
+        } else if (card.accessory != null || card.pet != null) {
+            int thumbSize = dp(64);
+            cardView.addView(thumbnailView(
+                    standaloneThumbnailBitmap(card, thumbSize, thumbSize), thumbSize, thumbSize));
         }
 
         TextView name = new TextView(activity);
@@ -417,6 +446,166 @@ public final class CosmeticsPanel {
         } catch (Throwable t) {
             return null;
         }
+    }
+
+    /**
+     * Builds the rounded frame that holds one card's thumbnail, so every cosmetic reads as its own
+     * tile and the bitmap's square corners do not poke out of the rounded card. A null bitmap (a
+     * cosmetic whose mesh or atlas is missing) leaves the empty frame, which still keeps the grid's
+     * rows aligned.
+     */
+    private View thumbnailView(android.graphics.Bitmap bmp, int width, int height) {
+        android.widget.ImageView thumb = new android.widget.ImageView(activity);
+        LinearLayout.LayoutParams thumbParams = new LinearLayout.LayoutParams(width, height);
+        thumbParams.gravity = Gravity.CENTER_HORIZONTAL;
+        thumb.setLayoutParams(thumbParams);
+        thumb.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        GradientDrawable frame = new GradientDrawable();
+        frame.setShape(GradientDrawable.RECTANGLE);
+        frame.setCornerRadius(dp(8));
+        frame.setColor(UiTokens.BG_SURFACE_HOVER);
+        frame.setStroke(dp(1), UiTokens.STROKE_HAIRLINE);
+        thumb.setBackground(frame);
+        thumb.setClipToOutline(true);
+        if (bmp != null) thumb.setImageBitmap(bmp);
+        return thumb;
+    }
+
+    /**
+     * Renders a hat/back piece or a pet on its own into a bitmap. The authored mesh is resolved once
+     * per grid rebuild (never per frame) through the same asset pipeline the live preview uses, and
+     * any failure leaves the tile empty rather than taking the whole grid down.
+     */
+    private android.graphics.Bitmap standaloneThumbnailBitmap(Card card, int width, int height) {
+        if (width <= 0 || height <= 0) return null;
+        try {
+            int[] pixels = new int[width * height];
+            if (card.accessory != null) {
+                AccessoryAssets assets = accessoryAssets(card.accessory);
+                org.chimeramc.client.core.cosmetics.CosmeticThumbnail.renderAccessory(
+                        card.accessory, assets.mesh, assets.atlas, assets.atlasW, assets.atlasH,
+                        assets.geoTexW, assets.geoTexH, width, height, pixels, UiTokens.BG_SURFACE);
+            } else {
+                PetAssets assets = petAssets(card.pet);
+                org.chimeramc.client.core.cosmetics.CosmeticThumbnail.renderPet(
+                        card.pet, assets.mesh, assets.atlas, assets.atlasW, assets.atlasH,
+                        assets.geoTexW, assets.geoTexH, width, height, pixels, UiTokens.BG_SURFACE);
+            }
+            return android.graphics.Bitmap.createBitmap(pixels, width, height,
+                    android.graphics.Bitmap.Config.ARGB_8888);
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /** A resolved authored accessory: mesh + decoded atlas, or empty fields for the procedural path. */
+    private static final class AccessoryAssets {
+        List<org.chimeramc.client.core.cosmetics.geometry.PreviewMeshModel.Box> mesh;
+        int[] atlas;
+        int atlasW, atlasH, geoTexW, geoTexH;
+    }
+
+    private static final class PetAssets {
+        List<org.chimeramc.client.core.cosmetics.geometry.PreviewMeshModel.Box> mesh;
+        int[] atlas;
+        int atlasW, atlasH, geoTexW, geoTexH;
+    }
+
+    private AccessoryAssets accessoryAssets(CosmeticCatalog.Accessory accessory) {
+        AccessoryAssets out = new AccessoryAssets();
+        if (accessory.modelId == null
+                || !org.chimeramc.client.core.cosmetics.AuthoredHatModels
+                .hasAuthoredModel(accessory.modelId)) {
+            return out;
+        }
+        try {
+            String json = org.chimeramc.client.core.cosmetics.AuthoredHatModels.loadFromAssets(
+                    this::openAsset, accessory.modelId);
+            if (json == null) return out;
+            org.chimeramc.client.core.cosmetics.geometry.BedrockGeometry geometry =
+                    org.chimeramc.client.core.cosmetics.geometry.BedrockGeometryParser.parse(json);
+            if (geometry == null) return out;
+            List<org.chimeramc.client.core.cosmetics.geometry.PreviewMeshModel.Box> boxes =
+                    org.chimeramc.client.core.cosmetics.geometry.PreviewMeshModel.build(geometry);
+            if (boxes.isEmpty()) return out;
+            int[] atlas = decodeAtlas(
+                    org.chimeramc.client.core.cosmetics.AuthoredHatModels.textureFor(accessory.modelId),
+                    org.chimeramc.client.core.cosmetics.AuthoredHatModels.DIR);
+            if (atlas == null) return out;
+            out.mesh = boxes;
+            out.atlas = atlas;
+            out.atlasW = atlasWidth;
+            out.atlasH = atlasHeight;
+            out.geoTexW = geometry.models.isEmpty()
+                    ? atlasWidth : geometry.models.get(0).description.textureWidth;
+            out.geoTexH = geometry.models.isEmpty()
+                    ? atlasHeight : geometry.models.get(0).description.textureHeight;
+        } catch (Throwable ignored) {
+            // Fail-closed: no mesh means the procedural box stack draws the tile.
+        }
+        return out;
+    }
+
+    private PetAssets petAssets(CosmeticCatalog.Pet pet) {
+        PetAssets out = new PetAssets();
+        String petId = pet.modelId != null ? pet.modelId : pet.id;
+        if (!org.chimeramc.client.core.cosmetics.AuthoredPetModels.hasAuthoredModel(petId)) {
+            return out;
+        }
+        try {
+            String json = org.chimeramc.client.core.cosmetics.AuthoredPetModels.loadFromAssets(
+                    this::openAsset, petId);
+            if (json == null) return out;
+            org.chimeramc.client.core.cosmetics.geometry.BedrockGeometry geometry =
+                    org.chimeramc.client.core.cosmetics.geometry.BedrockGeometryParser.parse(json);
+            if (geometry == null) return out;
+            List<org.chimeramc.client.core.cosmetics.geometry.PreviewMeshModel.Box> boxes =
+                    org.chimeramc.client.core.cosmetics.geometry.PreviewMeshModel.build(geometry);
+            if (boxes.isEmpty()) return out;
+            // The authored pet is in its own model units; normalise to the body-plan scale so a tile
+            // shows the pet at the same size as the others.
+            org.chimeramc.client.core.cosmetics.geometry.PreviewMeshModel.normalizeToHeight(boxes, 14f);
+            int[] atlas = decodeAtlas(
+                    org.chimeramc.client.core.cosmetics.AuthoredPetModels.textureFor(petId),
+                    org.chimeramc.client.core.cosmetics.AuthoredPetModels.DIR);
+            if (atlas == null) return out;
+            out.mesh = boxes;
+            out.atlas = atlas;
+            out.atlasW = atlasWidth;
+            out.atlasH = atlasHeight;
+            out.geoTexW = geometry.models.isEmpty()
+                    ? atlasWidth : geometry.models.get(0).description.textureWidth;
+            out.geoTexH = geometry.models.isEmpty()
+                    ? atlasHeight : geometry.models.get(0).description.textureHeight;
+        } catch (Throwable ignored) {
+            // Fail-closed: no mesh means the procedural body plan draws the tile.
+        }
+        return out;
+    }
+
+    private int atlasWidth;
+    private int atlasHeight;
+
+    /** Decodes an authored PNG to ARGB, recording the real size in {@link #atlasWidth}/{@link #atlasHeight}. */
+    private int[] decodeAtlas(String file, String dir) {
+        if (file == null) return null;
+        try (java.io.InputStream input = openAsset(dir + "/" + file)) {
+            android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeStream(input);
+            if (bitmap == null) return null;
+            int w = bitmap.getWidth(), h = bitmap.getHeight();
+            int[] pixels = new int[w * h];
+            bitmap.getPixels(pixels, 0, w, 0, 0, w, h);
+            bitmap.recycle();
+            atlasWidth = w;
+            atlasHeight = h;
+            return pixels;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    private java.io.InputStream openAsset(String path) throws java.io.IOException {
+        return activity.getAssets().open(path);
     }
 
     private List<Card> cardsFor(Category c) {
@@ -488,7 +677,7 @@ public final class CosmeticsPanel {
                 store.setEquippedAccessory(accessory.id);
                 preview.setAccessory(accessory);
                 onCosmeticChanged();
-            }));
+            }, accessory));
         }
     }
 
@@ -505,7 +694,7 @@ public final class CosmeticsPanel {
                 store.setEquippedPet(pet.id);
                 preview.setPet(pet);
                 onCosmeticChanged();
-            }));
+            }, pet));
         }
     }
 

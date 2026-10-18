@@ -14,7 +14,10 @@ import android.graphics.Path;
 public final class UiIcons {
 
     public enum Icon { CUBE, PENCIL, HANGER, GEAR, ALL, PVP, VISUAL, MOVEMENT, UTILITY, HUD, VOICE,
-        COSMETICS, SEARCH, CLOSE, SETTINGS, REPLAY }
+        COSMETICS, SEARCH, CLOSE, SETTINGS, REPLAY,
+        // The Closet's category rail: one icon per cosmetic section, so the rail reads as icons
+        // rather than a column of words.
+        CAPE, HAT, PAW, BACKPACK, OFFHAND, SPARKLE }
 
     private UiIcons() {
     }
@@ -49,6 +52,12 @@ public final class UiIcons {
             case CLOSE: drawClose(c, paint, cx, cy, s); break;
             case SETTINGS: drawGear(c, paint, cx, cy, s); break;
             case REPLAY: drawReplay(c, paint, cx, cy, s); break;
+            case CAPE: drawCape(c, paint, cx, cy, s); break;
+            case HAT: drawHat(c, paint, cx, cy, s); break;
+            case PAW: drawPaw(c, paint, cx, cy, s); break;
+            case BACKPACK: drawBackpack(c, paint, cx, cy, s); break;
+            case OFFHAND: drawOffhand(c, paint, cx, cy, s); break;
+            case SPARKLE: drawSparkle(c, paint, cx, cy, s); break;
             default: break;
         }
     }
@@ -210,5 +219,90 @@ public final class UiIcons {
         head.lineTo(cx + r * 1.2f, cy + r * 0.1f);
         head.lineTo(cx + r * 0.5f, cy + r * 0.1f);
         c.drawPath(head, p);
+    }
+
+    /** A cape: a collar bar with the cloth hanging in a soft trapezoid. */
+    private static void drawCape(Canvas c, Paint p, float cx, float cy, float s) {
+        float r = 8f * s;
+        Path cloth = new Path();
+        cloth.moveTo(cx - r * 0.7f, cy - r * 0.7f);
+        cloth.lineTo(cx + r * 0.7f, cy - r * 0.7f);
+        cloth.lineTo(cx + r, cy + r);
+        cloth.lineTo(cx - r, cy + r);
+        cloth.close();
+        c.drawPath(cloth, p);
+        c.drawLine(cx - r * 0.7f, cy - r * 0.7f, cx + r * 0.7f, cy - r * 0.7f, p);
+    }
+
+    /** A hat: a brim plus a domed crown. */
+    private static void drawHat(Canvas c, Paint p, float cx, float cy, float s) {
+        float r = 8f * s;
+        c.drawLine(cx - r, cy + r * 0.4f, cx + r, cy + r * 0.4f, p);
+        Path crown = new Path();
+        crown.moveTo(cx - r * 0.6f, cy + r * 0.4f);
+        crown.lineTo(cx - r * 0.5f, cy - r * 0.5f);
+        crown.quadTo(cx, cy - r, cx + r * 0.5f, cy - r * 0.5f);
+        crown.lineTo(cx + r * 0.6f, cy + r * 0.4f);
+        c.drawPath(crown, p);
+    }
+
+    /** A paw print: a pad plus four toes. */
+    private static void drawPaw(Canvas c, Paint p, float cx, float cy, float s) {
+        float r = 8f * s;
+        Path pad = new Path();
+        pad.moveTo(cx, cy - r * 0.2f);
+        pad.quadTo(cx + r * 0.7f, cy + r * 0.3f, cx + r * 0.35f, cy + r * 0.9f);
+        pad.lineTo(cx - r * 0.35f, cy + r * 0.9f);
+        pad.quadTo(cx - r * 0.7f, cy + r * 0.3f, cx, cy - r * 0.2f);
+        c.drawPath(pad, p);
+        c.drawCircle(cx - r * 0.7f, cy - r * 0.35f, r * 0.22f, p);
+        c.drawCircle(cx - r * 0.25f, cy - r * 0.75f, r * 0.22f, p);
+        c.drawCircle(cx + r * 0.25f, cy - r * 0.75f, r * 0.22f, p);
+        c.drawCircle(cx + r * 0.7f, cy - r * 0.35f, r * 0.22f, p);
+    }
+
+    /** A backpack: a rounded pack body with a lid and straps. */
+    private static void drawBackpack(Canvas c, Paint p, float cx, float cy, float s) {
+        float r = 8f * s;
+        c.drawRoundRect(cx - r * 0.7f, cy - r * 0.6f, cx + r * 0.7f, cy + r, r * 0.35f, r * 0.35f, p);
+        c.drawLine(cx - r * 0.7f, cy - r * 0.1f, cx + r * 0.7f, cy - r * 0.1f, p);
+        Path straps = new Path();
+        straps.moveTo(cx - r * 0.35f, cy - r * 0.6f);
+        straps.quadTo(cx - r * 0.9f, cy - r, cx - r * 0.35f, cy + r * 0.2f);
+        straps.moveTo(cx + r * 0.35f, cy - r * 0.6f);
+        straps.quadTo(cx + r * 0.9f, cy - r, cx + r * 0.35f, cy + r * 0.2f);
+        c.drawPath(straps, p);
+    }
+
+    /** An offhand: a shield outline with a centre boss. */
+    private static void drawOffhand(Canvas c, Paint p, float cx, float cy, float s) {
+        float r = 8f * s;
+        Path shield = new Path();
+        shield.moveTo(cx - r * 0.7f, cy - r * 0.8f);
+        shield.lineTo(cx + r * 0.7f, cy - r * 0.8f);
+        shield.lineTo(cx + r * 0.7f, cy + r * 0.2f);
+        shield.quadTo(cx, cy + r, cx - r * 0.7f, cy + r * 0.2f);
+        shield.close();
+        c.drawPath(shield, p);
+        c.drawCircle(cx, cy - r * 0.15f, r * 0.25f, p);
+    }
+
+    /** An effects sparkle: one large four-point star with two smaller ones. */
+    private static void drawSparkle(Canvas c, Paint p, float cx, float cy, float s) {
+        drawStar(c, p, cx, cy - s, 7f * s);
+        drawStar(c, p, cx - 5.5f * s, cy + 4f * s, 3.5f * s);
+        drawStar(c, p, cx + 5.5f * s, cy + 5f * s, 3f * s);
+    }
+
+    /** A four-point sparkle: a diamond whose concave sides read as a star. */
+    private static void drawStar(Canvas c, Paint p, float cx, float cy, float r) {
+        Path star = new Path();
+        star.moveTo(cx, cy - r);
+        star.quadTo(cx + r * 0.18f, cy - r * 0.18f, cx + r, cy);
+        star.quadTo(cx + r * 0.18f, cy + r * 0.18f, cx, cy + r);
+        star.quadTo(cx - r * 0.18f, cy + r * 0.18f, cx - r, cy);
+        star.quadTo(cx - r * 0.18f, cy - r * 0.18f, cx, cy - r);
+        star.close();
+        c.drawPath(star, p);
     }
 }
