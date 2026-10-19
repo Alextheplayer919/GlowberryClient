@@ -221,6 +221,7 @@ public class PreloaderInput {
      * always read -1; the array shape is kept so an older report reader still parses it.
      */
     public static native int[] nativeReadRenderDiagnostics();
+    public static native int nativeRenderHookFailureReason();
 
     /**
      * The local-player feed as {live, xBits, yBits, zBits, yawBits, pitchBits}. Floats are the raw
@@ -636,6 +637,19 @@ public class PreloaderInput {
             return padded;
         } catch (UnsatisfiedLinkError e) {
             return null;
+        }
+    }
+
+    /**
+     * The exact gate that refused the native render hook (item 18), for the diagnostics report:
+     * 0 live (or reason predates the field), 1 version gate, 2 slot unresolved, 3 not executable,
+     * 4 hook() failed; -1 when the native library is absent.
+     */
+    public static int renderHookFailureReason() {
+        try {
+            return nativeRenderHookFailureReason();
+        } catch (UnsatisfiedLinkError e) {
+            return -1;
         }
     }
 

@@ -43,6 +43,9 @@ public final class CosmeticsDiagnosticsReport {
         public int glBackend = 0;
         public boolean eglContextCurrent;
         public boolean hookInstalled;
+        /** The exact gate that refused the render hook (item 18): 0 live, 1 version gate,
+         * 2 slot unresolved, 3 not executable, 4 hook() failed; -1 unknown/absent. */
+        public int renderHookFailureReason = -1;
         /**
          * True while the deferred hook install is still waiting for the game runtime to come up
          * (armed but not yet run). Distinguishes "waiting" from "failed" in the report.
@@ -129,6 +132,7 @@ public final class CosmeticsDiagnosticsReport {
             in.glBackend = diag[2];
             in.eglContextCurrent = diag[3] == 1;
             in.hookInstalled = diag[4] == 1;
+            in.renderHookFailureReason = PreloaderInput.renderHookFailureReason();
             in.framesSeen = diag[5];
             in.lastError = diag[6];
             in.geometryBytes = diag[7];
@@ -283,6 +287,7 @@ public final class CosmeticsDiagnosticsReport {
                 .append('\n');
         b.append("Player-render slot: ").append(slotText(v)).append('\n');
         b.append("Hook installed: ").append(hookText(v)).append('\n');
+        b.append("Hook refusal reason: ").append(hookRefusalText(v)).append('\n');
         b.append("Frames seen: ").append(countText(v.framesSeen)).append('\n');
         b.append("Local player feed: ").append(localPlayerText(v)).append('\n');
         b.append("Camera anchor source: ").append(cameraText(v)).append('\n');
@@ -353,6 +358,25 @@ public final class CosmeticsDiagnosticsReport {
     private static String hookText(Inputs v) {
         if (v.hookInstalled) return "yes";
         return v.hookInstallPending ? "waiting for the render context" : "no";
+    }
+
+    /** Maps the render hook's refusal reason (item 18) to the exact gate that refused it. */
+    private static String hookRefusalText(Inputs v) {
+        if (v.hookInstalled) return "n/a (hook live)";
+        switch (v.renderHookFailureReason) {
+            case 0:
+                return "not refused (still pending or not yet resolved)";
+            case 1:
+                return "build outside the verified version range";
+            case 2:
+                return "LivePlayerRenderer render slot unresolved";
+            case 3:
+                return "resolved slot is not executable code";
+            case 4:
+                return "hook() install call failed";
+            default:
+                return "unknown";
+        }
     }
 
     private static String countText(int value) {
