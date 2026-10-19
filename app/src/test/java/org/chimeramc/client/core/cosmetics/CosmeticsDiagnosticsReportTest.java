@@ -19,6 +19,7 @@ public class CosmeticsDiagnosticsReportTest {
         CosmeticsDiagnosticsReport.Inputs in = new CosmeticsDiagnosticsReport.Inputs();
         in.appVersion = "v1.2.3";
         in.minecraftVersion = "1.26.33.1";
+        in.deviceModel = "Google Pixel 7 (Android 14)";
         in.nativeLoaded = true;
         in.renderSlot = 17;
         in.resolvedBy = 1;
@@ -119,10 +120,18 @@ public class CosmeticsDiagnosticsReportTest {
     }
 
     @Test
+    public void anUnreadDeviceModelReadsAsUnknownNotBlank() {
+        CosmeticsDiagnosticsReport.Inputs in = fullInputs();
+        in.deviceModel = null;
+        assertTrue(CosmeticsDiagnosticsReport.format(in).contains("Device: unknown"));
+    }
+
+    @Test
     public void theReportCarriesEveryRequestedField() {
         String report = CosmeticsDiagnosticsReport.format(fullInputs());
         assertTrue(report.contains("App version: v1.2.3"));
         assertTrue(report.contains("Minecraft version: 1.26.33.1"));
+        assertTrue(report.contains("Device: Google Pixel 7 (Android 14)"));
         assertTrue(report.contains("Player-render slot: 17"));
         assertTrue(report.contains("resolved by render-diagnostic string scan"));
         assertTrue(report.contains("Hook installed: yes"));

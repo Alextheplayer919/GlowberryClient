@@ -34,6 +34,12 @@ public final class CosmeticsDiagnosticsReport {
     public static final class Inputs {
         public String appVersion = "unknown";
         public String minecraftVersion = "unknown";
+        /**
+         * The device model and Android release, for a reproducible bug report (item 22). A report
+         * from an unknown device cannot be compared with another, so this is part of the export
+         * rather than something the reporter has to remember.
+         */
+        public String deviceModel = "unknown";
         public boolean nativeLoaded;
         /** The render slot the hook resolved to, or -1 when unknown. */
         public int renderSlot = -1;
@@ -141,6 +147,7 @@ public final class CosmeticsDiagnosticsReport {
         in.timestampMs = System.currentTimeMillis();
         in.appVersion = safeVersionName();
         in.minecraftVersion = selectedMinecraftVersion(context);
+        in.deviceModel = deviceModelText();
 
         int[] diag = PreloaderInput.readRenderDiagnostics();
         in.nativeLoaded = diag != null;
@@ -312,6 +319,8 @@ public final class CosmeticsDiagnosticsReport {
         b.append("Generated inside a world: ").append(yesNo(v.inWorld)).append('\n');
         b.append("App version: ").append(v.appVersion).append('\n');
         b.append("Minecraft version: ").append(v.minecraftVersion).append('\n');
+        b.append("Device: ").append(v.deviceModel == null || v.deviceModel.isEmpty()
+                ? "unknown" : v.deviceModel).append('\n');
         b.append('\n');
 
         b.append("FIRST FAILING STAGE: ").append(firstFailingStage(v)).append('\n');
@@ -384,6 +393,19 @@ public final class CosmeticsDiagnosticsReport {
         b.append("Note: whether cosmetics actually appear in game is unverified on device. This "
                 + "report only describes the state of the native render path.\n");
         return b.toString();
+    }
+
+    /**
+     * The device model plus Android release. A report from an unknown device cannot be reproduced,
+     * so this is read here (the only Android touch) and formatted by the pure path.
+     */
+    private static String deviceModelText() {
+        try {
+            String model = android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL;
+            return model.trim() + " (Android " + android.os.Build.VERSION.RELEASE + ")";
+        } catch (Throwable t) {
+            return "unknown";
+        }
     }
 
     private static String timestamp(long ms) {
