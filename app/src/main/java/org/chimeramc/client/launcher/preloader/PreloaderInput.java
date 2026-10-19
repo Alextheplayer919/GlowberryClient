@@ -164,6 +164,21 @@ public class PreloaderInput {
     public static native int[] nativeReadCosmeticsStats();
 
     /**
+     * Reads the skin-path seam observation (item 3): {@code {stage, packetHookInstalled,
+     * packetCalls, textureCalls, skinCaptured}}.
+     *
+     * <p>This exists because the reported "my skin is not visible to other players" bug cannot be
+     * diagnosed from the payload: the game strips its symbols, so the join packet's fields are
+     * unreadable and the detours only count calls. The stage says which point the skin path
+     * reached, which is what routes the bug (client never reached the join handler, versus reached
+     * it and the outcome is still unproven). Null when the native library is absent.
+     */
+    public static native int[] nativeReadSkinSeam();
+
+    /** The one-line explanation for a {@link #nativeReadSkinSeam()} stage. */
+    public static native String nativeDescribeSkinSeam(int stage);
+
+    /**
      * Returns the player's captured base-skin texture, or null when none is held.
      *
      * <p>The bytes are a 16-byte little-endian header {@code (width, height, format, stampMs)}
@@ -629,6 +644,31 @@ public class PreloaderInput {
             return value != null && value.length >= 4 ? value : null;
         } catch (UnsatisfiedLinkError e) {
             return null;
+        }
+    }
+
+    /**
+     * Item 3: the skin-path seam observation, or null when the native library is absent.
+     *
+     * <p>{@code {stage, packetHookInstalled, packetCalls, textureCalls, skinCaptured}}; the stage is
+     * 0 join hook absent, 1 hook idle, 2 joins observed.
+     */
+    public static int[] readSkinSeam() {
+        try {
+            int[] value = nativeReadSkinSeam();
+            return value != null && value.length >= 5 ? value : null;
+        } catch (UnsatisfiedLinkError e) {
+            return null;
+        }
+    }
+
+    /** The one-line explanation for a skin-seam stage, or "" when the library is absent. */
+    public static String describeSkinSeam(int stage) {
+        try {
+            String text = nativeDescribeSkinSeam(stage);
+            return text == null ? "" : text;
+        } catch (UnsatisfiedLinkError e) {
+            return "";
         }
     }
 

@@ -93,6 +93,14 @@ public final class CosmeticsDiagnosticsReport {
         public boolean skinCaptured;
         /** True when a game-skin provider is installed (the engine-hook seam is active). */
         public boolean skinFeedInstalled;
+        /** The skin-path seam stage: 0 join hook absent, 1 hook idle, 2 joins observed; -1 unknown. */
+        public int skinSeamStage = -1;
+        /** Join-packet calls the detour forwarded, or -1 when the hook is absent. */
+        public int skinJoinCalls = -1;
+        /** Texture-bind calls the detour forwarded, or -1 when the hook is absent. */
+        public int skinTextureCalls = -1;
+        /** The native one-line explanation for {@link #skinSeamStage}, or "". */
+        public String skinSeamNote = "";
         /** Per-cosmetic asset audit lines (PNG size, geometry size, cube count), or null. */
         public java.util.List<CosmeticAssetAudit.Entry> cosmeticAssets;
         /** Faces the scene refused to build (a size mismatch), as one-line descriptions. */
@@ -217,6 +225,18 @@ public final class CosmeticsDiagnosticsReport {
         } catch (Throwable ignored) {
         }
         in.skinFeedInstalled = GameSkinSource.hasProvider();
+        // Item 3: which stage the skin path reached, so a "skin not visible" report can be routed
+        // (client never reached the join handler, versus reached it with the outcome unproven).
+        try {
+            int[] seam = PreloaderInput.readSkinSeam();
+            if (seam != null) {
+                in.skinSeamStage = seam[0];
+                in.skinJoinCalls = seam[2];
+                in.skinTextureCalls = seam[3];
+                in.skinSeamNote = PreloaderInput.describeSkinSeam(seam[0]);
+            }
+        } catch (Throwable ignored) {
+        }
 
         // The most recent crash report, so a device crash trace can be copied/shared from inside the
         // app (logcat is not app-readable without READ_LOGS).
@@ -329,6 +349,7 @@ public final class CosmeticsDiagnosticsReport {
         b.append("Local cosmetics published under key: \"").append(v.localKeyId).append("\"\n");
         b.append("Game-skin feed installed: ").append(yesNo(v.skinFeedInstalled)).append('\n');
         b.append("Base skin captured from game: ").append(yesNo(v.skinCaptured)).append('\n');
+        b.append("Skin path seam: ").append(skinSeamText(v)).append('\n');
         b.append('\n');
 
         b.append("Cosmetic assets (PNG size / geometry size / cubes):\n");
@@ -467,6 +488,23 @@ public final class CosmeticsDiagnosticsReport {
         return String.format(Locale.US, "live x=%.2f y=%.2f z=%.2f yaw=%.2f pitch=%.2f",
                 v.localPlayerPosition[0], v.localPlayerPosition[1], v.localPlayerPosition[2],
                 v.localPlayerPosition[3], v.localPlayerPosition[4]);
+    }
+
+    /**
+     * The skin-path seam line (item 3). Pure, so the wording is pinned by a JVM test. A missing
+     * native library renders "unknown" rather than a confident "not installed".
+     */
+    private static String skinSeamText(Inputs v) {
+        if (v.skinSeamStage < 0) return "unknown (native library absent)";
+        StringBuilder b = new StringBuilder();
+        b.append(v.skinSeamNote == null || v.skinSeamNote.isEmpty()
+                ? "stage " + v.skinSeamStage : v.skinSeamNote);
+        if (v.skinJoinCalls >= 0 || v.skinTextureCalls >= 0) {
+            b.append(" [joins=").append(v.skinJoinCalls >= 0 ? v.skinJoinCalls : -1)
+                    .append(" textures=").append(v.skinTextureCalls >= 0 ? v.skinTextureCalls : -1)
+                    .append(']');
+        }
+        return b.toString();
     }
 
     private static String cameraText(Inputs v) {

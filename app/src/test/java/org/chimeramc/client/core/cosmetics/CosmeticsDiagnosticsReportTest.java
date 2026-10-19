@@ -50,6 +50,31 @@ public class CosmeticsDiagnosticsReportTest {
     }
 
     @Test
+    public void theSkinSeamLineNamesTheStageAndTheCounters() {
+        // Item 3: a "skin not visible" report must say which stage the skin path reached, and the
+        // observed stage must state that the payload itself is still unproven.
+        CosmeticsDiagnosticsReport.Inputs in = fullInputs();
+        in.skinSeamStage = 2;
+        in.skinJoinCalls = 4;
+        in.skinTextureCalls = 12;
+        in.skinSeamNote = "joins observed; the payload's skin fields are not readable";
+        String report = CosmeticsDiagnosticsReport.format(in);
+        assertTrue(report.contains("Skin path seam: joins observed"));
+        assertTrue(report.contains("joins=4"));
+        assertTrue(report.contains("textures=12"));
+    }
+
+    @Test
+    public void anAbsentNativeLibraryNeverClaimsTheSeamIsMissing() {
+        // -1 means "no reading", which must not be rendered as a confident "hook not installed".
+        CosmeticsDiagnosticsReport.Inputs in = fullInputs();
+        in.skinSeamStage = -1;
+        String report = CosmeticsDiagnosticsReport.format(in);
+        assertTrue(report.contains("Skin path seam: unknown"));
+        assertFalse(report.contains("Skin path seam: the join-packet hook is not installed"));
+    }
+
+    @Test
     public void theReportNamesTheFirstFailingStage() {
         // Phase 0.3: the report must point at one broken link, not just the end result.
         String report = CosmeticsDiagnosticsReport.format(fullInputs());
