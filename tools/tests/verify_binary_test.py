@@ -213,6 +213,11 @@ def main():
               "the slot target is the documented function (got %s)" % lpr["render_function_va"])
         check(result["derived_rules"].get("playerRenderVtableIndex") == 0,
               "the derived rules entry carries the slot")
+        # Item 17: the derived entry carries its own probe, and the probe reports that the slot's
+        # target is executable code — the same check the native gate makes.
+        probes = result["derived_rules"].get("probes") or {}
+        check(probes.get("playerRenderVtableIndex", {}).get("resolved") is True,
+              "the derived entry carries a resolved probe for the render slot")
         check(len(result["sha256"]) == 64, "a SHA-256 is reported")
 
     print("verify_binary_test: %d checks, %d failure(s)" % (_checks, len(_failures)))

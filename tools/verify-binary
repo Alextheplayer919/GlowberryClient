@@ -429,6 +429,21 @@ def analyze(path, version_override=None, rules_path=None):
             lpr["render_function_va"] = _h(fn)
             lpr["render_prologue"] = elf.disassemble(fn, fn + 0x40, max_lines=16)
             result["derived_rules"]["playerRenderVtableIndex"] = slot
+            # Item 17: the rule carries its own probe for the seam it pins, and the probe is the
+            # same check the launcher makes at runtime — the slot resolves to a function inside
+            # .text (executable code), not to a data pointer. A generated rule whose probe reports
+            # false is refused by the native gate rather than trusted on the strength of the index
+            # alone.
+            in_text = False
+            text_sec = elf.by_name.get(".text")
+            if text_sec is not None:
+                in_text = text_sec["addr"] <= fn < text_sec["addr"] + text_sec["size"]
+            result["derived_rules"]["probes"] = {
+                "playerRenderVtableIndex": {
+                    "resolved": bool(in_text),
+                    "proves": "the slot's target lies in .text (executable code)",
+                }
+            }
         else:
             lpr["render_vtable_index"] = None
             lpr["note"] = ("no vtable slot body referenced the render diagnostic; "

@@ -97,6 +97,24 @@ def has_derived_content(entry):
     return any(v for v in sigs.values())
 
 
+def probes_all_resolved(entry):
+    """Whether every probe the entry carries reports success.
+
+    Item 17: a generated rule must pass its own probe before it turns a feature on. A rule that
+    declares a slot but carries a probe that failed would be refused by the native gate anyway; it
+    is better to refuse to merge it, because a rule that is present but inert is indistinguishable
+    from a working one in the rules file. An entry with no probes block (a hand-derived rule) is not
+    affected.
+    """
+    probes = entry.get("probes") if entry else None
+    if not probes:
+        return True
+    for name, probe in probes.items():
+        if isinstance(probe, dict) and probe.get("resolved") is False:
+            return False
+    return True
+
+
 def extract_native_lib(apk_path, dest_dir):
     """Extract ``lib/arm64-v8a/libminecraftpe.so`` from an APK into ``dest_dir``.
 
@@ -181,6 +199,13 @@ def main(argv=None):
                   "would turn no feature on" % args.version, file=sys.stderr)
             print(json.dumps(entry, indent=2))
             return 3
+
+        if not probes_all_resolved(entry):
+            print("the derived entry carries a probe that did not resolve for %s; refusing to merge "
+                  "a rule whose own check failed (the native gate would refuse it too)"
+                  % args.version, file=sys.stderr)
+            print(json.dumps(entry, indent=2))
+            return 4
 
         print("derived entry:")
         print(json.dumps(entry, indent=2))

@@ -79,6 +79,21 @@ def main():
     check("null entry does not", not m.has_derived_content(None))
     check("empty dict does not", not m.has_derived_content({}))
 
+    print("== probes_all_resolved ==")
+    check("no probes block is fine",
+          m.probes_all_resolved({"playerRenderVtableIndex": 17}))
+    check("a resolved probe passes",
+          m.probes_all_resolved({"probes": {"playerRenderVtableIndex": {"resolved": True}}}))
+    check("a failed probe is refused",
+          not m.probes_all_resolved({"probes": {"playerRenderVtableIndex": {"resolved": False}}}))
+    check("one failed probe refuses the entry",
+          not m.probes_all_resolved({"probes": {
+              "playerRenderVtableIndex": {"resolved": True},
+              "packetReadVtableIndex": {"resolved": False}}}))
+    check("a probe without a resolved key does not fail the entry",
+          m.probes_all_resolved({"probes": {"playerRenderVtableIndex": {"proves": "x"}}}))
+    check("null entry has nothing to fail", m.probes_all_resolved(None))
+
     print()
     if FAILURES:
         print("%d check(s) failed" % len(FAILURES))
