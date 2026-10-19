@@ -402,7 +402,12 @@ public final class CosmeticsDiagnosticsReport {
     private static String deviceModelText() {
         try {
             String model = android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL;
-            return model.trim() + " (Android " + android.os.Build.VERSION.RELEASE + ")";
+            // Item 18: the ABI is one of the gates that can refuse a feature, so the report names the
+            // process ABI next to the device. The preloader is arm64-only, so a report from a device
+            // where the native library did not load needs the ABI to be diagnosable.
+            String abi = android.os.Build.SUPPORTED_ABIS.length > 0
+                    ? android.os.Build.SUPPORTED_ABIS[0] : "unknown";
+            return model.trim() + " (" + abi + ", Android " + android.os.Build.VERSION.RELEASE + ")";
         } catch (Throwable t) {
             return "unknown";
         }
