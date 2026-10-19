@@ -140,6 +140,16 @@ jobs:
         # nlohmann/json into a gitignored cache when needed.
         run: bash app/src/main/cpp/preloader/tests/cosmetics/run_tests.sh
 
+      - name: Run Python tooling host tests
+        # The rule-generation helpers and the offline binary analyzer are pure Python. numpy is
+        # required by the analyzer's instruction scan; without it the analyzer test would skip
+        # the assertions it exists to make, so it is installed rather than left to the runner's
+        # default image.
+        run: |
+          python3 -m pip install --quiet numpy
+          python3 tools/tests/gen_rules_test.py
+          python3 tools/tests/verify_binary_test.py
+
       - name: Inject API Keys
         env:
           CF_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
