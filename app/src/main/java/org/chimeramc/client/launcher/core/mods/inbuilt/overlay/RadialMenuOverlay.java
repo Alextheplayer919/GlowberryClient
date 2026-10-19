@@ -114,6 +114,58 @@ public class RadialMenuOverlay {
         }
     }
 
+    /** Whether the currently open wheel was opened by a hold gesture (see {@link WheelHoldPolicy}). */
+    private boolean openedByHold;
+
+    /**
+     * Handles the bind's press under the hold-to-open rule.
+     *
+     * @return true when the press was consumed (the wheel opened, closed, or was already handled)
+     */
+    public boolean onBindPress(boolean holdToOpen) {
+        WheelHoldPolicy.OnPress action =
+                WheelHoldPolicy.onPress(holdToOpen, isShowing, openedByHold);
+        switch (action) {
+            case OPEN_HOLD:
+                openedByHold = true;
+                show();
+                return true;
+            case OPEN_TOGGLE:
+                openedByHold = false;
+                show();
+                return true;
+            case CLOSE:
+                hide();
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Handles the bind's release under the hold-to-open rule: commits the highlighted selection, or
+     * dismisses when nothing is highlighted.
+     *
+     * @return true when the release was consumed
+     */
+    public boolean onBindRelease(boolean holdToOpen) {
+        boolean hasSelection = menuView != null && menuView.hasSelection();
+        WheelHoldPolicy.OnRelease action =
+                WheelHoldPolicy.onRelease(holdToOpen, isShowing, openedByHold, hasSelection);
+        openedByHold = false;
+        switch (action) {
+            case CONFIRM:
+                if (menuView != null) menuView.controllerSelect();
+                hide();
+                return true;
+            case DISMISS:
+                hide();
+                return true;
+            default:
+                return false;
+        }
+    }
+
     public void show() {
         if (isShowing || activity.isFinishing() || activity.isDestroyed()) return;
         try {

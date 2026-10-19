@@ -1009,6 +1009,18 @@ public class RadialMenuView extends View {
     }
 
     /**
+     * Whether anything is highlighted that a release could commit.
+     *
+     * <p>Used by the hold-to-open rule: a release with nothing highlighted dismisses the wheel
+     * rather than activating whatever happens to be under a stationary cursor.
+     */
+    public boolean hasSelection() {
+        if (cursorChip >= 0) return true;
+        if (activeProfile != null) return highlightedEntry >= 0;
+        return RadialWheelLayout.isDestination(highlighted);
+    }
+
+    /**
      * The SELECT button: activates the chip under the cursor if there is one, else the sector.
      *
      * @return true when something was activated

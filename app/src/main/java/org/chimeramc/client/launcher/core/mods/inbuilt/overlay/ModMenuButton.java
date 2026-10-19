@@ -314,6 +314,20 @@ public class ModMenuButton {
      */
     public void toggleMenuFromBind() {
         if (!isShowing) return;
+        ensureRadialMenuOverlay();
+        radialMenuOverlay.toggle();
+    }
+
+    /**
+     * The radial wheel, created lazily and wired to this menu's destinations.
+     *
+     * <p>Exposed so the hold-to-open path can reach the wheel on the *press* (before any toggle has
+     * happened) — creating it inside {@code toggleMenuFromBind} alone left the first press with a
+     * null wheel, which is exactly the gesture hold-to-open needs to work.
+     */
+    public org.chimeramc.client.core.mods.inbuilt.overlay.RadialMenuOverlay
+            ensureRadialMenuOverlay() {
+        if (!isShowing) return null;
         if (radialMenuOverlay == null) {
             radialMenuOverlay =
                     new org.chimeramc.client.core.mods.inbuilt.overlay.RadialMenuOverlay(activity);
@@ -345,7 +359,7 @@ public class ModMenuButton {
                 }
             });
         }
-        radialMenuOverlay.toggle();
+        return radialMenuOverlay;
     }
 
     /** The VIP menu, created lazily. */

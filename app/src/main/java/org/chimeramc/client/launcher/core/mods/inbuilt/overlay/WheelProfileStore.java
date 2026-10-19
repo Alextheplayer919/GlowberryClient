@@ -105,6 +105,117 @@ public final class WheelProfileStore {
         return null;
     }
 
+    /** A new id that no profile in the list uses, so a created profile is never ambiguous. */
+    public static String uniqueId(List<WheelEntry.Profile> profiles, String base) {
+        String stem = (base == null || base.trim().isEmpty()) ? "wheel" : base.trim();
+        if (findById(profiles, stem) == null) return stem;
+        for (int i = 2; i < 1000; i++) {
+            String candidate = stem + i;
+            if (findById(profiles, candidate) == null) return candidate;
+        }
+        return stem + System.nanoTime();
+    }
+
+    /**
+     * Adds a new empty profile and returns it.
+     *
+     * <p>The manager's "create" action. The id is derived from the name so a player who names a
+     * wheel "PvP" gets {@code pvp}, and it is de-duplicated so two wheels may share a name.
+     */
+    public WheelEntry.Profile create(String name) {
+        List<WheelEntry.Profile> profiles = load();
+        String id = uniqueId(profiles, slug(name));
+        WheelEntry.Profile profile = new WheelEntry.Profile(id, (name == null || name.trim().isEmpty())
+                ? id : name.trim());
+        profiles.add(profile);
+        save(profiles);
+        return profile;
+    }
+
+    /** Renames a profile, leaving its id (and any sub-wheel reference to it) untouched. */
+    public boolean rename(String id, String name) {
+        List<WheelEntry.Profile> profiles = load();
+        WheelEntry.Profile profile = findById(profiles, id);
+        if (profile == null) return false;
+        if (name != null && !name.trim().isEmpty()) profile.name = name.trim();
+        save(profiles);
+        return true;
+    }
+
+    /**
+     * Deletes a profile and repoints any sub-wheel that referred to it.
+     *
+     * <p>A dangling {@code OPEN_SUBWHEEL} entry would draw a sector that does nothing, so every
+     * reference to the deleted id is rewritten to the fallback (the first remaining profile). The
+     * last profile is never deleted — the wheel would have nothing to open.
+     */
+    public boolean delete(String id, String fallbackId) {
+        List<WheelEntry.Profile> profiles = load();
+        if (profiles.size() <= 1) return false;
+        WheelEntry.Profile removed = findById(profiles, id);
+        if (removed == null) return false;
+        profiles.remove(removed);
+        String fallback = fallbackId != null && findById(profiles, fallbackId) != null
+                ? fallbackId : profiles.get(0).id;
+        repointSubWheels(profiles, id, fallback);
+        save(profiles);
+        if (id.equals(getRootId())) setRootId(fallback);
+        return true;
+    }
+
+    /**
+     * Rewrites every sub-wheel reference to a deleted profile id, in place.
+     *
+     * <p>Pure and static so the repointing rule is unit-testable without a Context: a dangling
+     * {@code OPEN_SUBWHEEL} entry would draw a sector that does nothing when tapped.
+     */
+    public static void repointSubWheels(List<WheelEntry.Profile> profiles, String removedId,
+                                        String fallbackId) {
+        if (profiles == null || removedId == null || fallbackId == null) return;
+        for (WheelEntry.Profile p : profiles) {
+            if (p == null) continue;
+            for (WheelEntry e : p.safeEntries()) {
+                if (e != null && e.isSubWheel() && removedId.equals(e.target)) e.target = fallbackId;
+            }
+        }
+    }
+
+    /**
+     * Moves a profile one position towards the start or the end of the list.
+     *
+     * @param direction negative to move up, positive to move down
+     * @return true when the list changed
+     */
+    public boolean reorder(String id, int direction) {
+        if (direction == 0) return false;
+        List<WheelEntry.Profile> profiles = load();
+        int from = -1;
+        for (int i = 0; i < profiles.size(); i++) {
+            if (profiles.get(i) != null && profiles.get(i).id.equals(id)) {
+                from = i;
+                break;
+            }
+        }
+        if (from < 0) return false;
+        int to = from + (direction < 0 ? -1 : 1);
+        if (to < 0 || to >= profiles.size()) return false;
+        WheelEntry.Profile moved = profiles.remove(from);
+        profiles.add(to, moved);
+        save(profiles);
+        return true;
+    }
+
+    /** A profile id derived from a display name: lower-case, non-alphanumerics dropped. */
+    public static String slug(String name) {
+        if (name == null) return "wheel";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < name.length(); i++) {
+            char c = Character.toLowerCase(name.charAt(i));
+            if (Character.isLetterOrDigit(c)) sb.append(c);
+        }
+        return sb.length() == 0 ? "wheel" : sb.toString();
+    }
+
     /**
      * The root profile, or the first profile, or a fresh default.
      *
