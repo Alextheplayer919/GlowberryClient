@@ -17,7 +17,9 @@ public final class UiIcons {
         COSMETICS, SEARCH, CLOSE, SETTINGS, REPLAY,
         // The Closet's category rail: one icon per cosmetic section, so the rail reads as icons
         // rather than a column of words.
-        CAPE, HAT, PAW, BACKPACK, OFFHAND, SPARKLE }
+        CAPE, HAT, PAW, BACKPACK, OFFHAND, SPARKLE,
+        // A "this opens another level" affordance, for a nested radial sub-wheel and a back entry.
+        CHEVRON }
 
     private UiIcons() {
     }
@@ -58,8 +60,19 @@ public final class UiIcons {
             case BACKPACK: drawBackpack(c, paint, cx, cy, s); break;
             case OFFHAND: drawOffhand(c, paint, cx, cy, s); break;
             case SPARKLE: drawSparkle(c, paint, cx, cy, s); break;
+            case CHEVRON: drawChevron(c, paint, cx, cy, s); break;
             default: break;
         }
+    }
+
+    /** A right-pointing chevron: the "opens another level / back" affordance. */
+    private static void drawChevron(Canvas c, Paint p, float cx, float cy, float s) {
+        float r = 6f * s;
+        Path path = new Path();
+        path.moveTo(cx - r * 0.5f, cy - r);
+        path.lineTo(cx + r * 0.5f, cy);
+        path.lineTo(cx - r * 0.5f, cy + r);
+        c.drawPath(path, p);
     }
 
     private static void drawCube(Canvas c, Paint p, float cx, float cy, float s) {

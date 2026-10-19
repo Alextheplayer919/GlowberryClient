@@ -72,6 +72,11 @@ public final class OptifineSettingsController {
             toggle.setChecked(enabled);
             toggle.setOnCheckedChangeListener((button, checked) -> {
                 FeatureSettings.getInstance().setOptifineItemEnabled(id, checked);
+                if (checked) {
+                    // Re-enabling by hand is the user overriding the crash guard, so its counter is
+                    // cleared; otherwise the item would be one failure from being disabled again.
+                    FeatureSettings.getInstance().setOptifineCrashCount(id, 0);
+                }
                 // Re-push so the change applies to a session already running where possible.
                 OptifineModeManager.apply(context);
                 refreshStatus();
@@ -118,7 +123,17 @@ public final class OptifineSettingsController {
             }
             String label = context.getString(OptifineStatus.labelRes(status));
             String detail = state == null ? "" : state.detail;
-            view.setText(detail == null || detail.isEmpty() ? label : label + " — " + detail);
+            String line = detail == null || detail.isEmpty() ? label : label + " — " + detail;
+            // Item 19: say *why* an item is off. The preloader reports "auto-disabled" only when a
+            // launch reached it; when the item is already off, the crash guard is the reason and the
+            // row would otherwise read like a user choice.
+            String quarantine = OptifineQuarantine.describe(OptifineQuarantine.classify(
+                    settings.isOptifineModeEnabled(), settings.isOptifineItemEnabled(id),
+                    settings.getOptifineCrashCount(id)));
+            if (quarantine != null) {
+                line = line + " (" + quarantine + ")";
+            }
+            view.setText(line);
             view.setTextColor(context.getResources().getColor(OptifineStatus.colorRes(status)));
         }
 

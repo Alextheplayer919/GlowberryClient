@@ -1283,6 +1283,20 @@ import okhttp3.OkHttpClient;
         } catch (Throwable ignored) {
             headPod.setAnimationsEnabled(true);
         }
+        // The sync indicator reports the cosmetic-sync module's real state: a running module is
+        // synced, one that is enabled but still opening its sockets is loading, and one that is not
+        // running is hidden rather than claiming a link that does not exist.
+        try {
+            org.chimeramc.client.core.cosmetics.CosmeticSyncModule module =
+                    org.chimeramc.client.core.cosmetics.CosmeticSyncModule.peek();
+            boolean running = module != null && module.isRunning();
+            boolean enabled = org.chimeramc.client.core.mods.inbuilt.manager
+                    .InbuiltModManager.getInstance(this).isCosmeticSyncEnabled();
+            headPod.setSyncState(
+                    org.chimeramc.client.ui.components.HeadPodSync.stateFor(enabled, running));
+        } catch (Throwable ignored) {
+            headPod.setSyncState(org.chimeramc.client.ui.components.HeadPodView.SYNC_UNKNOWN);
+        }
     }
 
     private void applyPersonalization() {

@@ -172,6 +172,18 @@ def main():
     check(vb.scan_code_referencing(bytes(words2), text_va, target) == [],
           "a mismatched ADD immediate is not a reference")
 
+    # The pure-Python fallback (numpy absent) must agree with the vectorised path, or a machine
+    # without numpy silently reports "no references" and disables every RTTI-derived seam.
+    had_numpy = vb._np
+    try:
+        vb._np = None
+        check(vb.scan_code_referencing(bytes(words), text_va, target) == [0x1000],
+              "the pure-Python scan resolves the same reference")
+        check(vb.scan_code_referencing(bytes(words2), text_va, target) == [],
+              "the pure-Python scan rejects the same mismatch")
+    finally:
+        vb._np = had_numpy
+
     class FakeElf:
         def __init__(self, text):
             self._text = text
@@ -201,6 +213,22 @@ def main():
               "the slot target is the documented function (got %s)" % lpr["render_function_va"])
         check(result["derived_rules"].get("playerRenderVtableIndex") == 0,
               "the derived rules entry carries the slot")
+        # Item 17: the derived entry carries its own probe, and the probe reports that the slot's
+        # target is executable code — the same check the native gate makes.
+        probes = result["derived_rules"].get("probes") or {}
+        check(probes.get("playerRenderVtableIndex", {}).get("resolved") is True,
+              "the derived entry carries a resolved probe for the render slot")
+        # Item 2: the persona names are reported per build, and a build with none must say the
+        # layout is not recoverable rather than assume one.
+        skin = result["findings"]["serialized_skin_ref"]
+        check("persona_names_present" in skin, "the skin finding reports the persona names")
+        check(skin["persona_layout_recoverable"] is False,
+              "a build carrying no persona names reads as unrecoverable")
+        # Item 10: the render-distance anchor is reported, and a build with no anchor reads as such.
+        rd = result["findings"]["render_distance_option"]
+        check("anchor_present" in rd, "the render-distance anchor presence is reported")
+        check(rd["anchor_present"] is False,
+              "a build with no render-distance string reads as no anchor")
         check(len(result["sha256"]) == 64, "a SHA-256 is reported")
 
     print("verify_binary_test: %d checks, %d failure(s)" % (_checks, len(_failures)))

@@ -42,6 +42,20 @@ what the loader actually captured. Together these can answer, on a device:
 
 That is a genuine triage order, and it needs the two-server comparison Phase 6 describes.
 
+### The triage is now mechanical, not only prose
+
+`ClassifySkinSeam` implements the order above from the counters it already receives, so the report
+names the failing step without a human reading three separate numbers:
+
+- **join hook absent** — step 1 was never observed (unproven);
+- **join hook idle** — the seam exists but carried no join;
+- **joins observed, no skin image built** — the drop is at or before step 2 (the image loader);
+- **joins observed, skin image built** — the drop, if any, is downstream of the image loader.
+
+The two positive stages are separated by the base-skin capture the loader hook already records, so
+no new native read was added and nothing is claimed that the counters do not carry. The report line
+for each stage says exactly that, and `SkinSeamObservationTest` pins the four stages.
+
 ## Why a client-side skin cache is not obviously the fix
 
 Phase 6 notes a cache "is plausible only if skins are being dropped". The instrumentation above can

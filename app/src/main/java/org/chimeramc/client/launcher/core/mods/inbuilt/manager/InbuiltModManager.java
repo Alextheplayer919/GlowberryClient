@@ -28,6 +28,7 @@ public class InbuiltModManager {
     private static final String KEY_MOD_MENU_COMPACT = "mod_menu_compact";
     private static final String KEY_MOD_MENU_KEYBIND = "mod_menu_keybind";
     private static final String KEY_MOD_MENU_CONTROLLER_BIND = "mod_menu_controller_bind";
+    private static final String KEY_RADIAL_WHEEL_HOLD = "radial_wheel_hold_to_open";
     private static final String KEY_PAUSE_MENU_ONLY = "pause_menu_only";
     private static final String KEY_FAVORITE_MOD_KEYS = "favorite_mod_keys";
     private static final String KEY_MOD_LOADOUTS = "mod_loadouts";
@@ -371,6 +372,21 @@ public class InbuiltModManager {
 
     public void setModMenuControllerBind(int keyCode) {
         prefs.edit().putInt(KEY_MOD_MENU_CONTROLLER_BIND, Math.max(0, keyCode)).apply();
+    }
+
+    /**
+     * Whether the radial wheel opens on the bind's press and confirms on its release (hold-to-open),
+     * or opens and closes on successive presses (toggle).
+     *
+     * <p>Defaults to hold-to-open, the shape the update spec describes; the toggle remains available
+     * for players who prefer it.
+     */
+    public boolean isRadialWheelHoldToOpen() {
+        return prefs.getBoolean(KEY_RADIAL_WHEEL_HOLD, true);
+    }
+
+    public void setRadialWheelHoldToOpen(boolean hold) {
+        prefs.edit().putBoolean(KEY_RADIAL_WHEEL_HOLD, hold).apply();
     }
 
     /**

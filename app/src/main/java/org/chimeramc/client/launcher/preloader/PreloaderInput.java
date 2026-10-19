@@ -164,6 +164,21 @@ public class PreloaderInput {
     public static native int[] nativeReadCosmeticsStats();
 
     /**
+     * Reads the skin-path seam observation (item 3): {@code {stage, packetHookInstalled,
+     * packetCalls, textureCalls, skinCaptured}}.
+     *
+     * <p>This exists because the reported "my skin is not visible to other players" bug cannot be
+     * diagnosed from the payload: the game strips its symbols, so the join packet's fields are
+     * unreadable and the detours only count calls. The stage says which point the skin path
+     * reached, which is what routes the bug (client never reached the join handler, versus reached
+     * it and the outcome is still unproven). Null when the native library is absent.
+     */
+    public static native int[] nativeReadSkinSeam();
+
+    /** The one-line explanation for a {@link #nativeReadSkinSeam()} stage. */
+    public static native String nativeDescribeSkinSeam(int stage);
+
+    /**
      * Returns the player's captured base-skin texture, or null when none is held.
      *
      * <p>The bytes are a 16-byte little-endian header {@code (width, height, format, stampMs)}
@@ -222,6 +237,15 @@ public class PreloaderInput {
      */
     public static native int[] nativeReadRenderDiagnostics();
     public static native int nativeRenderHookFailureReason();
+
+    /** Item 11: tells the native side the display refresh rate, so it can decide vsync lock. */
+    public static native void nativeSetDisplayRefreshHz(int hz);
+
+    /**
+     * Item 11: the render-thread frame-pacing reading, as {valid, averageUs, worstUs, flags} where
+     * flags bit0 = jittering and bit1 = vsync-locked. Length 1 (or null) means "no reading yet".
+     */
+    public static native int[] nativeReadFramePacing();
 
     /**
      * The local-player feed as {live, xBits, yBits, zBits, yawBits, pitchBits}. Floats are the raw
@@ -623,6 +647,31 @@ public class PreloaderInput {
         }
     }
 
+    /**
+     * Item 3: the skin-path seam observation, or null when the native library is absent.
+     *
+     * <p>{@code {stage, packetHookInstalled, packetCalls, textureCalls, skinCaptured}}; the stage is
+     * 0 join hook absent, 1 hook idle, 2 joins observed.
+     */
+    public static int[] readSkinSeam() {
+        try {
+            int[] value = nativeReadSkinSeam();
+            return value != null && value.length >= 5 ? value : null;
+        } catch (UnsatisfiedLinkError e) {
+            return null;
+        }
+    }
+
+    /** The one-line explanation for a skin-seam stage, or "" when the library is absent. */
+    public static String describeSkinSeam(int stage) {
+        try {
+            String text = nativeDescribeSkinSeam(stage);
+            return text == null ? "" : text;
+        } catch (UnsatisfiedLinkError e) {
+            return "";
+        }
+    }
+
     /** The native render-path diagnostic, or null when the native library is absent. */
     public static int[] readRenderDiagnostics() {
         try {
@@ -650,6 +699,27 @@ public class PreloaderInput {
             return nativeRenderHookFailureReason();
         } catch (UnsatisfiedLinkError e) {
             return -1;
+        }
+    }
+
+    /** Item 11: forwards the display refresh rate to the native frame-pacing reading. */
+    public static void setDisplayRefreshHz(int hz) {
+        try {
+            nativeSetDisplayRefreshHz(hz);
+        } catch (UnsatisfiedLinkError ignored) {
+        }
+    }
+
+    /**
+     * Item 11: the render-thread frame-pacing reading, or null when there is no reading yet. The
+     * array is {valid, averageUs, worstUs, flags}; flags bit0 = jittering, bit1 = vsync-locked.
+     */
+    public static int[] readFramePacing() {
+        try {
+            int[] value = nativeReadFramePacing();
+            return value != null && value.length >= 4 && value[0] == 1 ? value : null;
+        } catch (UnsatisfiedLinkError e) {
+            return null;
         }
     }
 

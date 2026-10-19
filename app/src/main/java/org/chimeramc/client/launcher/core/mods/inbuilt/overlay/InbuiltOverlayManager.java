@@ -1156,14 +1156,27 @@ public class InbuiltOverlayManager {
         // be driven by the framework's focus system and is driven here instead.
         if (handleMenuControllerKey(rawKeyCode, action)) return true;
 
-        // Mod Menu open bind. Honoured for both the keyboard and controller codes, and only on
-        // the press so a held button does not flap the panel open and shut.
-        if (action == android.view.KeyEvent.ACTION_DOWN && modMenuButton != null) {
-            if (InbuiltModManager.matchesModMenuBind(
+        // Mod Menu open bind. Honoured for both the keyboard and controller codes. In hold-to-open
+        // mode (the default) the press opens the wheel and the release commits the highlighted
+        // sector, so the whole gesture is one press-hold-release; in toggle mode only the press is
+        // used, matching the previous behaviour.
+        if (modMenuButton != null) {
+            boolean matchesBind = InbuiltModManager.matchesModMenuBind(
                     manager.getModMenuKeybind(), manager.getModMenuControllerBind(),
-                    keyCode, rawKeyCode)) {
-                modMenuButton.toggleMenuFromBind();
-                return true;
+                    keyCode, rawKeyCode);
+            if (matchesBind) {
+                boolean hold = manager.isRadialWheelHoldToOpen();
+                org.chimeramc.client.core.mods.inbuilt.overlay.RadialMenuOverlay wheel =
+                        modMenuButton.ensureRadialMenuOverlay();
+                if (action == android.view.KeyEvent.ACTION_DOWN) {
+                    if (wheel != null && wheel.onBindPress(hold)) return true;
+                    if (!hold) {
+                        modMenuButton.toggleMenuFromBind();
+                        return true;
+                    }
+                } else if (action == android.view.KeyEvent.ACTION_UP && hold) {
+                    if (wheel != null && wheel.onBindRelease(true)) return true;
+                }
             }
         }
 

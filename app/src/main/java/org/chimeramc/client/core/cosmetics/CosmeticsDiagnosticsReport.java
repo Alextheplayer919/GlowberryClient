@@ -34,6 +34,12 @@ public final class CosmeticsDiagnosticsReport {
     public static final class Inputs {
         public String appVersion = "unknown";
         public String minecraftVersion = "unknown";
+        /**
+         * The device model and Android release, for a reproducible bug report (item 22). A report
+         * from an unknown device cannot be compared with another, so this is part of the export
+         * rather than something the reporter has to remember.
+         */
+        public String deviceModel = "unknown";
         public boolean nativeLoaded;
         /** The render slot the hook resolved to, or -1 when unknown. */
         public int renderSlot = -1;
@@ -93,6 +99,14 @@ public final class CosmeticsDiagnosticsReport {
         public boolean skinCaptured;
         /** True when a game-skin provider is installed (the engine-hook seam is active). */
         public boolean skinFeedInstalled;
+        /** The skin-path seam stage: 0 join hook absent, 1 hook idle, 2 joins observed; -1 unknown. */
+        public int skinSeamStage = -1;
+        /** Join-packet calls the detour forwarded, or -1 when the hook is absent. */
+        public int skinJoinCalls = -1;
+        /** Texture-bind calls the detour forwarded, or -1 when the hook is absent. */
+        public int skinTextureCalls = -1;
+        /** The native one-line explanation for {@link #skinSeamStage}, or "". */
+        public String skinSeamNote = "";
         /** Per-cosmetic asset audit lines (PNG size, geometry size, cube count), or null. */
         public java.util.List<CosmeticAssetAudit.Entry> cosmeticAssets;
         /** Faces the scene refused to build (a size mismatch), as one-line descriptions. */
@@ -103,6 +117,16 @@ public final class CosmeticsDiagnosticsReport {
         public boolean lastCrashTruncated;
         /** True when the report was generated while a world was loaded (not in a menu). */
         public boolean inWorld;
+        /** Item 11: the render thread's smoothed frame interval in microseconds, or -1 unknown. */
+        public int framePacingAverageUs = -1;
+        /** Item 11: the worst frame interval in the recent window, or -1 unknown. */
+        public int framePacingWorstUs = -1;
+        /** Item 11: a recent frame was late (a hitch). */
+        public boolean framePacingJittering;
+        /** Item 11: the frame interval matched the display interval. */
+        public boolean framePacingVsyncLocked;
+        /** Item 11: whether a frame-pacing reading exists at all this session. */
+        public boolean framePacingAvailable;
         /** True when a game session is running (the launcher's own session flag). */
         public boolean sessionActive;
         /** The HUD hook's "a HUD screen is open" reading, or false when the hook has not fired. */
@@ -123,6 +147,7 @@ public final class CosmeticsDiagnosticsReport {
         in.timestampMs = System.currentTimeMillis();
         in.appVersion = safeVersionName();
         in.minecraftVersion = selectedMinecraftVersion(context);
+        in.deviceModel = deviceModelText();
 
         int[] diag = PreloaderInput.readRenderDiagnostics();
         in.nativeLoaded = diag != null;
@@ -147,6 +172,19 @@ public final class CosmeticsDiagnosticsReport {
             }
         }
         in.cameraAnchorSource = PreloaderInput.cameraAnchorSource();
+
+        // Item 11: the render-thread frame-pacing reading, when the renderer has produced frames.
+        try {
+            int[] pacing = PreloaderInput.readFramePacing();
+            if (pacing != null) {
+                in.framePacingAvailable = true;
+                in.framePacingAverageUs = pacing[1];
+                in.framePacingWorstUs = pacing[2];
+                in.framePacingJittering = (pacing[3] & 1) != 0;
+                in.framePacingVsyncLocked = (pacing[3] & 2) != 0;
+            }
+        } catch (Throwable ignored) {
+        }
 
         // The local-player feed, decoded from its raw float bits. Only present when live.
         int[] feed = PreloaderInput.readLocalPlayerFeed();
@@ -194,6 +232,18 @@ public final class CosmeticsDiagnosticsReport {
         } catch (Throwable ignored) {
         }
         in.skinFeedInstalled = GameSkinSource.hasProvider();
+        // Item 3: which stage the skin path reached, so a "skin not visible" report can be routed
+        // (client never reached the join handler, versus reached it with the outcome unproven).
+        try {
+            int[] seam = PreloaderInput.readSkinSeam();
+            if (seam != null) {
+                in.skinSeamStage = seam[0];
+                in.skinJoinCalls = seam[2];
+                in.skinTextureCalls = seam[3];
+                in.skinSeamNote = PreloaderInput.describeSkinSeam(seam[0]);
+            }
+        } catch (Throwable ignored) {
+        }
 
         // The most recent crash report, so a device crash trace can be copied/shared from inside the
         // app (logcat is not app-readable without READ_LOGS).
@@ -269,6 +319,8 @@ public final class CosmeticsDiagnosticsReport {
         b.append("Generated inside a world: ").append(yesNo(v.inWorld)).append('\n');
         b.append("App version: ").append(v.appVersion).append('\n');
         b.append("Minecraft version: ").append(v.minecraftVersion).append('\n');
+        b.append("Device: ").append(v.deviceModel == null || v.deviceModel.isEmpty()
+                ? "unknown" : v.deviceModel).append('\n');
         b.append('\n');
 
         b.append("FIRST FAILING STAGE: ").append(firstFailingStage(v)).append('\n');
@@ -291,6 +343,7 @@ public final class CosmeticsDiagnosticsReport {
         b.append("Frames seen: ").append(countText(v.framesSeen)).append('\n');
         b.append("Local player feed: ").append(localPlayerText(v)).append('\n');
         b.append("Camera anchor source: ").append(cameraText(v)).append('\n');
+        b.append("Frame pacing: ").append(framePacingText(v)).append('\n');
         b.append("Cape engine texture route: ").append(yesNo(v.capeEngineRouteLive)).append('\n');
         b.append("Engine image pipeline live: ").append(yesNo(v.imagePipelineLive)).append('\n');
         b.append("GL backend: ").append(backendText(v.glBackend)).append('\n');
@@ -305,6 +358,7 @@ public final class CosmeticsDiagnosticsReport {
         b.append("Local cosmetics published under key: \"").append(v.localKeyId).append("\"\n");
         b.append("Game-skin feed installed: ").append(yesNo(v.skinFeedInstalled)).append('\n');
         b.append("Base skin captured from game: ").append(yesNo(v.skinCaptured)).append('\n');
+        b.append("Skin path seam: ").append(skinSeamText(v)).append('\n');
         b.append('\n');
 
         b.append("Cosmetic assets (PNG size / geometry size / cubes):\n");
@@ -339,6 +393,24 @@ public final class CosmeticsDiagnosticsReport {
         b.append("Note: whether cosmetics actually appear in game is unverified on device. This "
                 + "report only describes the state of the native render path.\n");
         return b.toString();
+    }
+
+    /**
+     * The device model plus Android release. A report from an unknown device cannot be reproduced,
+     * so this is read here (the only Android touch) and formatted by the pure path.
+     */
+    private static String deviceModelText() {
+        try {
+            String model = android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL;
+            // Item 18: the ABI is one of the gates that can refuse a feature, so the report names the
+            // process ABI next to the device. The preloader is arm64-only, so a report from a device
+            // where the native library did not load needs the ABI to be diagnosable.
+            String abi = android.os.Build.SUPPORTED_ABIS.length > 0
+                    ? android.os.Build.SUPPORTED_ABIS[0] : "unknown";
+            return model.trim() + " (" + abi + ", Android " + android.os.Build.VERSION.RELEASE + ")";
+        } catch (Throwable t) {
+            return "unknown";
+        }
     }
 
     private static String timestamp(long ms) {
@@ -445,11 +517,56 @@ public final class CosmeticsDiagnosticsReport {
                 v.localPlayerPosition[3], v.localPlayerPosition[4]);
     }
 
+    /**
+     * The skin-path seam line (item 3). Pure, so the wording is pinned by a JVM test. A missing
+     * native library renders "unknown" rather than a confident "not installed".
+     */
+    private static String skinSeamText(Inputs v) {
+        if (v.skinSeamStage < 0) return "unknown (native library absent)";
+        StringBuilder b = new StringBuilder();
+        b.append(v.skinSeamNote == null || v.skinSeamNote.isEmpty()
+                ? "stage " + v.skinSeamStage : v.skinSeamNote);
+        if (v.skinJoinCalls >= 0 || v.skinTextureCalls >= 0) {
+            b.append(" [joins=").append(v.skinJoinCalls >= 0 ? v.skinJoinCalls : -1)
+                    .append(" textures=").append(v.skinTextureCalls >= 0 ? v.skinTextureCalls : -1)
+                    .append(']');
+        }
+        return b.toString();
+    }
+
     private static String cameraText(Inputs v) {
         if (v.cameraAnchorSource < 0) return "unknown";
         return v.cameraAnchorSource == 1
                 ? "engine view-projection"
                 : "first-person fallback (engine camera did not resolve)";
+    }
+
+    /**
+     * The render-thread frame-pacing line (item 11). "no reading yet" is distinct from a bad
+     * interval: the renderer has to produce two frames before any interval exists. The verdict
+     * never claims a lock without a reading, and an unknown display rate is never called locked.
+     */
+    private static String framePacingText(Inputs v) {
+        if (!v.framePacingAvailable || v.framePacingAverageUs < 0) return "no reading yet";
+        StringBuilder s = new StringBuilder();
+        s.append(formatMicros(v.framePacingAverageUs)).append(" average");
+        if (v.framePacingWorstUs >= 0) {
+            s.append(", ").append(formatMicros(v.framePacingWorstUs)).append(" worst");
+        }
+        if (v.framePacingJittering) {
+            s.append(" — a recent frame was late (hitching)");
+        } else if (v.framePacingVsyncLocked) {
+            s.append(" — vsync-locked");
+        } else {
+            s.append(" — steady, not vsync-locked");
+        }
+        return s.toString();
+    }
+
+    /** Microseconds to a short "16.7 ms" form; a sub-millisecond value is shown in microseconds. */
+    private static String formatMicros(int micros) {
+        if (micros < 1000) return micros + " us";
+        return String.format(Locale.US, "%.1f ms", micros / 1000.0);
     }
 
     /** The honest status line, matching the rule the Cosmetics panel uses. */

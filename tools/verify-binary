@@ -66,16 +66,57 @@ def _sign_extend(value, bits):
     return value
 
 
+def _scan_code_referencing_python(text_bytes, text_va, target_va):
+    """Pure-Python ADRP(+ADD) scan: the fallback when numpy is unavailable.
+
+    numpy is only a speed-up here; the rule is the same. Returning an empty list because a
+    dependency was missing would read as "no references" and silently disable every RTTI-derived
+    seam, which is exactly the kind of quiet wrong answer this tool exists to avoid. So the scan is
+    implemented twice and the caller picks whichever is available.
+    """
+    target_page = target_va & ~0xFFF
+    hits = []
+    n = (len(text_bytes) // 4) * 4
+    for off in range(0, n, 4):
+        word = struct.unpack_from("<I", text_bytes, off)[0]
+        if (word & 0x9F000000) != 0x90000000:  # not ADRP
+            continue
+        if off + 8 > n:
+            continue
+        immlo = (word >> 29) & 0x3
+        immhi = (word >> 5) & 0x7FFFF
+        imm = (immhi << 2) | immlo
+        if imm & (1 << 20):
+            imm -= (1 << 21)
+        pc = text_va + off
+        page = (pc & ~0xFFF) + (imm << 12)
+        if page != target_page:
+            continue
+        nxt = struct.unpack_from("<I", text_bytes, off + 4)[0]
+        if (nxt & 0x7F800000) in (0x11000000, 0x91000000):
+            imm12 = (nxt >> 10) & 0xFFF
+            shift = (nxt >> 22) & 0x3
+            resolved = page + (imm12 << (12 if shift == 1 else 0))
+            if resolved == target_va:
+                hits.append(pc)
+    return hits
+
+
 def scan_code_referencing(text_bytes, text_va, target_va):
     """Find every code VA whose ADRP(+ADD) pair resolves to ``target_va``.
 
-    This is the cheap, vectorised replacement for disassembling every vtable slot's body: a
-    reference to a ``.rodata`` string on AArch64 is an ADRP page load followed by an ADD of the
-    low 12 bits. Scanning the instruction stream once and matching the resolved page against the
-    target's page finds every reference without a disassembler.
+    This is the cheap replacement for disassembling every vtable slot's body: a reference to a
+    ``.rodata`` string on AArch64 is an ADRP page load followed by an ADD of the low 12 bits.
+    Scanning the instruction stream once and matching the resolved page against the target's page
+    finds every reference without a disassembler.
+
+    Uses the vectorised path when numpy is present and an equivalent pure-Python one otherwise, so a
+    missing numpy never degrades to a false "no references".
     """
-    if _np is None or len(text_bytes) < 8:
+    if len(text_bytes) < 8:
         return []
+    if _np is None:
+        return _scan_code_referencing_python(text_bytes, text_va, target_va)
     words = _np.frombuffer(text_bytes[: (len(text_bytes) // 4) * 4], dtype=_np.uint32)
     # ADRP: bit31 set, bits 28..24 = 0b10000 -> (w & 0x9F000000) == 0x90000000
     is_adrp = (words & _np.uint32(0x9F000000)) == _np.uint32(0x90000000)
@@ -388,6 +429,21 @@ def analyze(path, version_override=None, rules_path=None):
             lpr["render_function_va"] = _h(fn)
             lpr["render_prologue"] = elf.disassemble(fn, fn + 0x40, max_lines=16)
             result["derived_rules"]["playerRenderVtableIndex"] = slot
+            # Item 17: the rule carries its own probe for the seam it pins, and the probe is the
+            # same check the launcher makes at runtime — the slot resolves to a function inside
+            # .text (executable code), not to a data pointer. A generated rule whose probe reports
+            # false is refused by the native gate rather than trusted on the strength of the index
+            # alone.
+            in_text = False
+            text_sec = elf.by_name.get(".text")
+            if text_sec is not None:
+                in_text = text_sec["addr"] <= fn < text_sec["addr"] + text_sec["size"]
+            result["derived_rules"]["probes"] = {
+                "playerRenderVtableIndex": {
+                    "resolved": bool(in_text),
+                    "proves": "the slot's target lies in .text (executable code)",
+                }
+            }
         else:
             lpr["render_vtable_index"] = None
             lpr["note"] = ("no vtable slot body referenced the render diagnostic; "
@@ -412,6 +468,17 @@ def analyze(path, version_override=None, rules_path=None):
                  "getCapeId", "getSkinColor", "getProfileHash", "SerializedSkinRef"):
         hits = elf.find_in_section(".rodata", name.encode())
         skin["accessor_names_present"][name] = len(hits)
+    # Item 2: the persona half of the skin. Whether the persona piece fields are recoverable is a
+    # per-build question, so report the accessor/type names a build actually carries rather than
+    # assuming a layout. A build with zero persona names is reported as such - the launcher then
+    # cannot claim a persona reading it cannot make.
+    persona_names = ("PersonaPiece", "PersonaPieceTintColor", "getPersonaPieces",
+                     "getPersonaSkinPieceId", "getPieceType", "getPieceId",
+                     "getPersonaCapePiece", "PersonaSkinPiece")
+    skin["persona_names_present"] = {
+        name: len(elf.find_in_section(".rodata", name.encode())) for name in persona_names
+    }
+    skin["persona_layout_recoverable"] = any(skin["persona_names_present"].values())
     f["serialized_skin_ref"] = skin
 
     # --- 4. mce::Image loader signature ---
@@ -424,6 +491,25 @@ def analyze(path, version_override=None, rules_path=None):
     # --- 5. ClientNetworkHandler AddPlayerPacket ---
     adder = {"name_present": len(elf.find_in_section(".rodata", b"AddPlayerPacket"))}
     f["network_handler"] = adder
+
+    # --- 6. Render-distance option anchor (item 10) ---
+    # Actually changing the game's render distance needs the options setter, which is not exported.
+    # The route the item describes is a string anchor: find the option's own name in .rodata, then
+    # the code that references it. Report whether the anchor string exists at all and how many code
+    # sites reference it, so the launcher can say the route is possible for this build rather than
+    # guessing a setter address.
+    rd_names = ("render_distance", "renderDistance", "RenderDistance", "graphics_settings",
+                "view_distance", "options.txt")
+    rd = {name: len(elf.find_in_section(".rodata", name.encode())) for name in rd_names}
+    rd["anchor_present"] = any(rd.values())
+    rd["code_refs"] = 0
+    anchor_va = elf.typeinfo_name_va("render_distance")
+    text_sec = elf.by_name.get(".text")
+    if anchor_va is not None and text_sec is not None:
+        rd["code_refs"] = len(
+            scan_code_referencing(elf.section_text(".text"), text_sec["addr"], anchor_va)
+        )
+    f["render_distance_option"] = rd
 
     # --- derived rules entry ---
     result["derived_rules"]["checksum_sha256"] = result["sha256"]

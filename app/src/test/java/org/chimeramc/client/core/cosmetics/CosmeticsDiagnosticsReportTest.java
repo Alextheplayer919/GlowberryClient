@@ -19,6 +19,7 @@ public class CosmeticsDiagnosticsReportTest {
         CosmeticsDiagnosticsReport.Inputs in = new CosmeticsDiagnosticsReport.Inputs();
         in.appVersion = "v1.2.3";
         in.minecraftVersion = "1.26.33.1";
+        in.deviceModel = "Google Pixel 7 (Android 14)";
         in.nativeLoaded = true;
         in.renderSlot = 17;
         in.resolvedBy = 1;
@@ -47,6 +48,31 @@ public class CosmeticsDiagnosticsReportTest {
         in.cameraAnchorSource = 1;
         in.rulesSummary = "pauseMenuDtorSig,playerRenderVtableIndex=17";
         return in;
+    }
+
+    @Test
+    public void theSkinSeamLineNamesTheStageAndTheCounters() {
+        // Item 3: a "skin not visible" report must say which stage the skin path reached, and the
+        // observed stage must state that the payload itself is still unproven.
+        CosmeticsDiagnosticsReport.Inputs in = fullInputs();
+        in.skinSeamStage = 2;
+        in.skinJoinCalls = 4;
+        in.skinTextureCalls = 12;
+        in.skinSeamNote = "joins observed; the payload's skin fields are not readable";
+        String report = CosmeticsDiagnosticsReport.format(in);
+        assertTrue(report.contains("Skin path seam: joins observed"));
+        assertTrue(report.contains("joins=4"));
+        assertTrue(report.contains("textures=12"));
+    }
+
+    @Test
+    public void anAbsentNativeLibraryNeverClaimsTheSeamIsMissing() {
+        // -1 means "no reading", which must not be rendered as a confident "hook not installed".
+        CosmeticsDiagnosticsReport.Inputs in = fullInputs();
+        in.skinSeamStage = -1;
+        String report = CosmeticsDiagnosticsReport.format(in);
+        assertTrue(report.contains("Skin path seam: unknown"));
+        assertFalse(report.contains("Skin path seam: the join-packet hook is not installed"));
     }
 
     @Test
@@ -94,10 +120,18 @@ public class CosmeticsDiagnosticsReportTest {
     }
 
     @Test
+    public void anUnreadDeviceModelReadsAsUnknownNotBlank() {
+        CosmeticsDiagnosticsReport.Inputs in = fullInputs();
+        in.deviceModel = null;
+        assertTrue(CosmeticsDiagnosticsReport.format(in).contains("Device: unknown"));
+    }
+
+    @Test
     public void theReportCarriesEveryRequestedField() {
         String report = CosmeticsDiagnosticsReport.format(fullInputs());
         assertTrue(report.contains("App version: v1.2.3"));
         assertTrue(report.contains("Minecraft version: 1.26.33.1"));
+        assertTrue(report.contains("Device: Google Pixel 7 (Android 14)"));
         assertTrue(report.contains("Player-render slot: 17"));
         assertTrue(report.contains("resolved by render-diagnostic string scan"));
         assertTrue(report.contains("Hook installed: yes"));
@@ -241,5 +275,30 @@ public class CosmeticsDiagnosticsReportTest {
     public void clearingTheLocalSetDoesNotThrowWithoutTheNativeLibrary() {
         // A JVM test has no libpreloader, so this must be a safe no-op rather than a crash.
         NativeCosmeticsBridge.clearLocal();
+    }
+
+    @Test
+    public void theFramePacingLineIsHonestAboutAMissingReading() {
+        CosmeticsDiagnosticsReport.Inputs none = fullInputs();
+        none.framePacingAvailable = false;
+        assertTrue(CosmeticsDiagnosticsReport.format(none).contains("Frame pacing: no reading yet"));
+    }
+
+    @Test
+    public void theFramePacingLineReportsLockAndHitch() {
+        CosmeticsDiagnosticsReport.Inputs locked = fullInputs();
+        locked.framePacingAvailable = true;
+        locked.framePacingAverageUs = 16667;
+        locked.framePacingWorstUs = 17000;
+        locked.framePacingVsyncLocked = true;
+        String report = CosmeticsDiagnosticsReport.format(locked);
+        assertTrue(report.contains("Frame pacing: 16.7 ms average, 17.0 ms worst — vsync-locked"));
+
+        CosmeticsDiagnosticsReport.Inputs hitching = fullInputs();
+        hitching.framePacingAvailable = true;
+        hitching.framePacingAverageUs = 16667;
+        hitching.framePacingWorstUs = 60000;
+        hitching.framePacingJittering = true;
+        assertTrue(CosmeticsDiagnosticsReport.format(hitching).contains("a recent frame was late"));
     }
 }
