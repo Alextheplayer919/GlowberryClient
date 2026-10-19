@@ -1,6 +1,8 @@
 package org.chimeramc.client.core.replay;
 
 import android.app.Activity;
+import android.graphics.Canvas;
+import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.media.MediaPlayer;
 import android.os.Handler;
@@ -8,6 +10,7 @@ import android.os.Looper;
 import android.os.SystemClock;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
@@ -87,6 +90,15 @@ public final class ReplayPlayerView {
     /** True while the user drags the scrub bar, so the tick does not fight the thumb. */
     private boolean scrubbing;
 
+    // Interactive spectator flight. Shown only in free-camera mode without an authored camera path:
+    // with a path, the shot owns the camera. A single-finger drag over the video looks; the fly
+    // stick in the corner moves the camera; the flight tick integrates the stick while it is held.
+    private SpectatorFlyView flyStick;
+    private long lastFlightTickMs;
+    private boolean looking;
+    private float lastLookX;
+    private float lastLookY;
+
     private final Runnable progressTick = new Runnable() {
         @Override
         public void run() {
@@ -97,6 +109,7 @@ public final class ReplayPlayerView {
                 stepReversed(elapsed);
             }
             updateProgress();
+            integrateSpectatorFlight(now);
             if (timeline.isPlaying()) mainHandler.postDelayed(this, 100L);
         }
     };
@@ -140,8 +153,73 @@ public final class ReplayPlayerView {
             }
         });
 
-        // The user may tap the video area to toggle playback, matching every video player.
+        flyStick = new SpectatorFlyView(activity, style);
+        flyStick.setVisibility(View.GONE);
+        FrameLayout.LayoutParams stickParams = new FrameLayout.LayoutParams(
+                ReplayStyle.dpInt(activity, 120), ReplayStyle.dpInt(activity, 120));
+        stickParams.gravity = Gravity.BOTTOM | Gravity.END;
+        stickParams.setMargins(0, 0, ReplayStyle.dpInt(activity, 24),
+                ReplayStyle.dpInt(activity, 88));
+        root.addView(flyStick, stickParams);
+        flyStick.setOnStickListener((vx, vy) -> {
+            if (freeCamera && cameraPath == null) {
+                lastFlightTickMs = SystemClock.uptimeMillis();
+            }
+        });
+
+        // The user may tap the video area to toggle playback, matching every video player. In
+        // free-camera spectator mode a single-finger drag looks instead of scrubbing the timeline.
         surface.setOnClickListener(v -> togglePlayPause());
+        surface.setOnTouchListener((v, event) -> {
+            if (!freeCamera || cameraPath != null) {
+                return false;
+            }
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    looking = true;
+                    lastLookX = event.getRawX();
+                    lastLookY = event.getRawY();
+                    return false;
+                case MotionEvent.ACTION_MOVE: {
+                    if (!looking) return false;
+                    float dx = event.getRawX() - lastLookX;
+                    float dy = event.getRawY() - lastLookY;
+                    lastLookX = event.getRawX();
+                    lastLookY = event.getRawY();
+                    float[] look = ReplaySpectatorInput.dragToLook(dx, dy);
+                    camera.look(look[0], look[1]);
+                    return true;
+                }
+                case MotionEvent.ACTION_CANCEL:
+                case MotionEvent.ACTION_UP:
+                    looking = false;
+                    return false;
+                default:
+                    return false;
+            }
+        });
+    }
+
+    /**
+     * Integrates the fly stick's input into the spectator camera while it is held.
+     *
+     * <p>The stick is only meaningful in interactive spectator mode (free camera, no authored
+     * path). Its deflection drives {@link ReplaySpectatorInput#fly}, which temporarily applies the
+     * boost before integrating so a held boost actually moves faster rather than just changing the
+     * camera's stored speed.
+     */
+    private void integrateSpectatorFlight(long now) {
+        if (flyStick == null || flyStick.getVisibility() != View.VISIBLE || flyStick.isNeutral()) {
+            lastFlightTickMs = 0L;
+            return;
+        }
+        if (!freeCamera || cameraPath != null) {
+            return;
+        }
+        long elapsed = lastFlightTickMs == 0L ? 0L : now - lastFlightTickMs;
+        lastFlightTickMs = now;
+        ReplaySpectatorInput.fly(camera, flyStick.forward(), flyStick.strafe(),
+                flyStick.vertical(), flyStick.boost(), elapsed);
     }
 
     public View getView() {
@@ -164,7 +242,9 @@ public final class ReplayPlayerView {
         // camera can play the shot, otherwise the camera starts from the recorded view.
         cameraPath = loadCameraPath(clip);
         freeCamera = false;
+        looking = false;
         updateCameraLabel();
+        updateFlyStick();
         if (clip == null) return;
         startPlayer(clip.file());
     }
@@ -176,6 +256,7 @@ public final class ReplayPlayerView {
         prepared = false;
         timeline.pause();
         unlatchGate();
+        flyStick = null;
     }
 
     /** The sidecar's authored camera path for a clip, or null when it has none. */
@@ -206,7 +287,24 @@ public final class ReplayPlayerView {
     /** Toggles the detached spectator camera on or off. */
     public void toggleFreeCamera() {
         freeCamera = !freeCamera;
+        looking = false;
         updateCameraLabel();
+        updateFlyStick();
+    }
+
+    /** True while the interactive spectator flight is available (free camera, no authored shot). */
+    public boolean isSpectatorFlightAvailable() {
+        return freeCamera && cameraPath == null;
+    }
+
+    /** Fly stick visible only in interactive spectator flight; with a path the shot owns the camera. */
+    private void updateFlyStick() {
+        if (flyStick == null) return;
+        flyStick.setVisibility(isSpectatorFlightAvailable() ? View.VISIBLE : View.GONE);
+        if (flyStick.getVisibility() != View.VISIBLE) {
+            flyStick.reset();
+            lastFlightTickMs = 0L;
+        }
     }
 
     /** Toggles play/pause, for a controller route into the open player. */
@@ -574,5 +672,200 @@ public final class ReplayPlayerView {
 
         column.addView(row);
         return column;
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Spectator fly stick
+    // ---------------------------------------------------------------------------------------------
+
+    /**
+     * The spectator flight control: a virtual joystick with an up/down lift rail beside it.
+     *
+     * <p>Drag inside the pad to fly forward/back/strafe; drag the rail to ascend/descend. Pushing
+     * the thumb to the pad's edge counts as boost, which {@link ReplaySpectatorInput#fly} turns
+     * into a speed multiplier while held. The stick reports normalised inputs in -1..1 and is
+     * deliberately dumb about the camera — the pure model does the integration.
+     */
+    private static final class SpectatorFlyView extends View {
+
+        interface StickListener {
+            void onStick(float forward, float strafe);
+        }
+
+        /** Drag deflection above this fraction of the pad radius counts as boost. */
+        static final float BOOST_THRESHOLD = 0.82f;
+
+        private final ReplayStyle style;
+        private final Paint padPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint thumbPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint railPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final int railWidth;
+        private final float padRadius;
+        private final float thumbRadius;
+        private final float railX;
+        private float thumbX;
+        private float thumbY;
+        private boolean stickActive;
+        private float stickDx;
+        private float stickDy;
+        private boolean railActive;
+        private float railY;
+        private float railOriginY;
+        private StickListener listener;
+
+        SpectatorFlyView(Activity activity, ReplayStyle style) {
+            super(activity);
+            this.style = style;
+            padRadius = ReplayStyle.dpInt(activity, 36);
+            thumbRadius = ReplayStyle.dpInt(activity, 16);
+            railWidth = ReplayStyle.dpInt(activity, 18);
+            railX = ReplayStyle.dpInt(activity, 12);
+            padPaint.setColor(style.accentFill(44));
+            thumbPaint.setColor(style.accent());
+            railPaint.setColor(style.accentFill(50));
+            thumbX = padRadius;
+            thumbY = padRadius;
+            railY = padRadius;
+            railOriginY = padRadius;
+        }
+
+        void setOnStickListener(StickListener listener) {
+            this.listener = listener;
+        }
+
+        void reset() {
+            stickActive = false;
+            railActive = false;
+            stickDx = 0f;
+            stickDy = 0f;
+            thumbX = padRadius;
+            thumbY = padRadius;
+            railY = railOriginY;
+            invalidate();
+        }
+
+        boolean isNeutral() {
+            return !stickActive && !railActive;
+        }
+
+        float forward() {
+            return -stickDy; // drag up = forward
+        }
+
+        float strafe() {
+            return stickDx;
+        }
+
+        float vertical() {
+            float lift = (railOriginY - railY) / Math.max(1f, padRadius);
+            if (lift > 1f) lift = 1f;
+            if (lift < -1f) lift = -1f;
+            return lift;
+        }
+
+        boolean boost() {
+            float r = (float) Math.hypot(stickDx, stickDy);
+            return r >= BOOST_THRESHOLD;
+        }
+
+        @Override
+        protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+            int size = resolveSize((int) (padRadius * 2 + railWidth
+                    + ReplayStyle.dpInt(getContext(), 24)), widthMeasureSpec);
+            int height = resolveSize((int) (padRadius * 2), heightMeasureSpec);
+            setMeasuredDimension(size, height);
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            float cx = padRadius + railWidth + ReplayStyle.dpInt(getContext(), 6);
+            float cy = getHeight() / 2f;
+
+            canvas.drawRoundRect(railX, cy - padRadius, railX + railWidth, cy + padRadius,
+                    railWidth / 2f, railWidth / 2f, railPaint);
+            float railThumbY = cy + (railY - railOriginY);
+            canvas.drawCircle(railX + railWidth / 2f, railThumbY, thumbRadius * 0.6f, thumbPaint);
+
+            canvas.drawCircle(cx, cy, padRadius, padPaint);
+            float tX = cx + (thumbX - padRadius);
+            float tY = cy + (thumbY - padRadius);
+            canvas.drawCircle(tX, tY, thumbRadius, thumbPaint);
+            if (boost()) {
+                Paint ring = new Paint(Paint.ANTI_ALIAS_FLAG);
+                ring.setStyle(Paint.Style.STROKE);
+                ring.setStrokeWidth(ReplayStyle.dpInt(getContext(), 2));
+                ring.setColor(style.statusReady());
+                canvas.drawCircle(cx, cy, padRadius + ReplayStyle.dpInt(getContext(), 3), ring);
+            }
+        }
+
+        @Override
+        public boolean onTouchEvent(MotionEvent event) {
+            float x = event.getX();
+            float y = event.getY();
+            float cx = padRadius + railWidth + ReplayStyle.dpInt(getContext(), 6);
+            float cy = getHeight() / 2f;
+
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    if (x < railX + railWidth + 8) {
+                        railActive = true;
+                        railOriginY = padRadius;
+                        railY = y - cy + padRadius;
+                        if (railY < 0f) railY = 0f;
+                        if (railY > padRadius * 2f) railY = padRadius * 2f;
+                    } else {
+                        stickActive = true;
+                        stickDx = 0f;
+                        stickDy = 0f;
+                        thumbX = padRadius;
+                        thumbY = padRadius;
+                    }
+                    notifyListener();
+                    invalidate();
+                    return true;
+                case MotionEvent.ACTION_MOVE:
+                    if (stickActive) {
+                        float dx = x - cx;
+                        float dy = y - cy;
+                        float max = padRadius - thumbRadius;
+                        float len = (float) Math.hypot(dx, dy);
+                        if (len > max) {
+                            dx = dx / len * max;
+                            dy = dy / len * max;
+                        }
+                        stickDx = dx / Math.max(1f, padRadius);
+                        stickDy = dy / Math.max(1f, padRadius);
+                        thumbX = padRadius + dx;
+                        thumbY = padRadius + dy;
+                    } else if (railActive) {
+                        railY = y - cy + padRadius;
+                        if (railY < 0f) railY = 0f;
+                        if (railY > padRadius * 2f) railY = padRadius * 2f;
+                    }
+                    notifyListener();
+                    invalidate();
+                    return true;
+                case MotionEvent.ACTION_UP:
+                case MotionEvent.ACTION_CANCEL:
+                    stickActive = false;
+                    railActive = false;
+                    stickDx = 0f;
+                    stickDy = 0f;
+                    thumbX = padRadius;
+                    thumbY = padRadius;
+                    notifyListener();
+                    invalidate();
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private void notifyListener() {
+            if (listener != null) {
+                listener.onStick(forward(), strafe());
+            }
+        }
     }
 }
