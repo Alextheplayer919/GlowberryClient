@@ -138,6 +138,38 @@ public class RadialMenuOverlay {
                 hide();
             }
         });
+        // Profile mode: the wheel draws the player's own profiles and routes each entry. It is
+        // switched on here so the fixed four-destination wheel above stays the fallback and the
+        // profile feature cannot regress it.
+        try {
+            menuView.setProfiles(activity);
+            menuView.setEntryListener(new RadialMenuView.EntryListener() {
+                @Override
+                public void onEntry(WheelEntry entry) {
+                    if (entry == null) return;
+                    if (entry.action == WheelEntry.Action.TOGGLE_MODULE) {
+                        InbuiltModManager manager = InbuiltModManager.getInstance(activity);
+                        boolean next = !manager.resolveInbuiltModEnabled(entry.target, false);
+                        manager.setInbuiltModEnabled(entry.target, next);
+                        InbuiltOverlayManager overlayManager = InbuiltOverlayManager.getInstance();
+                        if (overlayManager != null) {
+                            overlayManager.handleModToggle(entry.target, next);
+                        }
+                        menuView.invalidate();
+                        return;
+                    }
+                    hide();
+                    dispatchProfileEntry(entry);
+                }
+
+                @Override
+                public void onBack() {
+                    hide();
+                }
+            });
+        } catch (Throwable ignored) {
+            // No profiles available: the fixed wheel above is still fully wired.
+        }
         menuView.setChipToggle(new RadialMenuView.ChipToggle() {
             @Override
             public void onChipToggled(String moduleId) {
@@ -267,6 +299,34 @@ public class RadialMenuOverlay {
                 destinations.openSettings();
                 break;
             case HUD:
+                destinations.openHudEditor();
+                break;
+            default:
+                break;
+        }
+    }
+
+    /**
+     * Routes a profile entry that is not a module toggle.
+     *
+     * <p>It maps onto the same {@link Destinations} the fixed wheel uses, so a profile entry and a
+     * sector reach a destination through one path rather than two. A {@code TOGGLE_MODULE} entry
+     * never arrives here (it is handled without closing the wheel); a {@code OPEN_SUBWHEEL} entry is
+     * opened inside the view and never arrives here either.
+     */
+    private void dispatchProfileEntry(WheelEntry entry) {
+        if (destinations == null || entry == null) return;
+        switch (entry.action) {
+            case OPEN_MODS:
+                destinations.openMods();
+                break;
+            case OPEN_CLOSET:
+                destinations.openCloset();
+                break;
+            case OPEN_SETTINGS:
+                destinations.openSettings();
+                break;
+            case OPEN_HUD:
                 destinations.openHudEditor();
                 break;
             default:

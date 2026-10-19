@@ -54,6 +54,21 @@ public class RadialMenuView extends View {
         boolean isChipOn(String moduleId);
     }
 
+    /**
+     * Called when a profile-driven sector is selected, with the entry that owns it.
+     *
+     * <p>Separate from {@link Listener} on purpose: {@code Listener} is the fixed four-destination
+     * wheel's contract, while this carries an arbitrary profile entry (a module toggle, a screen, or
+     * a sub-wheel). Keeping them apart means the default wheel's routing cannot be broken by a
+     * profile feature it does not use.
+     */
+    public interface EntryListener {
+        /** The player selected an entry. */
+        void onEntry(WheelEntry entry);
+        /** The player backed out of the open sub-wheel. */
+        void onBack();
+    }
+
     private static final Sector[] SECTORS =
             {Sector.MODS, Sector.CLOSET, Sector.SETTINGS, Sector.HUD};
 
@@ -91,8 +106,20 @@ public class RadialMenuView extends View {
     private final List<Chip> chips = new ArrayList<>();
     private Listener listener;
     private ChipToggle chipToggle;
+    private EntryListener entryListener;
     private Sector highlighted = Sector.NONE;
     private int accent;
+
+    // --- Profile mode ---------------------------------------------------------------------------
+    //
+    // The wheel is either the fixed four-destination wheel (activeProfile == null) or a
+    // profile-driven one. The fixed wheel is left exactly as it was: the profile feature is
+    // additive, so a regression here cannot break the shipped routing.
+    private WheelEntry.Profile activeProfile;
+    private final WheelNavigation navigation = new WheelNavigation();
+    private WheelProfileStore profileStore;
+    /** The profile-entry index the pointer or cursor is over, or -1. */
+    private int highlightedEntry = -1;
 
     /** The controller cursor, non-null only while a pad is driving the wheel. */
     private CursorController cursor;
@@ -149,6 +176,68 @@ public class RadialMenuView extends View {
     public void setChipToggle(ChipToggle chipToggle) {
         this.chipToggle = chipToggle;
         invalidate();
+    }
+
+    public void setEntryListener(EntryListener entryListener) {
+        this.entryListener = entryListener;
+    }
+
+    /**
+     * Switches the wheel to a profile-driven one.
+     *
+     * <p>Loads the profiles, seeds the navigation at the root and draws the root's entries. Passing
+     * null returns the wheel to the fixed four-destination layout, so a caller that does not want
+     * profiles is unaffected.
+     */
+    public void setProfiles(Context context) {
+        try {
+            profileStore = new WheelProfileStore(context);
+            navigation.reset(profileStore.getRootId());
+            activeProfile = profileStore.rootProfile();
+        } catch (Throwable t) {
+            profileStore = null;
+            activeProfile = null;
+        }
+        highlightedEntry = -1;
+        invalidate();
+    }
+
+    /** True while the wheel is drawing a profile rather than the fixed four destinations. */
+    public boolean isProfileMode() {
+        return activeProfile != null;
+    }
+
+    /** The profile currently open (the top of the navigation stack). */
+    WheelEntry.Profile currentProfile() {
+        if (profileStore == null) return activeProfile;
+        WheelEntry.Profile p = WheelProfileStore.findById(profileStore.load(), navigation.currentId());
+        return p == null ? activeProfile : p;
+    }
+
+    /**
+     * Opens a sub-wheel by profile id.
+     *
+     * @return true when the profile exists and the stack accepted it
+     */
+    boolean openSubWheel(String id) {
+        if (profileStore == null || id == null) return false;
+        if (WheelProfileStore.findById(profileStore.load(), id) == null) return false;
+        if (!navigation.push(id)) return false;
+        highlightedEntry = -1;
+        playOpen();
+        return true;
+    }
+
+    /**
+     * Backs out one level.
+     *
+     * @return true when a sub-wheel was closed; false at the root, where the caller dismisses
+     */
+    boolean backOut() {
+        if (!navigation.pop()) return false;
+        highlightedEntry = -1;
+        playOpen();
+        return true;
     }
 
     private void buildChips() {
@@ -345,23 +434,31 @@ public class RadialMenuView extends View {
         }
 
         // Sectors.
-        for (int i = 0; i < SECTORS.length; i++) {
-            Sector s = SECTORS[i];
-            float center = (float) RadialWheelLayout.sectorCenterDegrees(s);
-            // Per-sector stagger: each starts 20ms after the previous.
-            float local = Math.max(0f, Math.min(1f, (openProgress * 180f - i * 20f) / 120f));
-            float scale = sectorScale[i] * (0.9f + 0.1f * local);
-            float rOuter = outer * scale;
-            float rInner = inner * scale;
-            drawSector(canvas, cx, cy, rInner, rOuter, center - 45f, 90f,
-                    s == highlighted, alpha, local);
+        if (activeProfile != null) {
+            drawProfileSectors(canvas, cx, cy, inner, outer, alpha);
+        } else {
+            for (int i = 0; i < SECTORS.length; i++) {
+                Sector s = SECTORS[i];
+                float center = (float) RadialWheelLayout.sectorCenterDegrees(s);
+                // Per-sector stagger: each starts 20ms after the previous.
+                float local = Math.max(0f, Math.min(1f, (openProgress * 180f - i * 20f) / 120f));
+                float scale = sectorScale[i] * (0.9f + 0.1f * local);
+                float rOuter = outer * scale;
+                float rInner = inner * scale;
+                drawSector(canvas, cx, cy, rInner, rOuter, center - 45f, 90f,
+                        s == highlighted, alpha, local);
+            }
         }
 
         // Hub (the player's head only).
         drawHub(canvas, cx, cy, hub, alpha);
 
         // Icons + labels.
-        drawSectorContent(canvas, cx, cy, (inner + outer) / 2f, alpha);
+        if (activeProfile != null) {
+            drawProfileContent(canvas, cx, cy, (inner + outer) / 2f, alpha);
+        } else {
+            drawSectorContent(canvas, cx, cy, (inner + outer) / 2f, alpha);
+        }
 
         // The enabled-module list (right side) and the controller cursor.
         drawEnabledList(canvas, getWidth(), getHeight(), alpha);
@@ -399,6 +496,136 @@ public class RadialMenuView extends View {
         rimPaint.setColor(UiTokens.withAlpha(UiTokens.WHEEL_SEGMENT_RIM,
                 (int) (0x24 * localProgress)));
         canvas.drawPath(sectorPath, rimPaint);
+    }
+
+    // --- Profile mode drawing -----------------------------------------------------------------
+
+    /**
+     * Draws the open profile's sectors.
+     *
+     * <p>The sector count follows the entry count (one to {@link WheelLayout#MAX_SECTORS}), and each
+     * sector takes the entry's own colour when it has one, so a profile with four entries looks like
+     * the fixed wheel while an eight-entry one is visibly denser. A single entry is drawn as a full
+     * ring, matching {@link WheelLayout#sectorAt}'s "one sector owns the whole ring" rule.
+     */
+    private void drawProfileSectors(Canvas canvas, float cx, float cy, float inner, float outer,
+                                    int alpha) {
+        WheelEntry.Profile profile = currentProfile();
+        if (profile == null) return;
+        List<WheelEntry> entries = profile.safeEntries();
+        int count = WheelLayout.clampSectorCount(entries.size());
+        if (entries.isEmpty()) return;
+
+        if (count == 1) {
+            // A one-entry wheel is a ring: draw the annulus with no seam.
+            drawRingSector(canvas, cx, cy, inner, outer, entries.get(0), 0 == highlightedEntry,
+                    alpha, 1f);
+            return;
+        }
+
+        double span = WheelLayout.sectorSpanDegrees(count);
+        for (int i = 0; i < entries.size() && i < count; i++) {
+            float local = Math.max(0f, Math.min(1f, (openProgress * 180f - i * 20f) / 120f));
+            float scale = 0.9f + 0.1f * local;
+            float start = (float) (WheelLayout.sectorCenterDegrees(i, count) - span / 2.0);
+            drawSectorColored(canvas, cx, cy, inner * scale, outer * scale, start, (float) span,
+                    i == highlightedEntry, alpha, local, entries.get(i).effectiveColor(accent));
+        }
+    }
+
+    /** Draws a profile sector with a per-entry fill colour (the four-destination path's variant). */
+    private void drawSectorColored(Canvas canvas, float cx, float cy, float rInner, float rOuter,
+                                   float startDeg, float sweepDeg, boolean hover, int alpha,
+                                   float localProgress, int entryColor) {
+        float gapPx = WheelLayout.GAP_DP * density;
+        float midR = (rInner + rOuter) / 2f;
+        float halfGapDeg = (float) WheelLayout.angularHalfGapDegrees(midR, gapPx);
+        float corner = RadialWheelLayout.SECTOR_CORNER_DP * density;
+        sectorPath.reset();
+        buildRoundedAnnularSector(sectorPath, cx, cy, rInner, rOuter,
+                startDeg + halfGapDeg, sweepDeg - 2f * halfGapDeg, corner);
+
+        int base = hover ? UiTokens.WHEEL_SEGMENT_HOVER : UiTokens.WHEEL_SEGMENT_BASE;
+        // Blend the entry's colour into the glass fill so a coloured sector still reads as glass.
+        int fill = blend(UiTokens.withAlpha(entryColor, 0x66), base);
+        sectorPaint.setStyle(Paint.Style.FILL);
+        sectorPaint.setColor(UiTokens.withAlpha(fill,
+                (int) (((fill >>> 24) & 0xFF) * localProgress)));
+        canvas.drawPath(sectorPath, sectorPaint);
+
+        rimPaint.setStyle(Paint.Style.STROKE);
+        rimPaint.setStrokeWidth(Math.max(1f, density));
+        rimPaint.setColor(UiTokens.withAlpha(hover ? entryColor : UiTokens.WHEEL_SEGMENT_RIM,
+                (int) ((hover ? 0xAA : 0x24) * localProgress)));
+        canvas.drawPath(sectorPath, rimPaint);
+    }
+
+    /** Draws the single-entry wheel as one full ring. */
+    private void drawRingSector(Canvas canvas, float cx, float cy, float rInner, float rOuter,
+                                WheelEntry entry, boolean hover, int alpha, float localProgress) {
+        float corner = RadialWheelLayout.SECTOR_CORNER_DP * density;
+        sectorPath.reset();
+        buildRoundedAnnularSector(sectorPath, cx, cy, rInner, rOuter, 0f, 360f, corner);
+        int base = hover ? UiTokens.WHEEL_SEGMENT_HOVER : UiTokens.WHEEL_SEGMENT_BASE;
+        int fill = blend(UiTokens.withAlpha(entry.effectiveColor(accent), 0x66), base);
+        sectorPaint.setStyle(Paint.Style.FILL);
+        sectorPaint.setColor(UiTokens.withAlpha(fill,
+                (int) (((fill >>> 24) & 0xFF) * localProgress)));
+        canvas.drawPath(sectorPath, sectorPaint);
+    }
+
+    /** Draws each profile sector's label in its own colour, at the sector's centre. */
+    private void drawProfileContent(Canvas canvas, float cx, float cy, float radius, int alpha) {
+        WheelEntry.Profile profile = currentProfile();
+        if (profile == null) return;
+        List<WheelEntry> entries = profile.safeEntries();
+        int count = WheelLayout.clampSectorCount(entries.size());
+        if (entries.isEmpty()) return;
+
+        float labelSize = UiTokens.TEXT_CAPTION * density;
+        labelPaint.setTextSize(labelSize);
+        for (int i = 0; i < entries.size() && i < count; i++) {
+            double a = Math.toRadians(WheelLayout.sectorCenterDegrees(i, count));
+            float px = cx + (float) (Math.cos(a) * radius);
+            float py = cy + (float) (Math.sin(a) * radius);
+            // A sub-wheel entry gets a chevron instead of an icon so "this opens another wheel" is
+            // visible before it is selected.
+            UiIcons.Icon icon = entries.get(i).isSubWheel() ? UiIcons.Icon.CHEVRON : iconFor(entries.get(i));
+            UiIcons.draw(canvas, iconPaint, icon, px, py - labelSize * 0.6f, 24f * density,
+                    UiTokens.withAlpha(entries.get(i).effectiveColor(accent), alpha), density);
+            labelPaint.setColor(UiTokens.withAlpha(UiTokens.TEXT_PRIMARY, alpha));
+            canvas.drawText(entries.get(i).label, px, py + labelSize * 0.9f, labelPaint);
+        }
+        // The open profile's name, so a nested wheel says where it is.
+        if (profile.name != null && !profile.name.isEmpty() && !navigation.atRoot()) {
+            labelPaint.setTextSize(UiTokens.TEXT_CAPTION * density);
+            labelPaint.setColor(UiTokens.withAlpha(UiTokens.TEXT_SECONDARY, alpha));
+            canvas.drawText(profile.name, cx, cy + RadialWheelLayout.hubRadius(outerRadius()) * 1.5f,
+                    labelPaint);
+        }
+    }
+
+    /** The icon for a profile entry, by action. */
+    private static UiIcons.Icon iconFor(WheelEntry entry) {
+        if (entry == null) return UiIcons.Icon.CUBE;
+        switch (entry.action) {
+            case OPEN_MODS: return UiIcons.Icon.CUBE;
+            case OPEN_CLOSET: return UiIcons.Icon.HANGER;
+            case OPEN_SETTINGS: return UiIcons.Icon.GEAR;
+            case OPEN_HUD: return UiIcons.Icon.PENCIL;
+            case OPEN_SUBWHEEL: return UiIcons.Icon.CHEVRON;
+            default: return UiIcons.Icon.CUBE;
+        }
+    }
+
+    /** Alpha-blends {@code over} onto {@code under} using the over's alpha. */
+    private static int blend(int over, int under) {
+        float a = ((over >>> 24) & 0xFF) / 255f;
+        int r = (int) (((over >> 16) & 0xFF) * a + ((under >> 16) & 0xFF) * (1 - a));
+        int g = (int) (((over >> 8) & 0xFF) * a + ((under >> 8) & 0xFF) * (1 - a));
+        int b = (int) ((over & 0xFF) * a + (under & 0xFF) * (1 - a));
+        int outA = Math.max((over >>> 24) & 0xFF, (under >>> 24) & 0xFF);
+        return (outA << 24) | (r << 16) | (g << 8) | b;
     }
 
     /** Builds a rounded annular sector as one closed path (outer arc, fillet, inner arc, fillet). */
@@ -740,6 +967,18 @@ public class RadialMenuView extends View {
         float outer = outerRadius();
         float inner = RadialWheelLayout.ringInnerRadius(outer);
         float radius = (inner + outer) / 2f;
+        if (activeProfile != null) {
+            int entry = profileEntryAt(cursor.x(), cursor.y());
+            if (entry >= 0) {
+                int count = WheelLayout.clampSectorCount(currentProfile().safeEntries().size());
+                double a = Math.toRadians(WheelLayout.sectorCenterDegrees(entry, count));
+                cursor.setMagnetTarget(true, cx + (float) (Math.cos(a) * radius),
+                        cy + (float) (Math.sin(a) * radius));
+            } else {
+                cursor.setMagnetTarget(false, 0f, 0f);
+            }
+            return;
+        }
         Sector s = RadialWheelLayout.sectorAtLinear(
                 cursor.x() - cx, cursor.y() - cy, inner, outer, RadialWheelLayout.GAP_DP * density);
         if (RadialWheelLayout.isDestination(s)) {
@@ -757,9 +996,14 @@ public class RadialMenuView extends View {
         float cy = centerY();
         float outer = outerRadius();
         float inner = RadialWheelLayout.ringInnerRadius(outer);
-        Sector s = RadialWheelLayout.sectorAtLinear(
-                cursor.x() - cx, cursor.y() - cy, inner, outer, RadialWheelLayout.GAP_DP * density);
-        setHighlight(s);
+        if (activeProfile != null) {
+            highlightedEntry = profileEntryAt(cursor.x(), cursor.y());
+        } else {
+            Sector s = RadialWheelLayout.sectorAtLinear(
+                    cursor.x() - cx, cursor.y() - cy, inner, outer,
+                    RadialWheelLayout.GAP_DP * density);
+            setHighlight(s);
+        }
         int[] hit = chipHit(cursor.x(), cursor.y(), getWidth(), getHeight());
         cursorChip = hit != null && hit[0] == 1 ? hit[1] : -1;
     }
@@ -785,6 +1029,14 @@ public class RadialMenuView extends View {
                 return true;
             }
         }
+        if (activeProfile != null) {
+            int entry = profileEntryAt(cursor.x(), cursor.y());
+            if (entry >= 0) {
+                activateProfileEntry(entry);
+                return true;
+            }
+            return false;
+        }
         float cx = centerX();
         float cy = centerY();
         float outer = outerRadius();
@@ -798,8 +1050,21 @@ public class RadialMenuView extends View {
         return false;
     }
 
-    /** The BACK button. */
+    /**
+     * The BACK button.
+     *
+     * <p>In profile mode this backs out of a sub-wheel first, and only dismisses at the root — the
+     * same "Back leaves the current level" rule the launcher's own screens use.
+     */
     public boolean controllerBack() {
+        if (activeProfile != null && backOut()) {
+            performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
+            return true;
+        }
+        if (entryListener != null && activeProfile != null) {
+            entryListener.onBack();
+            return true;
+        }
         if (listener != null) {
             listener.onDismiss();
             return true;
@@ -844,8 +1109,18 @@ public class RadialMenuView extends View {
         invalidate();
     }
 
-    /** The D-pad left/right: step through the sectors. */
+    /** The D-pad left/right: step through the sectors (or the open profile's entries). */
     public void focusNextSector(int direction) {
+        if (activeProfile != null) {
+            WheelEntry.Profile profile = currentProfile();
+            if (profile == null || profile.safeEntries().isEmpty()) return;
+            int count = WheelLayout.clampSectorCount(profile.safeEntries().size());
+            int current = highlightedEntry < 0 ? 0 : highlightedEntry;
+            highlightedEntry = ((current + direction) % count + count) % count;
+            performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
+            invalidate();
+            return;
+        }
         Sector[] order = {Sector.MODS, Sector.CLOSET, Sector.SETTINGS, Sector.HUD};
         Sector current = highlighted;
         int idx = 0;
@@ -882,17 +1157,37 @@ public class RadialMenuView extends View {
                 if (handleChipTap(event.getX(), event.getY(), getWidth(), getHeight())) {
                     return true;
                 }
-                setHighlight(RadialWheelLayout.sectorAtLinear(
-                        event.getX() - cx, event.getY() - cy, inner, outer, gapPx));
+                if (activeProfile != null) {
+                    highlightedEntry = profileEntryAt(event.getX(), event.getY());
+                } else {
+                    setHighlight(RadialWheelLayout.sectorAtLinear(
+                            event.getX() - cx, event.getY() - cy, inner, outer, gapPx));
+                }
                 // Touch turns the head the same way the stick does: look at the pointer.
                 updateHeadLook(event.getX(), event.getY(), 1f / 60f);
                 return true;
             case MotionEvent.ACTION_MOVE:
-                setHighlight(RadialWheelLayout.sectorAtLinear(
-                        event.getX() - cx, event.getY() - cy, inner, outer, gapPx));
+                if (activeProfile != null) {
+                    highlightedEntry = profileEntryAt(event.getX(), event.getY());
+                    invalidate();
+                } else {
+                    setHighlight(RadialWheelLayout.sectorAtLinear(
+                            event.getX() - cx, event.getY() - cy, inner, outer, gapPx));
+                }
                 updateHeadLook(event.getX(), event.getY(), 1f / 60f);
                 return true;
             case MotionEvent.ACTION_UP:
+                if (activeProfile != null) {
+                    int hit = profileEntryAt(event.getX(), event.getY());
+                    highlightedEntry = -1;
+                    invalidate();
+                    if (hit >= 0) {
+                        activateProfileEntry(hit);
+                    } else if (listener != null) {
+                        listener.onDismiss();
+                    }
+                    return true;
+                }
                 Sector s = RadialWheelLayout.sectorAtLinear(
                         event.getX() - cx, event.getY() - cy, inner, outer, gapPx);
                 highlighted = Sector.NONE;
@@ -908,11 +1203,46 @@ public class RadialMenuView extends View {
                 return true;
             case MotionEvent.ACTION_CANCEL:
                 highlighted = Sector.NONE;
+                highlightedEntry = -1;
                 invalidate();
                 return true;
             default:
                 return super.onTouchEvent(event);
         }
+    }
+
+    /** The profile-entry index under a point, or -1. */
+    private int profileEntryAt(float x, float y) {
+        WheelEntry.Profile profile = currentProfile();
+        if (profile == null) return -1;
+        int count = WheelLayout.clampSectorCount(profile.safeEntries().size());
+        if (profile.safeEntries().isEmpty()) return -1;
+        float outer = outerRadius();
+        float inner = ringInnerRadius();
+        return WheelLayout.sectorAt(x - centerX(), y - centerY(), inner, outer,
+                WheelLayout.GAP_DP * density, count);
+    }
+
+    /**
+     * Performs a profile entry's action.
+     *
+     * <p>A sub-wheel is opened in place (the wheel is navigation, not a destination); anything else
+     * is handed to the {@link EntryListener}, which owns the launcher-side routing. A sub-wheel
+     * entry whose target no longer resolves is refused rather than silently doing nothing, so the
+     * caller can dismiss.
+     */
+    private void activateProfileEntry(int index) {
+        WheelEntry.Profile profile = currentProfile();
+        if (profile == null) return;
+        List<WheelEntry> entries = profile.safeEntries();
+        if (index < 0 || index >= entries.size()) return;
+        WheelEntry entry = entries.get(index);
+        if (entry.isSubWheel() && openSubWheel(entry.target)) {
+            performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
+            return;
+        }
+        performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+        if (entryListener != null) entryListener.onEntry(entry);
     }
 
     /** Toggles the module row under the pointer, if any; returns true when a row was hit. */
