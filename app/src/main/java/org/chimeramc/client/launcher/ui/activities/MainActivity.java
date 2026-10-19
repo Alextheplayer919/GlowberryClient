@@ -215,6 +215,10 @@ import okhttp3.OkHttpClient;
         });
 
         initAccountHeader();
+        // Auto sign-in: silently refresh the active account's stored token in the background. The
+        // Microsoft refresh path works from the saved auth blob regardless of how stale it is; only
+        // a genuinely dead/revoked token routes to the sign-in screen (with the reason pre-shown).
+        autoRefreshActiveAccount();
         binding.getRoot().post(this::showPostEulaFlow);
         binding.getRoot().post(this::playArrivalAnimations);
     }
@@ -357,6 +361,61 @@ import okhttp3.OkHttpClient;
         java.util.List<MsftAccountStore.MsftAccount> list = MsftAccountStore.list(this);
         for (MsftAccountStore.MsftAccount a : list) if (a.active) return a;
         return null;
+    }
+
+    /**
+     * Refreshes the active account's Microsoft token silently on the background thread at launch.
+     *
+     * <p>The working sign-in path is {@link MsftAuthManager#refreshAndAuth}, which replays the stored
+     * {@code serializedAuthManager} blob through the Bedrock Android client id. The MSAL silent path
+     * can never succeed against a placeholder client id, so the default flow never depends on it.
+     * Whatever the account's age, refreshing at launch keeps its certificate chain from expiring
+     * mid-session; {@link MsftAuthManager#saveAccountOrThrow} persists the fresh blob so the next
+     * launch finds it already current.
+     *
+     * <p>If the refresh throws, the sign-in screen opens with the reason already visible
+     * ({@link org.chimeramc.client.ui.activities.MsftLoginActivity#EXTRA_PRELOADED_ERROR}) so the
+     * user does not see a silent no-op.
+     */
+    private void autoRefreshActiveAccount() {
+        MsftAccountStore.MsftAccount active = getActiveAccount();
+        if (active == null || isFinishing() || isDestroyed()) {
+            return;
+        }
+        final String accountId = active.id;
+        accountExecutor.execute(() -> {
+            try {
+                BedrockAuthManager authManager = MsftAuthManager.refreshAndAuth(active);
+                MsftAuthManager.saveAccountOrThrow(MainActivity.this, authManager);
+                runOnUiThread(() -> {
+                    if (!isFinishing() && !isDestroyed()) {
+                        refreshAccountHeaderUI();
+                        refreshNavAccountUI();
+                    }
+                });
+            } catch (Exception e) {
+                // A stale or revoked token can no longer be refreshed silently. Send the user to the
+                // sign-in screen with the failure already explained instead of leaving them signed out
+                // with no prompt.
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                String error = MsftAuthManager.describeError(e);
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed() || accountId == null) {
+                        return;
+                    }
+                    MsftAccountStore.MsftAccount stillActive = MsftAccountStore.find(MainActivity.this, accountId);
+                    if (stillActive == null || !stillActive.active) {
+                        // The user switched accounts while the refresh was running; do not hijack it.
+                        return;
+                    }
+                    Intent intent = new Intent(MainActivity.this, MsftLoginActivity.class);
+                    intent.putExtra(MsftLoginActivity.EXTRA_PRELOADED_ERROR, error);
+                    accountLoginLauncher.launch(intent);
+                });
+            }
+        });
     }
 
      private void setupOnBackPressedCallback() {

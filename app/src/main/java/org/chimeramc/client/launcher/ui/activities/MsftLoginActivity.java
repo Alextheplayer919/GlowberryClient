@@ -61,6 +61,13 @@ public class MsftLoginActivity extends BaseActivity {
     public static final String EXTRA_LOGIN_NAME = "ms_login_name";
     public static final String EXTRA_USE_MSAL = "use_msal_login";
 
+    /**
+     * Optional pre-populated failure message ({@code String}). When present, the account chooser
+     * opens with this reason on the error line instead of a blank slate. The launcher sets it when
+     * an automatic token refresh failed, so the player sees why they were dropped to sign-in.
+     */
+    public static final String EXTRA_PRELOADED_ERROR = "ms_login_preloaded_error";
+
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final AtomicBoolean cancelled = new AtomicBoolean(false);
     private final AtomicBoolean completed = new AtomicBoolean(false);
@@ -188,7 +195,10 @@ public class MsftLoginActivity extends BaseActivity {
             }
         });
 
-        showMethodChooser(null);
+        // If the launcher dropped us here because an automatic refresh failed, show the reason on the
+        // chooser immediately so the user knows why sign-in is required again.
+        String preloadedError = getIntent() != null ? getIntent().getStringExtra(EXTRA_PRELOADED_ERROR) : null;
+        showMethodChooser(preloadedError);
     }
 
     /**
