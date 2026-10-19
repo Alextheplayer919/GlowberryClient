@@ -492,6 +492,25 @@ def analyze(path, version_override=None, rules_path=None):
     adder = {"name_present": len(elf.find_in_section(".rodata", b"AddPlayerPacket"))}
     f["network_handler"] = adder
 
+    # --- 6. Render-distance option anchor (item 10) ---
+    # Actually changing the game's render distance needs the options setter, which is not exported.
+    # The route the item describes is a string anchor: find the option's own name in .rodata, then
+    # the code that references it. Report whether the anchor string exists at all and how many code
+    # sites reference it, so the launcher can say the route is possible for this build rather than
+    # guessing a setter address.
+    rd_names = ("render_distance", "renderDistance", "RenderDistance", "graphics_settings",
+                "view_distance", "options.txt")
+    rd = {name: len(elf.find_in_section(".rodata", name.encode())) for name in rd_names}
+    rd["anchor_present"] = any(rd.values())
+    rd["code_refs"] = 0
+    anchor_va = elf.typeinfo_name_va("render_distance")
+    text_sec = elf.by_name.get(".text")
+    if anchor_va is not None and text_sec is not None:
+        rd["code_refs"] = len(
+            scan_code_referencing(elf.section_text(".text"), text_sec["addr"], anchor_va)
+        )
+    f["render_distance_option"] = rd
+
     # --- derived rules entry ---
     result["derived_rules"]["checksum_sha256"] = result["sha256"]
     result["derived_rules"]["min"] = result["version"]

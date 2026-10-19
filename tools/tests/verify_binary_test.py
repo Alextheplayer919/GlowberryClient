@@ -218,6 +218,17 @@ def main():
         probes = result["derived_rules"].get("probes") or {}
         check(probes.get("playerRenderVtableIndex", {}).get("resolved") is True,
               "the derived entry carries a resolved probe for the render slot")
+        # Item 2: the persona names are reported per build, and a build with none must say the
+        # layout is not recoverable rather than assume one.
+        skin = result["findings"]["serialized_skin_ref"]
+        check("persona_names_present" in skin, "the skin finding reports the persona names")
+        check(skin["persona_layout_recoverable"] is False,
+              "a build carrying no persona names reads as unrecoverable")
+        # Item 10: the render-distance anchor is reported, and a build with no anchor reads as such.
+        rd = result["findings"]["render_distance_option"]
+        check("anchor_present" in rd, "the render-distance anchor presence is reported")
+        check(rd["anchor_present"] is False,
+              "a build with no render-distance string reads as no anchor")
         check(len(result["sha256"]) == 64, "a SHA-256 is reported")
 
     print("verify_binary_test: %d checks, %d failure(s)" % (_checks, len(_failures)))
