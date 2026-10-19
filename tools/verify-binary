@@ -66,16 +66,57 @@ def _sign_extend(value, bits):
     return value
 
 
+def _scan_code_referencing_python(text_bytes, text_va, target_va):
+    """Pure-Python ADRP(+ADD) scan: the fallback when numpy is unavailable.
+
+    numpy is only a speed-up here; the rule is the same. Returning an empty list because a
+    dependency was missing would read as "no references" and silently disable every RTTI-derived
+    seam, which is exactly the kind of quiet wrong answer this tool exists to avoid. So the scan is
+    implemented twice and the caller picks whichever is available.
+    """
+    target_page = target_va & ~0xFFF
+    hits = []
+    n = (len(text_bytes) // 4) * 4
+    for off in range(0, n, 4):
+        word = struct.unpack_from("<I", text_bytes, off)[0]
+        if (word & 0x9F000000) != 0x90000000:  # not ADRP
+            continue
+        if off + 8 > n:
+            continue
+        immlo = (word >> 29) & 0x3
+        immhi = (word >> 5) & 0x7FFFF
+        imm = (immhi << 2) | immlo
+        if imm & (1 << 20):
+            imm -= (1 << 21)
+        pc = text_va + off
+        page = (pc & ~0xFFF) + (imm << 12)
+        if page != target_page:
+            continue
+        nxt = struct.unpack_from("<I", text_bytes, off + 4)[0]
+        if (nxt & 0x7F800000) in (0x11000000, 0x91000000):
+            imm12 = (nxt >> 10) & 0xFFF
+            shift = (nxt >> 22) & 0x3
+            resolved = page + (imm12 << (12 if shift == 1 else 0))
+            if resolved == target_va:
+                hits.append(pc)
+    return hits
+
+
 def scan_code_referencing(text_bytes, text_va, target_va):
     """Find every code VA whose ADRP(+ADD) pair resolves to ``target_va``.
 
-    This is the cheap, vectorised replacement for disassembling every vtable slot's body: a
-    reference to a ``.rodata`` string on AArch64 is an ADRP page load followed by an ADD of the
-    low 12 bits. Scanning the instruction stream once and matching the resolved page against the
-    target's page finds every reference without a disassembler.
+    This is the cheap replacement for disassembling every vtable slot's body: a reference to a
+    ``.rodata`` string on AArch64 is an ADRP page load followed by an ADD of the low 12 bits.
+    Scanning the instruction stream once and matching the resolved page against the target's page
+    finds every reference without a disassembler.
+
+    Uses the vectorised path when numpy is present and an equivalent pure-Python one otherwise, so a
+    missing numpy never degrades to a false "no references".
     """
-    if _np is None or len(text_bytes) < 8:
+    if len(text_bytes) < 8:
         return []
+    if _np is None:
+        return _scan_code_referencing_python(text_bytes, text_va, target_va)
     words = _np.frombuffer(text_bytes[: (len(text_bytes) // 4) * 4], dtype=_np.uint32)
     # ADRP: bit31 set, bits 28..24 = 0b10000 -> (w & 0x9F000000) == 0x90000000
     is_adrp = (words & _np.uint32(0x9F000000)) == _np.uint32(0x90000000)

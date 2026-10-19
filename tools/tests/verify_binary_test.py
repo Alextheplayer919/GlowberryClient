@@ -172,6 +172,18 @@ def main():
     check(vb.scan_code_referencing(bytes(words2), text_va, target) == [],
           "a mismatched ADD immediate is not a reference")
 
+    # The pure-Python fallback (numpy absent) must agree with the vectorised path, or a machine
+    # without numpy silently reports "no references" and disables every RTTI-derived seam.
+    had_numpy = vb._np
+    try:
+        vb._np = None
+        check(vb.scan_code_referencing(bytes(words), text_va, target) == [0x1000],
+              "the pure-Python scan resolves the same reference")
+        check(vb.scan_code_referencing(bytes(words2), text_va, target) == [],
+              "the pure-Python scan rejects the same mismatch")
+    finally:
+        vb._np = had_numpy
+
     class FakeElf:
         def __init__(self, text):
             self._text = text
