@@ -242,4 +242,29 @@ public class CosmeticsDiagnosticsReportTest {
         // A JVM test has no libpreloader, so this must be a safe no-op rather than a crash.
         NativeCosmeticsBridge.clearLocal();
     }
+
+    @Test
+    public void theFramePacingLineIsHonestAboutAMissingReading() {
+        CosmeticsDiagnosticsReport.Inputs none = fullInputs();
+        none.framePacingAvailable = false;
+        assertTrue(CosmeticsDiagnosticsReport.format(none).contains("Frame pacing: no reading yet"));
+    }
+
+    @Test
+    public void theFramePacingLineReportsLockAndHitch() {
+        CosmeticsDiagnosticsReport.Inputs locked = fullInputs();
+        locked.framePacingAvailable = true;
+        locked.framePacingAverageUs = 16667;
+        locked.framePacingWorstUs = 17000;
+        locked.framePacingVsyncLocked = true;
+        String report = CosmeticsDiagnosticsReport.format(locked);
+        assertTrue(report.contains("Frame pacing: 16.7 ms average, 17.0 ms worst — vsync-locked"));
+
+        CosmeticsDiagnosticsReport.Inputs hitching = fullInputs();
+        hitching.framePacingAvailable = true;
+        hitching.framePacingAverageUs = 16667;
+        hitching.framePacingWorstUs = 60000;
+        hitching.framePacingJittering = true;
+        assertTrue(CosmeticsDiagnosticsReport.format(hitching).contains("a recent frame was late"));
+    }
 }

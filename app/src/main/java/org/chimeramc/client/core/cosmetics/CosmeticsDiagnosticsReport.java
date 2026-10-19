@@ -103,6 +103,16 @@ public final class CosmeticsDiagnosticsReport {
         public boolean lastCrashTruncated;
         /** True when the report was generated while a world was loaded (not in a menu). */
         public boolean inWorld;
+        /** Item 11: the render thread's smoothed frame interval in microseconds, or -1 unknown. */
+        public int framePacingAverageUs = -1;
+        /** Item 11: the worst frame interval in the recent window, or -1 unknown. */
+        public int framePacingWorstUs = -1;
+        /** Item 11: a recent frame was late (a hitch). */
+        public boolean framePacingJittering;
+        /** Item 11: the frame interval matched the display interval. */
+        public boolean framePacingVsyncLocked;
+        /** Item 11: whether a frame-pacing reading exists at all this session. */
+        public boolean framePacingAvailable;
         /** True when a game session is running (the launcher's own session flag). */
         public boolean sessionActive;
         /** The HUD hook's "a HUD screen is open" reading, or false when the hook has not fired. */
@@ -147,6 +157,19 @@ public final class CosmeticsDiagnosticsReport {
             }
         }
         in.cameraAnchorSource = PreloaderInput.cameraAnchorSource();
+
+        // Item 11: the render-thread frame-pacing reading, when the renderer has produced frames.
+        try {
+            int[] pacing = PreloaderInput.readFramePacing();
+            if (pacing != null) {
+                in.framePacingAvailable = true;
+                in.framePacingAverageUs = pacing[1];
+                in.framePacingWorstUs = pacing[2];
+                in.framePacingJittering = (pacing[3] & 1) != 0;
+                in.framePacingVsyncLocked = (pacing[3] & 2) != 0;
+            }
+        } catch (Throwable ignored) {
+        }
 
         // The local-player feed, decoded from its raw float bits. Only present when live.
         int[] feed = PreloaderInput.readLocalPlayerFeed();
@@ -291,6 +314,7 @@ public final class CosmeticsDiagnosticsReport {
         b.append("Frames seen: ").append(countText(v.framesSeen)).append('\n');
         b.append("Local player feed: ").append(localPlayerText(v)).append('\n');
         b.append("Camera anchor source: ").append(cameraText(v)).append('\n');
+        b.append("Frame pacing: ").append(framePacingText(v)).append('\n');
         b.append("Cape engine texture route: ").append(yesNo(v.capeEngineRouteLive)).append('\n');
         b.append("Engine image pipeline live: ").append(yesNo(v.imagePipelineLive)).append('\n');
         b.append("GL backend: ").append(backendText(v.glBackend)).append('\n');
@@ -450,6 +474,34 @@ public final class CosmeticsDiagnosticsReport {
         return v.cameraAnchorSource == 1
                 ? "engine view-projection"
                 : "first-person fallback (engine camera did not resolve)";
+    }
+
+    /**
+     * The render-thread frame-pacing line (item 11). "no reading yet" is distinct from a bad
+     * interval: the renderer has to produce two frames before any interval exists. The verdict
+     * never claims a lock without a reading, and an unknown display rate is never called locked.
+     */
+    private static String framePacingText(Inputs v) {
+        if (!v.framePacingAvailable || v.framePacingAverageUs < 0) return "no reading yet";
+        StringBuilder s = new StringBuilder();
+        s.append(formatMicros(v.framePacingAverageUs)).append(" average");
+        if (v.framePacingWorstUs >= 0) {
+            s.append(", ").append(formatMicros(v.framePacingWorstUs)).append(" worst");
+        }
+        if (v.framePacingJittering) {
+            s.append(" — a recent frame was late (hitching)");
+        } else if (v.framePacingVsyncLocked) {
+            s.append(" — vsync-locked");
+        } else {
+            s.append(" — steady, not vsync-locked");
+        }
+        return s.toString();
+    }
+
+    /** Microseconds to a short "16.7 ms" form; a sub-millisecond value is shown in microseconds. */
+    private static String formatMicros(int micros) {
+        if (micros < 1000) return micros + " us";
+        return String.format(Locale.US, "%.1f ms", micros / 1000.0);
     }
 
     /** The honest status line, matching the rule the Cosmetics panel uses. */

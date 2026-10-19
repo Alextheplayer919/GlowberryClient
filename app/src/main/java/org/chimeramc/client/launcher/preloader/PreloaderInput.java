@@ -223,6 +223,15 @@ public class PreloaderInput {
     public static native int[] nativeReadRenderDiagnostics();
     public static native int nativeRenderHookFailureReason();
 
+    /** Item 11: tells the native side the display refresh rate, so it can decide vsync lock. */
+    public static native void nativeSetDisplayRefreshHz(int hz);
+
+    /**
+     * Item 11: the render-thread frame-pacing reading, as {valid, averageUs, worstUs, flags} where
+     * flags bit0 = jittering and bit1 = vsync-locked. Length 1 (or null) means "no reading yet".
+     */
+    public static native int[] nativeReadFramePacing();
+
     /**
      * The local-player feed as {live, xBits, yBits, zBits, yawBits, pitchBits}. Floats are the raw
      * IEEE-754 bits of the position and view rotation; the caller decodes them.
@@ -650,6 +659,27 @@ public class PreloaderInput {
             return nativeRenderHookFailureReason();
         } catch (UnsatisfiedLinkError e) {
             return -1;
+        }
+    }
+
+    /** Item 11: forwards the display refresh rate to the native frame-pacing reading. */
+    public static void setDisplayRefreshHz(int hz) {
+        try {
+            nativeSetDisplayRefreshHz(hz);
+        } catch (UnsatisfiedLinkError ignored) {
+        }
+    }
+
+    /**
+     * Item 11: the render-thread frame-pacing reading, or null when there is no reading yet. The
+     * array is {valid, averageUs, worstUs, flags}; flags bit0 = jittering, bit1 = vsync-locked.
+     */
+    public static int[] readFramePacing() {
+        try {
+            int[] value = nativeReadFramePacing();
+            return value != null && value.length >= 4 && value[0] == 1 ? value : null;
+        } catch (UnsatisfiedLinkError e) {
+            return null;
         }
     }
 
