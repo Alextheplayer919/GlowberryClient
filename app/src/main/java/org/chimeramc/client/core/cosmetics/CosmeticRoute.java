@@ -72,4 +72,25 @@ public final class CosmeticRoute {
     public static boolean isPreviewOnly(Piece piece, boolean engineTexture, boolean nativeRenderer) {
         return !isLiveInGame(piece, engineTexture, nativeRenderer);
     }
+
+    /**
+     * Whether the running graphics backend is the reason a piece is not live.
+     *
+     * <p>Item 12 asked whether hats and pets need marking unsupported on Vulkan. They do not: the
+     * GLES mesh rasteriser is retired, and every route a cosmetic takes now is backend-agnostic
+     * (the cape's engine texture swap, and the native player-render hook, which detours the engine's
+     * own render call regardless of whether it draws with GLES or Vulkan). So the backend never
+     * decides a cosmetic's route, and the UI must not imply Vulkan is the cause of a preview-only
+     * piece. This predicate is the single place that answer lives, so a future GLES-dependent route
+     * has to change it deliberately rather than by accident.
+     *
+     * @param backend the running backend (informational for the route)
+     * @return always false today, pinned by a test so the UI cannot blame Vulkan for a preview-only
+     *         piece
+     */
+    public static boolean backendBlocksThisPiece(RenderBackend.Kind backend) {
+        // Every cosmetic route is backend-agnostic. If a route ever becomes GLES-only, this is the
+        // predicate to change, and the test that pins it will fail until the UI is updated with it.
+        return false;
+    }
 }

@@ -65,4 +65,14 @@ public class CosmeticRouteTest {
         assertEquals(CosmeticRoute.Route.PREVIEW_ONLY,
                 CosmeticRoute.routeFor(null, true, true));
     }
+
+    @Test
+    public void theGraphicsBackendNeverBlocksAPiece() {
+        // Item 12: hats and pets are not "unsupported on Vulkan". Every route a cosmetic takes is
+        // backend-agnostic, so no backend may be reported as the reason a piece is preview-only.
+        for (RenderBackend.Kind backend : RenderBackend.Kind.values()) {
+            assertFalse("backend " + backend + " must not block a piece",
+                    CosmeticRoute.backendBlocksThisPiece(backend));
+        }
+    }
 }

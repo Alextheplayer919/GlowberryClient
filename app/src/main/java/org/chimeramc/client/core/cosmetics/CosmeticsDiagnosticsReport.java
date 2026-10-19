@@ -374,6 +374,8 @@ public final class CosmeticsDiagnosticsReport {
                 return "resolved slot is not executable code";
             case 4:
                 return "hook() install call failed";
+            case 5:
+                return "the matching rule's probe for the render seam did not resolve";
             default:
                 return "unknown";
         }
