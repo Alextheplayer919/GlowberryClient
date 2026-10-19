@@ -133,6 +133,13 @@ jobs:
       - name: Grant Execute Permission to gradlew
         run: chmod +x ./gradlew
 
+      - name: Run preloader host tests
+        # Item 21 (preloader update list): the pure C++ logic (geometry parser, animation
+        # solver, socket protocol, hook-install gate, version compare, ...) is device-free and
+        # must break the build on every commit, not only on a device. The runner self-fetches
+        # nlohmann/json into a gitignored cache when needed.
+        run: bash app/src/main/cpp/preloader/tests/cosmetics/run_tests.sh
+
       - name: Inject API Keys
         env:
           CF_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
