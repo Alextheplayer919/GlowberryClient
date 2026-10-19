@@ -468,6 +468,17 @@ def analyze(path, version_override=None, rules_path=None):
                  "getCapeId", "getSkinColor", "getProfileHash", "SerializedSkinRef"):
         hits = elf.find_in_section(".rodata", name.encode())
         skin["accessor_names_present"][name] = len(hits)
+    # Item 2: the persona half of the skin. Whether the persona piece fields are recoverable is a
+    # per-build question, so report the accessor/type names a build actually carries rather than
+    # assuming a layout. A build with zero persona names is reported as such - the launcher then
+    # cannot claim a persona reading it cannot make.
+    persona_names = ("PersonaPiece", "PersonaPieceTintColor", "getPersonaPieces",
+                     "getPersonaSkinPieceId", "getPieceType", "getPieceId",
+                     "getPersonaCapePiece", "PersonaSkinPiece")
+    skin["persona_names_present"] = {
+        name: len(elf.find_in_section(".rodata", name.encode())) for name in persona_names
+    }
+    skin["persona_layout_recoverable"] = any(skin["persona_names_present"].values())
     f["serialized_skin_ref"] = skin
 
     # --- 4. mce::Image loader signature ---
