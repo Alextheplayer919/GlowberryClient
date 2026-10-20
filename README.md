@@ -270,6 +270,8 @@ GlowberryClient is an independent project that stands on the shoulders of the op
 
 <img src="docs/assets/glowberry_mark.png" alt="GlowberryClient" width="72">
 
+[![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/ChimeraAnt-DEV/badge.svg)](https://hub.xerj.org/contributors/ChimeraAnt-DEV)
+
 **Made with ❤️ by the Chimera Team Community**
 
 <sub>All rights reserved.</sub>
