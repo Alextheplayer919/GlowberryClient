@@ -7,15 +7,18 @@
     (end) the account controls.
     Below the divider sits the screen's own content — this file is only the chrome.
 
+    This layout is only used on a compact window (<600dp); a wider window gets the vertical rail
+    (nav_rail.xml) instead, chosen at runtime from the window width by NavLayoutMode (U5).
+
     The row is a ConstraintLayout rather than a box with three children because the previous
     layout let the wordmark and the tab strip overlap: the name was wrap_content with no line
     limit and the tabs were a wrap_content scroll view centred against it, so on a narrow phone
     (or a Samsung at large font scale) the name wrapped to two lines and slid under the first
     tab. Here the name is pinned between the logo and the tab strip with a hard end constraint,
     one line, an ellipsis and autosize; the tab strip is pinned to the end controls and scrolls;
-    and the wordmark itself is hidden entirely on a narrow window (see @bool/nav_show_app_name),
-    where the tabs go icon-only with only the selected label shown. Those three together mean the
-    bar cannot collide at any width or font scale.
+    and the wordmark is hidden on this window entirely, where the tabs go icon-only with only the
+    selected label shown. Those three together mean the bar cannot collide at any width or font
+    scale.
 
     Four destinations (U1), not six: Instances/Install/Replay are one Library screen, Cosmetics is
     a profile sheet on Play, and Controller/Skins/Voice live in Settings. A tab that only exists to
@@ -66,8 +69,8 @@
             The wordmark. Constraints (not a maxWidth) are what keep it off the tabs: it starts
             after the logo and ends where the tab strip starts, so it can never grow under them.
             maxLines + singleLine + ellipsize handle the remaining squeeze; autosize shrinks it
-            on very narrow windows; visibility is set from @bool/nav_show_app_name so a narrow
-            window drops it entirely.
+            on very narrow windows. On this compact bar it is hidden (BaseActivity decides from
+            NavLayoutMode); the rail shows it when the window has room for labels.
         -->
         <TextView
             android:id="@+id/nav_app_name"

@@ -26,5 +26,8 @@
         plus their labels must share the row.
     -->
     <dimen name="nav_tab_padding">14dp</dimen>
+    <!-- The vertical rail's width and the height of one destination row in it (U5). -->
+    <dimen name="nav_rail_width">72dp</dimen>
+    <dimen name="nav_rail_tab_height">44dp</dimen>
     <dimen name="nav_tab_drawable_padding">0dp</dimen>
 </resources>

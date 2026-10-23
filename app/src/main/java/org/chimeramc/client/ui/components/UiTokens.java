@@ -114,6 +114,7 @@ public final class UiTokens {
     public static final int ROW_TITLE_WEIGHT = 500;
     public static final float TEXT_CAPTION = 11f;
     public static final int CAPTION_WEIGHT = 400;
+    /** The UI's one variable family (U6/U8): weights are axis values, not NORMAL/BOLD. */
     public static final float TEXT_SECTION = 10f;
     public static final int SECTION_WEIGHT = 600;
     public static final float SECTION_LETTER_SPACING = 0.08f;

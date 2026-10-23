@@ -115,6 +115,47 @@
 - **Do not add a recursive "apply card rounding to every GradientDrawable" walk.** `MainActivity.applyCardRounding` deliberately touches only the launch/select buttons; a full-tree radius rewrite also flattens pills (`bg_filter_chip` 20dp), tags (4dp) and accent bars (1.5dp).
 
 ## Top-level navigation (org.chimeramc.client.ui.navigation.LauncherTab + BaseActivity)
+- **The navigation shape is adaptive (U5), chosen at runtime from the window width.** `NavLayoutMode`
+  (in `ui.navigation`) is the pure rule: `< 600dp` → `BOTTOM_NAV` (the top bar, `nav_bar.xml`),
+  `600–839dp` → `NAV_RAIL` (a vertical icon rail, `nav_rail.xml`), `>= 840dp` → `EXPANDED_RAIL` (the
+  same rail with every label). `BaseActivity.wrapWithNavBar` reads it once, picks the layout and the
+  wrapper orientation (`VERTICAL` for the bar, `HORIZONTAL` for the rail), and the content's enter
+  animation axis with it. **Both layouts declare the same ids**, so nothing downstream branches on
+  which one inflated — only `navLayoutMode` does, for labels and the indicator axis.
+- **The breakpoint is read from `smallestScreenWidthDp`, not `screenWidthDp`.** A rotation flips the
+  latter, which would swap a rail for a bar (or the reverse) under the user mid-turn. A window that
+  does cross a breakpoint (a foldable unfolding, split screen) recreates in
+  `onConfigurationChanged` — that is the one place the shape may change.
+- **The rail indicator slides on Y and its length tracks the row height**, via
+  `placeIndicator(view, x, y, vertical)`; the bar's slides on X. Both share the first-placement fade
+  and the reduced-motion snap, so the two layouts cannot drift.
+- `values/bools.xml` (`nav_show_app_name`, `nav_compact_tabs`) and `values-w600dp/{bools,dimens}.xml`
+  are **deleted**: the label rule is now a function of `NavLayoutMode`, and a resource qualifier could
+  only ever half-apply against a runtime choice. Do not reintroduce them.
+
+## Material 3 Expressive primitives (U6): variable-font roles and shape morphing
+- **`UiType` is the one type system (U8 enforced).** The five `Role`s map to the five
+  `UiTokens.TEXT_*` sizes and weights, and `apply(view, role)` sets family + size + weight together —
+  a screen asks for a role, never a raw sp. The family is the **variable** `dmsans`
+  (`UiType.FAMILY`), so a weight is a real axis value: `UiType.weightAxis(w)` builds the platform's
+  `"'wght' 600"` string (pure and pinned by `UiTypeTest`), `applyWeight` sets it, and the coarse
+  `BOLD`/`NORMAL` flag stays only as a fallback for a device that ignores the axis. Check a font is
+  actually variable (`fvar` table with a `wght` axis) before using it as a role family — `dmsans` is
+  *not* (it exposes only `opsz`), so **do not switch `UiType.FAMILY` to `dmsans`**; `inter`/`worksans`
+  /`outfit`/`manrope` are the variable families on disk.
+- **`UiShape` is the Expressive shape scale plus its morph.** The stops are a closed set
+  (`EXTRA_SMALL 4` … `FULL`), a superset of the token radii, exposed as `Role`s (INDICATOR/CHIP/
+  FIELD/CARD/WINDOW/PILL). `morph(from, to, t)` is a pure interpolation with one rule worth knowing:
+  a `FULL` end is a sentinel, not a length, so a morph to or from a pill keeps the *other* end's
+  radius (the corner is already a stadium; size is what reads as "became a pill"). `clampToBox`
+  stops a large radius eating a small box. All pure, pinned by `UiShapeTest`.
+- **The rail uses both.** The selected rail row is an accent-wash surface whose corners animate
+  between CHIP and CARD (`BaseActivity.applyRailTabShape`), and the active destination's label is
+  heavier through the weight axis, not just a different colour. The fill is
+  `UiTokens.withAlpha(accent, …)` — the accent still comes from the theme (U7); do not add a second
+  accent source for the morph.
+
+
 - **The nav bar is the original horizontal top bar.** `BaseActivity.wrapWithNavBar` inflates `layout/nav_bar.xml` into a **vertical** wrapper (bar above content, content weighted 1). `nav_bar.xml` is a `LinearLayout` root holding a single 48dp `FrameLayout` row тАФ brand/back on the start, six tabs in a `HorizontalScrollView` in the centre, news/account controls on the end тАФ above a 1dp `nav_divider`. Do NOT add a second bar or a fragment-based tab host.
 - **A vertical side rail was tried and reverted. Do not reintroduce it.** The rail put the tabs in a column beside the content; because the app is landscape-only (`sensorLandscape` on ~29 activities) the column gets only ~360dp of height, and the fixed chrome (brand header, dividers, stacked footer) left room for barely two of six rows. Since `nav_item_launch` was first, Launch was the only reachable tab, which reads as "the other tabs are gone". A top bar has the whole screen *width* for its tabs, and `HorizontalScrollView` already handles six labelled entries, so the height pressure never arises. Restoring the bar also means restoring the wrapper orientation (`VERTICAL`), the content params (`MATCH_PARENT, 0, 1f`) and the enter animation axis (`springTranslationYTo`) тАФ flipping only some of these leaves the content mis-measured.
 - **Each tab is one `TextView` with an icon, not icon+label pair.** The original bar puts the icon on the `TextView` itself via `android:drawableStart` and tints it with `TextViewCompat.setCompoundDrawableTintList`. Only `nav_tab_*` exists тАФ there are no `nav_item_*`, `nav_label_*` or `nav_indicator_*` ids; an earlier rail had four parallel arrays and removing the rail means those ids are gone from the layout, so any leftover `findViewById(R.id.nav_item_*)` is a compile error. `R.id.nav_tab_*` is the click target.

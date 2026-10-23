@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The launcher's navigation rail (U5).
+
+    The same destinations and the same ids as nav_bar.xml, arranged down the leading edge instead
+    of across the top: a medium window (600-839dp) gets an icon-only rail, an expanded window
+    (840dp and up) also shows every label (BaseActivity sets the label visibility from
+    NavLayoutMode.showsAllLabels()).
+
+    A rail only works now because there are four destinations (U1). With the old six it needed more
+    height than a landscape phone has and was reverted; four 40dp entries fit the short edge with
+    room to spare, which is what makes the vertical rail the right shape for a wide, short window.
+
+    The rail is a sibling of the content in a horizontal wrapper (see BaseActivity.wrapWithNavBar),
+    so it takes the leading edge and the content keeps the rest of the width.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_bar_root"
+    android:layout_width="@dimen/nav_rail_width"
+    android:layout_height="match_parent"
+    android:background="@drawable/nav_rail_background"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:orientation="horizontal"
+        android:paddingTop="8dp">
+
+        <ImageView
+            android:id="@+id/nav_back_button"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:contentDescription="@string/nav_back"
+            android:focusable="true"
+            android:rotation="90"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_arrow_down"
+            app:tint="@color/text_secondary" />
+
+        <ImageView
+            android:id="@+id/nav_logo"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginStart="6dp"
+            android:contentDescription="@string/app_name"
+            android:src="@drawable/ic_glowberry_logo" />
+    </LinearLayout>
+
+    <!-- The wordmark is a rail-only extra: the bar hides it on a narrow window, and the rail has
+         the width for it once it shows labels at all. -->
+    <TextView
+        android:id="@+id/nav_app_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:ellipsize="end"
+        android:fontFamily="@font/misans"
+        android:gravity="center"
+        android:maxLines="1"
+        android:singleLine="true"
+        android:text="@string/app_name"
+        android:textColor="@color/accent_text"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="8dp"
+        android:background="@color/divider" />
+
+    <!--
+        The tab column and its sliding indicator share a FrameLayout, exactly as the top bar does,
+        so the indicator can sit under the active row and scroll with the column. The scroll view
+        takes one child, hence the wrapper.
+    -->
+    <ScrollView
+        android:id="@+id/nav_tab_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:overScrollMode="never"
+        android:scrollbars="none">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <LinearLayout
+                android:id="@+id/nav_tab_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp">
+
+                <TextView
+                    android:id="@+id/nav_tab_launch"
+                    style="@style/Widget.Chimera.NavRailTab"
+                    android:drawableStart="@drawable/ic_nav_launch"
+                    android:text="@string/nav_launch" />
+
+                <TextView
+                    android:id="@+id/nav_tab_library"
+                    style="@style/Widget.Chimera.NavRailTab"
+                    android:drawableStart="@drawable/ic_nav_instances"
+                    android:text="@string/nav_library" />
+
+                <TextView
+                    android:id="@+id/nav_tab_mods"
+                    style="@style/Widget.Chimera.NavRailTab"
+                    android:drawableStart="@drawable/ic_inbuilt_mods"
+                    android:text="@string/nav_mods" />
+
+                <TextView
+                    android:id="@+id/nav_tab_settings"
+                    style="@style/Widget.Chimera.NavRailTab"
+                    android:drawableStart="@drawable/ic_nav_settings"
+                    android:text="@string/nav_settings" />
+
+            </LinearLayout>
+
+            <!-- The sliding accent indicator, positioned by BaseActivity under the active row. -->
+            <View
+                android:id="@+id/nav_active_indicator"
+                android:layout_width="3dp"
+                android:layout_height="28dp"
+                android:layout_gravity="start|top"
+                android:background="@drawable/nav_active_indicator"
+                android:visibility="invisible" />
+        </FrameLayout>
+    </ScrollView>
+
+    <LinearLayout
+        android:id="@+id/nav_trailing"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingTop="8dp"
+        android:paddingBottom="10dp">
+
+        <Button
+            android:id="@+id/nav_sign_in_button"
+            style="@style/Widget.MaterialComponents.Button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="0dp"
+            android:minHeight="34dp"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:fontFamily="@font/misans"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:backgroundTint="@color/primary"
+            android:text="@string/sign_in"
+            android:textColor="@color/on_primary"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textAllCaps="false"
+            android:visibility="gone" />
+
+        <FrameLayout
+            android:id="@+id/nav_account_avatar_container"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:visibility="gone">
+
+            <com.microsoft.xbox.idp.toolkit.CircleImageView
+                android:id="@+id/nav_account_avatar"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@string/xbox_avatar"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ic_minecraft_cube" />
+
+            <ProgressBar
+                android:id="@+id/nav_avatar_progress"
+                style="?android:attr/progressBarStyleSmall"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:indeterminate="true"
+                android:visibility="gone" />
+        </FrameLayout>
+    </LinearLayout>
+
+</LinearLayout>
