@@ -49,8 +49,9 @@ public class IntentHandler extends BaseActivity {
 
         if (InstanceBackupManager.isBackupIntent(this, originalIntent)) {
             Intent launcherIntent = new Intent(originalIntent);
-            launcherIntent.setClass(this, InstancesActivity.class);
-            launcherIntent.putExtra(InstancesActivity.EXTRA_RESTORE_BACKUP_ON_OPEN, true);
+            launcherIntent.setClass(this, LibraryActivity.class);
+            launcherIntent.putExtra(LibraryActivity.EXTRA_INITIAL_TAB, LibraryActivity.TAB_INSTANCES);
+            launcherIntent.putExtra(org.chimeramc.client.ui.fragments.InstancesFragment.EXTRA_RESTORE_BACKUP_ON_OPEN, true);
             launcherIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             startActivity(launcherIntent);
             finish();

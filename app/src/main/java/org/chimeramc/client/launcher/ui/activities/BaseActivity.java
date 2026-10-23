@@ -221,14 +221,12 @@ public class BaseActivity extends AppCompatActivity {
 
     /** Top-bar tabs, in declaration order. Order matches LauncherTab and nav_bar.xml. */
     private static final int[] NAV_TAB_IDS = {
-            R.id.nav_tab_launch, R.id.nav_tab_instances, R.id.nav_tab_installations,
-            R.id.nav_tab_mods, R.id.nav_tab_customize, R.id.nav_tab_settings
+            R.id.nav_tab_launch, R.id.nav_tab_library, R.id.nav_tab_mods, R.id.nav_tab_settings
     };
 
     /** Labels for {@link #NAV_TAB_IDS}, same order, so compact mode can restore the active one. */
     private static final int[] NAV_TAB_LABELS = {
-            R.string.nav_launch, R.string.nav_instances, R.string.nav_installations,
-            R.string.nav_mods, R.string.nav_customize, R.string.nav_settings
+            R.string.nav_launch, R.string.nav_library, R.string.nav_mods, R.string.nav_settings
     };
 
     /** True on a narrow window, where only the selected tab shows its label. */
@@ -330,24 +328,14 @@ public class BaseActivity extends AppCompatActivity {
                 switchNavTab(intent);
             }
         });
-        findViewById(R.id.nav_tab_instances).setOnClickListener(v -> {
-            if (!(this instanceof InstancesActivity)) {
-                switchNavTab(new Intent(this, InstancesActivity.class));
-            }
-        });
-        findViewById(R.id.nav_tab_installations).setOnClickListener(v -> {
-            if (!(this instanceof InstallationsActivity)) {
-                switchNavTab(new Intent(this, InstallationsActivity.class));
+        findViewById(R.id.nav_tab_library).setOnClickListener(v -> {
+            if (!(this instanceof LibraryActivity)) {
+                switchNavTab(new Intent(this, LibraryActivity.class));
             }
         });
         findViewById(R.id.nav_tab_mods).setOnClickListener(v -> {
             if (!(this instanceof ModsFullscreenActivity)) {
                 switchNavTab(new Intent(this, ModsFullscreenActivity.class));
-            }
-        });
-        findViewById(R.id.nav_tab_customize).setOnClickListener(v -> {
-            if (!(this instanceof CustomizeActivity)) {
-                switchNavTab(new Intent(this, CustomizeActivity.class));
             }
         });
         findViewById(R.id.nav_tab_settings).setOnClickListener(v -> {

@@ -160,19 +160,14 @@
             android:configChanges="fontScale|density|smallestScreenSize|screenSize|uiMode|screenLayout|orientation|navigation|keyboardHidden|keyboard|touchscreen|locale|mnc|mcc"
             tools:ignore="DiscouragedApi" />
 
+        <!-- The Library destination (U1/U3): Instances + Install + Replay behind one host. -->
         <activity
-            android:name="org.chimeramc.client.ui.activities.InstancesActivity"
+            android:name="org.chimeramc.client.ui.activities.LibraryActivity"
             android:exported="false"
             android:screenOrientation="sensorLandscape"
             android:configChanges="fontScale|density|smallestScreenSize|screenSize|uiMode|screenLayout|orientation|navigation|keyboardHidden|keyboard|touchscreen|locale|mnc|mcc"
-            tools:ignore="DiscouragedApi" />
-
-        <activity
-            android:name="org.chimeramc.client.ui.activities.InstallationsActivity"
-            android:exported="false"
-            android:screenOrientation="sensorLandscape"
-            android:configChanges="fontScale|density|smallestScreenSize|screenSize|uiMode|screenLayout|orientation|navigation|keyboardHidden|keyboard|touchscreen|locale|mnc|mcc"
-            tools:ignore="DiscouragedApi" />
+            tools:ignore="DiscouragedApi"
+            android:label="@string/nav_library" />
 
         <activity
             android:name="org.chimeramc.client.ui.activities.SettingsActivity"
@@ -216,14 +211,6 @@
             android:configChanges="fontScale|density|smallestScreenSize|screenSize|uiMode|screenLayout|orientation|navigation|keyboardHidden|keyboard|touchscreen|locale|mnc|mcc"
             tools:ignore="DiscouragedApi"
             android:label="@string/nav_voice" />
-
-        <activity
-            android:name="org.chimeramc.client.ui.activities.ReplayActivity"
-            android:exported="false"
-            android:screenOrientation="sensorLandscape"
-            android:configChanges="fontScale|density|smallestScreenSize|screenSize|uiMode|screenLayout|orientation|navigation|keyboardHidden|keyboard|touchscreen|locale|mnc|mcc"
-            tools:ignore="DiscouragedApi"
-            android:label="@string/launch_toggle_replay" />
 
         <activity
             android:name="org.chimeramc.client.ui.activities.InstanceSettingsActivity"

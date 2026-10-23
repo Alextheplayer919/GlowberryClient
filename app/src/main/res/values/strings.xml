@@ -891,6 +891,15 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="mod_menu_compact">Compact Mod Menu</string>
     <string name="mod_menu_compact_desc">Use a smaller menu with a dense module list and compact filters</string>
     <string name="mod_menu_cosmetics">Cosmetics</string>
+    <string name="cosmetics_closet">Closet</string>
+    <string name="profile_signed_out">Not signed in</string>
+    <string name="profile_switch_account">Switch</string>
+    <string name="profile_sheet_description">Profile, cosmetics and skins</string>
+    <string name="settings_voice_title">Voice chat</string>
+    <string name="settings_voice_desc">Microphone, channels and the voice relay</string>
+    <string name="settings_voice_open">Open voice chat settings</string>
+    <string name="settings_controller_desc">Dead zones, sensitivity, button remaps and rumble</string>
+    <string name="settings_controller_open">Open controller settings</string>
     <string name="mod_menu_packs">Packs</string>
 
     <!-- VIP Mod Menu (Screen B). A separate premium screen opened by the in-game bind, distinct
@@ -1234,6 +1243,7 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="nav_launch">Launch</string>
     <string name="nav_import">Import</string>
     <string name="nav_instances">Instances</string>
+    <string name="nav_library">Library</string>
     <string name="nav_installations">Install</string>
     <string name="nav_mods">Mods</string>
     <string name="nav_about">About</string>

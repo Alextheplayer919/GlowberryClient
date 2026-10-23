@@ -271,6 +271,22 @@ public class SettingsActivity extends BaseActivity {
             DynamicAnim.applyPressScale(openDiagnostics);
         }
 
+        // Voice and Controller are configuration, so Settings is their launcher-side home (U3).
+        // Voice keeps its in-game home in the Mod Menu's own Voice section; this entry is the
+        // launcher-side route to the same state, not a second source of truth.
+        View openVoice = findViewById(R.id.settings_open_voice);
+        if (openVoice != null) {
+            openVoice.setOnClickListener(v -> startActivity(
+                    new Intent(this, org.chimeramc.client.ui.activities.VoiceChatActivity.class)));
+            DynamicAnim.applyPressScale(openVoice);
+        }
+        View openController = findViewById(R.id.settings_open_controller);
+        if (openController != null) {
+            openController.setOnClickListener(v -> openCustomizeTab(
+                    org.chimeramc.client.ui.activities.CustomizeActivity.TAB_CONTROLLER));
+            DynamicAnim.applyPressScale(openController);
+        }
+
         // Keep English at the top (default language).
         // Sort all other languages alphabetically by their display name.
         String[] languageOptions = {
@@ -1337,6 +1353,15 @@ public class SettingsActivity extends BaseActivity {
                 }
             });
         });
+    }
+
+    /** Opens the Customize host on a specific inner tab (Controller). */
+    private void openCustomizeTab(int tab) {
+        Intent intent = new Intent(this,
+                org.chimeramc.client.ui.activities.CustomizeActivity.class);
+        intent.putExtra(org.chimeramc.client.ui.activities.CustomizeActivity.EXTRA_INITIAL_TAB,
+                tab);
+        startActivity(intent);
     }
 
     private void setupAboutSection() {

@@ -458,6 +458,6 @@ public class InstanceSettingsActivity extends BaseActivity {
     }
 
     private void setupNavBar() {
-        setActiveNavTab(R.id.nav_tab_instances);
+        setActiveNavTab(R.id.nav_tab_library);
     }
 }

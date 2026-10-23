@@ -3,7 +3,8 @@
     The launcher's top navigation bar.
 
     Structure: a single 48dp row containing (start) the back button, berry logo and wordmark,
-    (centre) a horizontally scrollable strip of tabs, and (end) the news / account controls.
+    (centre) a horizontally scrollable strip of four tabs — Play, Library, Mods, Settings — and
+    (end) the account controls.
     Below the divider sits the screen's own content — this file is only the chrome.
 
     The row is a ConstraintLayout rather than a box with three children because the previous
@@ -15,6 +16,10 @@
     and the wordmark itself is hidden entirely on a narrow window (see @bool/nav_show_app_name),
     where the tabs go icon-only with only the selected label shown. Those three together mean the
     bar cannot collide at any width or font scale.
+
+    Four destinations (U1), not six: Instances/Install/Replay are one Library screen, Cosmetics is
+    a profile sheet on Play, and Controller/Skins/Voice live in Settings. A tab that only exists to
+    be a section of another tab is what made the old bar too long for a phone.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -90,7 +95,7 @@
             app:layout_constraintTop_toTopOf="parent" />
 
         <!--
-            Tabs live in a scroll view so six labelled entries always fit; the strip is pinned
+            Tabs live in a scroll view so every labelled entry always fits; the strip is pinned
             between the wordmark's end and the start of the news/account controls, which is what
             guarantees it cannot slide under either. fillViewport lets the row stretch so the
             tap targets stay full-height when there is spare room.
@@ -131,28 +136,16 @@
                     android:text="@string/nav_launch" />
 
                 <TextView
-                    android:id="@+id/nav_tab_instances"
+                    android:id="@+id/nav_tab_library"
                     style="@style/Widget.Chimera.NavTab"
                     android:drawableStart="@drawable/ic_nav_instances"
-                    android:text="@string/nav_instances" />
-
-                <TextView
-                    android:id="@+id/nav_tab_installations"
-                    style="@style/Widget.Chimera.NavTab"
-                    android:drawableStart="@drawable/ic_nav_installations"
-                    android:text="@string/nav_installations" />
+                    android:text="@string/nav_library" />
 
                 <TextView
                     android:id="@+id/nav_tab_mods"
                     style="@style/Widget.Chimera.NavTab"
                     android:drawableStart="@drawable/ic_inbuilt_mods"
                     android:text="@string/nav_mods" />
-
-                <TextView
-                    android:id="@+id/nav_tab_customize"
-                    style="@style/Widget.Chimera.NavTab"
-                    android:drawableStart="@drawable/ic_nav_controller"
-                    android:text="@string/nav_customize" />
 
                 <TextView
                     android:id="@+id/nav_tab_settings"

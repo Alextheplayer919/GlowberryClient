@@ -1,8 +1,11 @@
-package org.chimeramc.client.ui.activities;
+package org.chimeramc.client.ui.fragments;
 
+import android.content.Context;
 import android.net.Uri;
 import android.os.Bundle;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.webkit.WebView;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -10,6 +13,9 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -49,7 +55,19 @@ import java.util.Map;
  * Which mirror is used comes from {@link SourceRegistry}, so this screen names no source:
  * the host in the warning text and every URL are read from the active {@link BedrockSource}.
  */
-public class InstallationsActivity extends BaseActivity {
+public class InstallationsFragment extends Fragment {
+
+    /** The inflated view; every findViewById goes through it, since a Fragment has no window. */
+    private View root;
+
+    private Context ctx() {
+        return requireContext();
+    }
+
+    /** True once the fragment is detached, so a late network callback must not touch the view. */
+    private boolean gone() {
+        return !isAdded() || getView() == null;
+    }
 
     private static final String STATE_PENDING_VERSION = "installations_pending_version";
     private static final String STATE_PENDING_PAGE = "installations_pending_page";
@@ -101,12 +119,17 @@ public class InstallationsActivity extends BaseActivity {
      */
     private ListingPager pager;
 
+    @Nullable
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_installations);
-        setActiveNavTab(R.id.nav_tab_installations);
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+                             @Nullable Bundle savedInstanceState) {
+        root = inflater.inflate(R.layout.activity_installations, container, false);
+        return root;
+    }
 
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
         if (savedInstanceState != null) {
             pendingVersionName = savedInstanceState.getString(STATE_PENDING_VERSION);
             pendingPageUrl = savedInstanceState.getString(STATE_PENDING_PAGE);
@@ -116,9 +139,9 @@ public class InstallationsActivity extends BaseActivity {
 
         source = SourceRegistry.active();
         client = PackageSourceClient.getInstance();
-        store = new DownloadedApksStore(this);
-        versionManager = VersionManager.get(this);
-        importManager = new ApkImportManager(this, null);
+        store = new DownloadedApksStore(ctx());
+        versionManager = VersionManager.get(ctx());
+        importManager = new ApkImportManager(requireActivity(), null);
         importManager.setOnImportCompleteListener(this::onImportSucceeded);
         importManager.setOnImportFailedListener(this::onImportFailed);
 
@@ -136,7 +159,7 @@ public class InstallationsActivity extends BaseActivity {
     }
 
     @Override
-    protected void onSaveInstanceState(Bundle outState) {
+    public void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
         outState.putString(STATE_PENDING_VERSION, pendingVersionName);
         outState.putString(STATE_PENDING_PAGE, pendingPageUrl);
@@ -148,25 +171,25 @@ public class InstallationsActivity extends BaseActivity {
     }
 
     private void bindViews() {
-        recycler = findViewById(R.id.installations_recycler);
-        progress = findViewById(R.id.installations_progress);
-        emptyContainer = findViewById(R.id.installations_empty);
-        emptyTitle = findViewById(R.id.installations_empty_title);
-        emptyMessage = findViewById(R.id.installations_empty_message);
-        refreshButton = findViewById(R.id.installations_refresh);
-        sourceWarning = findViewById(R.id.installations_source_warning);
-        stagedContainer = findViewById(R.id.installations_staged_container);
-        stagedSummary = findViewById(R.id.installations_staged_summary);
-        stagedRetry = findViewById(R.id.installations_staged_retry);
-        stagedClear = findViewById(R.id.installations_staged_clear);
-        browser = findViewById(R.id.installations_browser);
-        browserContainer = findViewById(R.id.installations_browser_container);
-        browserHint = findViewById(R.id.installations_browser_hint);
-        paginationContainer = findViewById(R.id.installations_pagination);
-        pageLabel = findViewById(R.id.installations_page_label);
-        prevPageButton = findViewById(R.id.installations_prev_page);
-        nextPageButton = findViewById(R.id.installations_next_page);
-        findViewById(R.id.installations_browser_cancel).setOnClickListener(v -> cancelBrowserCheck());
+        recycler = root.findViewById(R.id.installations_recycler);
+        progress = root.findViewById(R.id.installations_progress);
+        emptyContainer = root.findViewById(R.id.installations_empty);
+        emptyTitle = root.findViewById(R.id.installations_empty_title);
+        emptyMessage = root.findViewById(R.id.installations_empty_message);
+        refreshButton = root.findViewById(R.id.installations_refresh);
+        sourceWarning = root.findViewById(R.id.installations_source_warning);
+        stagedContainer = root.findViewById(R.id.installations_staged_container);
+        stagedSummary = root.findViewById(R.id.installations_staged_summary);
+        stagedRetry = root.findViewById(R.id.installations_staged_retry);
+        stagedClear = root.findViewById(R.id.installations_staged_clear);
+        browser = root.findViewById(R.id.installations_browser);
+        browserContainer = root.findViewById(R.id.installations_browser_container);
+        browserHint = root.findViewById(R.id.installations_browser_hint);
+        paginationContainer = root.findViewById(R.id.installations_pagination);
+        pageLabel = root.findViewById(R.id.installations_page_label);
+        prevPageButton = root.findViewById(R.id.installations_prev_page);
+        nextPageButton = root.findViewById(R.id.installations_next_page);
+        root.findViewById(R.id.installations_browser_cancel).setOnClickListener(v -> cancelBrowserCheck());
 
         sourceWarning.setText(getString(R.string.installations_source_warning, source.displayHost()));
         refreshButton.setOnClickListener(v -> loadVersions());
@@ -212,16 +235,16 @@ public class InstallationsActivity extends BaseActivity {
     }
 
     @Override
-    protected void onDestroy() {
+    public void onDestroyView() {
         if (fallback != null) fallback.release();
         if (browser != null) browser.destroy();
-        super.onDestroy();
+        super.onDestroyView();
     }
 
     private void setupRecycler() {
         adapter = new InstallationAdapter();
         adapter.setOnDownloadListener(this::confirmAndDownload);
-        recycler.setLayoutManager(new LinearLayoutManager(this));
+        recycler.setLayoutManager(new LinearLayoutManager(ctx()));
         recycler.setAdapter(adapter);
     }
 
@@ -252,7 +275,7 @@ public class InstallationsActivity extends BaseActivity {
         client.fetchVersions(source, fallback, pageUrl, new PackageSourceClient.ListingCallback() {
             @Override
             public void onSuccess(List<Version> fetched, String nextUrl) {
-                if (isFinishing() || isDestroyed()) return;
+                if (gone()) return;
                 showLoading(false);
                 hideBrowser();
                 resolvedDownloads.clear();
@@ -273,7 +296,7 @@ public class InstallationsActivity extends BaseActivity {
 
             @Override
             public void onError(Throwable error) {
-                if (isFinishing() || isDestroyed()) return;
+                if (gone()) return;
                 showLoading(false);
                 hideBrowser();
                 showEmpty(getString(R.string.installations_error_title), describe(error));
@@ -337,11 +360,11 @@ public class InstallationsActivity extends BaseActivity {
     private void confirmAndDownload(Version version) {
         if (version == null) return;
         if (adapter.stateOf(version.pageUrl) == InstallationAdapter.State.DOWNLOADING) {
-            Toast.makeText(this, R.string.installations_download_in_progress, Toast.LENGTH_SHORT).show();
+            Toast.makeText(ctx(), R.string.installations_download_in_progress, Toast.LENGTH_SHORT).show();
             return;
         }
 
-        new CustomAlertDialog(this)
+        new CustomAlertDialog(ctx())
                 .setTitleText(getString(R.string.installations_confirm_title, version.displayLabel()))
                 .setMessage(getString(R.string.installations_confirm_message))
                 .setPositiveButton(getString(R.string.installations_download),
@@ -364,7 +387,7 @@ public class InstallationsActivity extends BaseActivity {
                 new PackageSourceClient.DownloadLinkCallback() {
                     @Override
                     public void onSuccess(ResolvedDownload download) {
-                        if (isFinishing() || isDestroyed()) return;
+                        if (gone()) return;
                         resolvedDownloads.put(version.pageUrl, download);
                         startDownload(version, download);
                     }
@@ -377,7 +400,7 @@ public class InstallationsActivity extends BaseActivity {
 
                     @Override
                     public void onError(Throwable error) {
-                        if (isFinishing() || isDestroyed()) return;
+                        if (gone()) return;
                         adapter.setError(version.pageUrl, describe(error));
                     }
                 });
@@ -398,7 +421,7 @@ public class InstallationsActivity extends BaseActivity {
                 new PackageSourceClient.FileDownloadCallback() {
                     @Override
                     public void onSuccess(File file) {
-                        if (isFinishing() || isDestroyed()) return;
+                        if (gone()) return;
                         pendingFile = file;
                         adapter.setState(version.pageUrl, InstallationAdapter.State.IMPORTING);
                         refreshStagedPackages();
@@ -407,7 +430,7 @@ public class InstallationsActivity extends BaseActivity {
 
                     @Override
                     public void onError(Throwable error) {
-                        if (isFinishing() || isDestroyed()) return;
+                        if (gone()) return;
                         // A partial file would be imported as a corrupt package, so drop it.
                         if (pendingFile != null) store.delete(pendingFile);
                         pendingFile = null;
@@ -434,7 +457,7 @@ public class InstallationsActivity extends BaseActivity {
         resolvedDownloads.clear();
         refreshStagedPackages();
         markInstalledVersions();
-        Toast.makeText(this,
+        Toast.makeText(ctx(),
                 deleted ? R.string.installations_cleanup_done : R.string.installations_cleanup_skipped,
                 Toast.LENGTH_SHORT).show();
     }
@@ -446,7 +469,7 @@ public class InstallationsActivity extends BaseActivity {
         if (pendingPageUrl != null) {
             adapter.setError(pendingPageUrl, message);
         }
-        new CustomAlertDialog(this)
+        new CustomAlertDialog(ctx())
                 .setTitleText(getString(R.string.installations_import_failed_title))
                 .setMessage(getString(R.string.installations_import_failed_message, message))
                 .setPositiveButton(getString(R.string.installations_retry_import),
@@ -468,7 +491,7 @@ public class InstallationsActivity extends BaseActivity {
             file = staged.isEmpty() ? null : staged.get(0);
         }
         if (file == null) {
-            Toast.makeText(this, R.string.installations_nothing_staged, Toast.LENGTH_LONG).show();
+            Toast.makeText(ctx(), R.string.installations_nothing_staged, Toast.LENGTH_LONG).show();
             refreshStagedPackages();
             return;
         }
@@ -496,7 +519,7 @@ public class InstallationsActivity extends BaseActivity {
     }
 
     private void confirmClearStaged() {
-        new CustomAlertDialog(this)
+        new CustomAlertDialog(ctx())
                 .setTitleText(getString(R.string.installations_clear_staged_title))
                 .setMessage(getString(R.string.installations_clear_staged_message))
                 .setPositiveButton(getString(R.string.installations_clear_staged), v -> {
@@ -505,7 +528,7 @@ public class InstallationsActivity extends BaseActivity {
                     pendingVersionName = null;
                     pendingPageUrl = null;
                     refreshStagedPackages();
-                    Toast.makeText(this, getString(R.string.installations_cleared, deleted),
+                    Toast.makeText(ctx(), getString(R.string.installations_cleared, deleted),
                             Toast.LENGTH_SHORT).show();
                 })
                 .setNegativeButton(getString(R.string.cancel), null)
@@ -549,7 +572,7 @@ public class InstallationsActivity extends BaseActivity {
      */
     private String uniqueVersionName(String base) {
         String name = base == null || base.isEmpty() ? "unknown" : base;
-        File root = LauncherStorage.getMinecraftRoot(this);
+        File root = LauncherStorage.getMinecraftRoot(ctx());
         if (!new File(root, name).exists()) return name;
         for (int i = 2; i < 100; i++) {
             String candidate = name + "_" + i;

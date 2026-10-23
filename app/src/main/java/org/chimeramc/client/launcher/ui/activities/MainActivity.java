@@ -1291,7 +1291,16 @@ import okhttp3.OkHttpClient;
         org.chimeramc.client.ui.components.HeadPodView headPod =
                 (org.chimeramc.client.ui.components.HeadPodView) pod;
         headPod.refreshSkin();
-        headPod.setListener(() -> openCustomizeTab(CustomizeActivity.TAB_SKINS));
+        // The avatar opens the profile sheet (U2): cosmetics and skins are properties of the
+        // player, not destinations, so they live behind the player's own head rather than in a
+        // top-level tab.
+        headPod.setListener(() -> {
+            try {
+                new org.chimeramc.client.launcher.ui.dialogs.ProfileSheet(this).show();
+            } catch (Throwable ignored) {
+                // A sheet that cannot inflate must never take the Play screen down with it.
+            }
+        });
         try {
             headPod.setAnimationsEnabled(new PersonalizationManager(this).isShowAnimations());
         } catch (Throwable ignored) {
@@ -1633,8 +1642,7 @@ import okhttp3.OkHttpClient;
         }
         View replay = findViewById(R.id.launch_toggle_replay);
         if (replay != null) {
-            replay.setOnClickListener(v -> startActivity(
-                    new Intent(this, org.chimeramc.client.ui.activities.ReplayActivity.class)));
+            replay.setOnClickListener(v -> LibraryActivity.open(this, LibraryActivity.TAB_REPLAY));
             DynamicAnim.applyPressScale(replay);
         }
         refreshLaunchToggles();
@@ -1978,7 +1986,7 @@ import okhttp3.OkHttpClient;
         }
         View cosmetics = findViewById(R.id.quickdock_cosmetics);
         if (cosmetics != null) {
-            cosmetics.setOnClickListener(v -> openCustomizeTab(CustomizeActivity.TAB_SKINS));
+            cosmetics.setOnClickListener(v -> openProfileSheet());
             DynamicAnim.applyPressScale(cosmetics);
             DynamicAnim.applyHoverBloom(cosmetics);
         }
@@ -1995,6 +2003,20 @@ import okhttp3.OkHttpClient;
         Intent intent = new Intent(this, CustomizeActivity.class);
         intent.putExtra(CustomizeActivity.EXTRA_INITIAL_TAB, tab);
         startActivity(intent);
+    }
+
+    /**
+     * Opens the profile sheet: who you are, your cosmetics and your skins (U2).
+     *
+     * <p>Cosmetics are a property of the player, not a destination, so they are reached from the
+     * avatar and the dock's Cosmetics entry rather than from a top-level tab.
+     */
+    private void openProfileSheet() {
+        try {
+            new org.chimeramc.client.launcher.ui.dialogs.ProfileSheet(this).show();
+        } catch (Throwable ignored) {
+            // A sheet that cannot inflate must never take the Play screen down with it.
+        }
     }
 
     /**

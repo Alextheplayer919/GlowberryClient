@@ -1,4 +1,4 @@
-package org.chimeramc.client.ui.activities;
+package org.chimeramc.client.ui.fragments;
 
 import android.app.Activity;
 import android.Manifest;
@@ -28,6 +28,8 @@ import android.widget.Toast;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.ActivityOptionsCompat;
 import androidx.core.content.ContextCompat;
@@ -42,6 +44,7 @@ import org.chimeramc.client.core.versions.VersionManager;
 import org.chimeramc.client.ui.animation.DynamicAnim;
 import org.chimeramc.client.ui.dialogs.CustomAlertDialog;
 import org.chimeramc.client.ui.dialogs.InstallProgressDialog;
+import org.chimeramc.client.ui.activities.InstanceSettingsActivity;
 import org.chimeramc.client.util.ApkImportManager;
 import org.chimeramc.client.util.InstanceBackupManager;
 
@@ -49,7 +52,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class InstancesActivity extends BaseActivity {
+public class InstancesFragment extends Fragment {
     public static final String EXTRA_RESTORE_BACKUP_ON_OPEN = "restore_backup_on_open";
 
     private static final int FILTER_ALL = 0;
@@ -87,16 +90,34 @@ public class InstancesActivity extends BaseActivity {
     private ActivityResultLauncher<Intent> instanceSettingsLauncher;
     private boolean firstResume = true;
 
+    /** The inflated view; a Fragment has no window, so findViewById goes through this. */
+    private View root;
+
+    private Context ctx() {
+        return requireContext();
+    }
+
+    /** True once the fragment is detached, so a late callback must not touch the view. */
+    private boolean gone() {
+        return !isAdded() || getView() == null;
+    }
+
+    @Nullable
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_instances);
-        setupNavBar();
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+                             @Nullable Bundle savedInstanceState) {
+        root = inflater.inflate(R.layout.activity_instances, container, false);
+        return root;
+    }
 
-        versionManager = VersionManager.get(this);
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
 
-        apkImportManager = new ApkImportManager(this, null);
-        backupManager = new InstanceBackupManager(this);
+        versionManager = VersionManager.get(ctx());
+
+        apkImportManager = new ApkImportManager(requireActivity(), null);
+        backupManager = new InstanceBackupManager(ctx());
         apkImportManager.setOnImportCompleteListener(() -> {
             versionManager.loadAllVersions();
             loadVersions();
@@ -113,7 +134,7 @@ public class InstancesActivity extends BaseActivity {
         backupImportResultLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 result -> {
-                    if (result.getResultCode() == RESULT_OK
+                    if (result.getResultCode() == android.app.Activity.RESULT_OK
                             && result.getData() != null
                             && result.getData().getData() != null) {
                         restoreBackup(result.getData().getData());
@@ -124,7 +145,7 @@ public class InstancesActivity extends BaseActivity {
         instanceSettingsLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 result -> {
-                    if (result.getResultCode() == RESULT_OK) {
+                    if (result.getResultCode() == android.app.Activity.RESULT_OK) {
                         versionManager.loadAllVersions();
                         loadVersions();
                         applyFilters();
@@ -132,14 +153,14 @@ public class InstancesActivity extends BaseActivity {
                 }
         );
 
-        recyclerView = findViewById(R.id.instances_recycler);
-        filterAll = findViewById(R.id.filter_all);
-        filterCustom = findViewById(R.id.filter_custom);
-        instanceCountBadge = findViewById(R.id.instance_count_badge);
-        searchInput = findViewById(R.id.search_input);
+        recyclerView = root.findViewById(R.id.instances_recycler);
+        filterAll = root.findViewById(R.id.filter_all);
+        filterCustom = root.findViewById(R.id.filter_custom);
+        instanceCountBadge = root.findViewById(R.id.instance_count_badge);
+        searchInput = root.findViewById(R.id.search_input);
 
         int spanCount = calculateSpanCount();
-        GridLayoutManager layoutManager = new GridLayoutManager(this, spanCount);
+        GridLayoutManager layoutManager = new GridLayoutManager(ctx(), spanCount);
         recyclerView.setLayoutManager(layoutManager);
 
         int spacing = (int) (10 * getResources().getDisplayMetrics().density);
@@ -164,10 +185,10 @@ public class InstancesActivity extends BaseActivity {
         });
 
         adapter.setOnSettingsClickListener(version -> {
-            Intent intent = new Intent(this, InstanceSettingsActivity.class);
+            Intent intent = new Intent(ctx(), InstanceSettingsActivity.class);
             intent.putExtra("version", version);
             instanceSettingsLauncher.launch(intent, ActivityOptionsCompat.makeCustomAnimation(
-                    this,
+                    ctx(),
                     R.anim.fade_in,
                     R.anim.fade_out
             ));
@@ -180,17 +201,10 @@ public class InstancesActivity extends BaseActivity {
         setupBatchBackupButton();
         applyFilters();
         updateCount();
-        handleBackupOpenIntent(getIntent());
+        handleBackupOpenIntent(requireActivity().getIntent());
 
-        DynamicAnim.applyPressScaleRecursively(findViewById(android.R.id.content));
+        DynamicAnim.applyPressScaleRecursively(root);
         recyclerView.post(() -> DynamicAnim.staggerRecyclerChildren(recyclerView));
-    }
-
-    @Override
-    protected void onNewIntent(Intent intent) {
-        super.onNewIntent(intent);
-        setIntent(intent);
-        handleBackupOpenIntent(intent);
     }
 
     private int calculateSpanCount() {
@@ -231,7 +245,7 @@ public class InstancesActivity extends BaseActivity {
     }
 
     private void updateFilterUI() {
-        PersonalizationManager pm = new PersonalizationManager(this);
+        PersonalizationManager pm = new PersonalizationManager(ctx());
         int accent = pm.getAccentColor();
         TextView[] tabs = {filterAll, filterCustom};
         for (int i = 0; i < tabs.length; i++) {
@@ -248,7 +262,7 @@ public class InstancesActivity extends BaseActivity {
                     tabs[i].setBackground(gd);
                 }
             } else {
-                tabs[i].setTextColor(getResources().getColor(R.color.on_surface, getTheme()));
+                tabs[i].setTextColor(getResources().getColor(R.color.on_surface, requireContext().getTheme()));
                 tabs[i].setTypeface(tabs[i].getTypeface(), android.graphics.Typeface.NORMAL);
                 tabs[i].setBackgroundResource(R.drawable.bg_filter_chip);
                 tabs[i].setSelected(false);
@@ -272,11 +286,11 @@ public class InstancesActivity extends BaseActivity {
     }
 
     private void setupImportButton() {
-        TextView btnImport = findViewById(R.id.btn_import_apk);
+        TextView btnImport = root.findViewById(R.id.btn_import_apk);
         if (btnImport == null) return;
         btnImport.setVisibility(View.VISIBLE);
         btnImport.setSelected(true);
-        PersonalizationManager pm = new PersonalizationManager(this);
+        PersonalizationManager pm = new PersonalizationManager(ctx());
         int accent = pm.getAccentColor();
         if (accent != 0) {
             android.graphics.drawable.GradientDrawable gd = new android.graphics.drawable.GradientDrawable();
@@ -290,7 +304,7 @@ public class InstancesActivity extends BaseActivity {
     }
 
     private void setupBackupImportButton() {
-        TextView btnImportBackup = findViewById(R.id.btn_import_backup);
+        TextView btnImportBackup = root.findViewById(R.id.btn_import_backup);
         if (btnImportBackup == null) return;
         btnImportBackup.setVisibility(View.VISIBLE);
         btnImportBackup.setSelected(true);
@@ -299,7 +313,7 @@ public class InstancesActivity extends BaseActivity {
     }
 
     private void setupBatchBackupButton() {
-        batchBackupButton = findViewById(R.id.btn_batch_backup);
+        batchBackupButton = root.findViewById(R.id.btn_batch_backup);
         if (batchBackupButton == null) return;
         batchBackupButton.setVisibility(View.VISIBLE);
         batchBackupButton.setSelected(true);
@@ -308,7 +322,7 @@ public class InstancesActivity extends BaseActivity {
     }
 
     private void applyAccentButtonStyle(TextView button) {
-        PersonalizationManager pm = new PersonalizationManager(this);
+        PersonalizationManager pm = new PersonalizationManager(ctx());
         int accent = pm.getAccentColor();
         if (accent != 0) {
             android.graphics.drawable.GradientDrawable gd = new android.graphics.drawable.GradientDrawable();
@@ -344,7 +358,7 @@ public class InstancesActivity extends BaseActivity {
     }
 
     private void restoreBackup(android.net.Uri backupUri) {
-        restoreProgressDialog = new InstallProgressDialog(this);
+        restoreProgressDialog = new InstallProgressDialog(ctx());
         restoreProgressDialog.setTitleText(getString(R.string.instance_restore_title));
         restoreProgressDialog.setStatusText(getString(R.string.instance_restore_in_progress));
         restoreProgressDialog.setProgress(0);
@@ -375,7 +389,7 @@ public class InstancesActivity extends BaseActivity {
                     adapter.setSelectedVersion(versionManager.getSelectedVersion());
                     applyFilters();
                 }
-                new CustomAlertDialog(InstancesActivity.this)
+                new CustomAlertDialog(requireActivity())
                         .setTitleText(getString(R.string.instance_restore_success_title))
                         .setMessage(getString(R.string.instance_restore_success_message, restoredName))
                         .setPositiveButton(getString(R.string.confirm), null)
@@ -385,7 +399,7 @@ public class InstancesActivity extends BaseActivity {
             @Override
             public void onError(String message) {
                 finishRestoreProgress();
-                new CustomAlertDialog(InstancesActivity.this)
+                new CustomAlertDialog(requireActivity())
                         .setTitleText(getString(R.string.instance_restore_failed_title))
                         .setMessage(getString(R.string.instance_restore_failed_message, message))
                         .setPositiveButton(getString(R.string.confirm), null)
@@ -398,7 +412,7 @@ public class InstancesActivity extends BaseActivity {
         versionManager.loadAllVersions();
         loadVersions();
         if (allVersions.isEmpty()) {
-            new CustomAlertDialog(this)
+            new CustomAlertDialog(ctx())
                     .setTitleText(getString(R.string.instance_batch_backup_title))
                     .setMessage(getString(R.string.instance_batch_backup_no_instances))
                     .setPositiveButton(getString(R.string.confirm), null)
@@ -415,13 +429,13 @@ public class InstancesActivity extends BaseActivity {
         CustomAlertDialog[] dialogRef = new CustomAlertDialog[1];
         Runnable updateBackupButton = () -> updateBatchBackupDialogButton(dialogRef[0], selected);
         View content = createBatchBackupSelectionView(selectableVersions, selected, updateBackupButton);
-        CustomAlertDialog dialog = new CustomAlertDialog(this)
+        CustomAlertDialog dialog = new CustomAlertDialog(ctx())
                 .setTitleText(getString(R.string.instance_batch_backup_title))
                 .setCustomView(content)
                 .setPositiveButton(getString(R.string.backup), v -> {
                     List<GameVersion> versionsToBackup = collectSelectedVersions(selectableVersions, selected);
                     if (versionsToBackup.isEmpty()) {
-                        Toast.makeText(this, R.string.instance_batch_backup_no_selection, Toast.LENGTH_SHORT).show();
+                        Toast.makeText(ctx(), R.string.instance_batch_backup_no_selection, Toast.LENGTH_SHORT).show();
                         return;
                     }
                     startBatchBackupWithPermissionCheck(versionsToBackup);
@@ -437,13 +451,13 @@ public class InstancesActivity extends BaseActivity {
         int horizontalPadding = (int) (2 * density);
         int rowVerticalPadding = (int) (10 * density);
 
-        LinearLayout container = new LinearLayout(this);
+        LinearLayout container = new LinearLayout(ctx());
         container.setOrientation(LinearLayout.VERTICAL);
         container.setPadding(horizontalPadding, 0, horizontalPadding, 0);
 
-        TextView message = new TextView(this);
+        TextView message = new TextView(ctx());
         message.setText(R.string.instance_batch_backup_select_message);
-        message.setTextColor(getResources().getColor(R.color.text_secondary, getTheme()));
+        message.setTextColor(getResources().getColor(R.color.text_secondary, requireContext().getTheme()));
         message.setTextSize(13);
         message.setFontFeatureSettings("kern");
         container.addView(message, new LinearLayout.LayoutParams(
@@ -451,9 +465,9 @@ public class InstancesActivity extends BaseActivity {
                 LinearLayout.LayoutParams.WRAP_CONTENT
         ));
 
-        CheckBox selectAll = new CheckBox(this);
+        CheckBox selectAll = new CheckBox(ctx());
         selectAll.setText(R.string.instance_batch_backup_select_all);
-        selectAll.setTextColor(getResources().getColor(R.color.on_surface, getTheme()));
+        selectAll.setTextColor(getResources().getColor(R.color.on_surface, requireContext().getTheme()));
         selectAll.setTextSize(14);
         selectAll.setChecked(true);
         selectAll.setPadding(0, rowVerticalPadding, 0, rowVerticalPadding);
@@ -463,19 +477,19 @@ public class InstancesActivity extends BaseActivity {
                 LinearLayout.LayoutParams.WRAP_CONTENT
         ));
 
-        View divider = new View(this);
-        divider.setBackgroundColor(getResources().getColor(R.color.divider, getTheme()));
+        View divider = new View(ctx());
+        divider.setBackgroundColor(getResources().getColor(R.color.divider, requireContext().getTheme()));
         divider.setAlpha(0.35f);
         container.addView(divider, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 Math.max(1, (int) density)
         ));
 
-        ScrollView scrollView = new ScrollView(this);
+        ScrollView scrollView = new ScrollView(ctx());
         scrollView.setFillViewport(false);
         scrollView.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
 
-        LinearLayout list = new LinearLayout(this);
+        LinearLayout list = new LinearLayout(ctx());
         list.setOrientation(LinearLayout.VERTICAL);
         scrollView.addView(list, new ScrollView.LayoutParams(
                 ScrollView.LayoutParams.MATCH_PARENT,
@@ -486,9 +500,9 @@ public class InstancesActivity extends BaseActivity {
         boolean[] updatingAll = {false};
         for (int i = 0; i < versions.size(); i++) {
             int index = i;
-            CheckBox item = new CheckBox(this);
+            CheckBox item = new CheckBox(ctx());
             item.setText(getVersionLabel(versions.get(i)));
-            item.setTextColor(getResources().getColor(R.color.on_surface, getTheme()));
+            item.setTextColor(getResources().getColor(R.color.on_surface, requireContext().getTheme()));
             item.setTextSize(13);
             item.setSingleLine(false);
             item.setChecked(true);
@@ -538,12 +552,12 @@ public class InstancesActivity extends BaseActivity {
     }
 
     private void applyCheckBoxTheme(CheckBox checkBox) {
-        PersonalizationManager pm = new PersonalizationManager(this);
+        PersonalizationManager pm = new PersonalizationManager(ctx());
         int accent = pm.getAccentColor();
         if (accent == 0) {
-            accent = getResources().getColor(R.color.primary, getTheme());
+            accent = getResources().getColor(R.color.primary, requireContext().getTheme());
         }
-        int unchecked = getResources().getColor(R.color.text_secondary, getTheme());
+        int unchecked = getResources().getColor(R.color.text_secondary, requireContext().getTheme());
         int disabled = Color.argb(88, Color.red(unchecked), Color.green(unchecked), Color.blue(unchecked));
         ColorStateList tint = new ColorStateList(
                 new int[][]{
@@ -592,9 +606,9 @@ public class InstancesActivity extends BaseActivity {
     private void startBatchBackupWithPermissionCheck(List<GameVersion> versionsToBackup) {
         pendingBatchBackupVersions = new ArrayList<>(versionsToBackup);
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
-                && ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                && ContextCompat.checkSelfPermission(ctx(), Manifest.permission.WRITE_EXTERNAL_STORAGE)
                 != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this,
+            requestPermissions(
                     new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
                     REQUEST_BATCH_BACKUP_STORAGE);
             return;
@@ -611,7 +625,7 @@ public class InstancesActivity extends BaseActivity {
         batchBackupFailures = new ArrayList<>();
         setBatchBackupButtonEnabled(false);
 
-        batchBackupProgressDialog = new InstallProgressDialog(this);
+        batchBackupProgressDialog = new InstallProgressDialog(ctx());
         batchBackupProgressDialog.setTitleText(getString(R.string.instance_batch_backup_title));
         batchBackupProgressDialog.setStatusText(getString(
                 R.string.instance_batch_backup_in_progress,
@@ -681,7 +695,7 @@ public class InstancesActivity extends BaseActivity {
 
         String savedLines = joinLines(batchBackupPaths);
         String failedLines = joinLines(batchBackupFailures);
-        CustomAlertDialog resultDialog = new CustomAlertDialog(this);
+        CustomAlertDialog resultDialog = new CustomAlertDialog(ctx());
         if (batchBackupPaths.isEmpty()) {
             resultDialog
                     .setTitleText(getString(R.string.instance_batch_backup_failed_title))
@@ -757,13 +771,19 @@ public class InstancesActivity extends BaseActivity {
         return "";
     }
 
-    private void handleBackupOpenIntent(Intent intent) {
+    /**
+     * Opens a backup handed to the launcher as a VIEW intent.
+     *
+     * Public because the intent belongs to the host activity: a fragment is never given
+     * {@code onNewIntent}, so {@link LibraryActivity} forwards a later one here rather than the
+     * screen silently ignoring the second "open backup" the user performed.
+     */
+    public void handleBackupOpenIntent(Intent intent) {
         if (intent == null || !intent.getBooleanExtra(EXTRA_RESTORE_BACKUP_ON_OPEN, false)) {
             return;
         }
         android.net.Uri uri = intent.getData();
         intent.removeExtra(EXTRA_RESTORE_BACKUP_ON_OPEN);
-        setIntent(intent);
         if (uri != null) {
             restoreBackup(uri);
         }
@@ -799,7 +819,7 @@ public class InstancesActivity extends BaseActivity {
         visibleInstanceCount = filtered.size();
         updateCount();
 
-        View emptyView = findViewById(R.id.empty_instances);
+        View emptyView = root.findViewById(R.id.empty_instances);
         if (emptyView != null) {
             emptyView.setVisibility(filtered.isEmpty() ? View.VISIBLE : View.GONE);
         }
@@ -811,14 +831,10 @@ public class InstancesActivity extends BaseActivity {
         }
     }
 
-    private void setupNavBar() {
-        setActiveNavTab(R.id.nav_tab_instances);
-        findViewById(R.id.nav_tab_instances).setOnClickListener(v -> {});
-    }
-
     @Override
-    protected void onResume() {
+    public void onResume() {
         super.onResume();
+        if (getView() == null) return;
         if (firstResume) {
             firstResume = false;
         } else {
@@ -832,14 +848,15 @@ public class InstancesActivity extends BaseActivity {
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                          @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_BATCH_BACKUP_STORAGE) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 startBatchBackup();
             } else {
                 pendingBatchBackupVersions = new ArrayList<>();
-                Toast.makeText(this, R.string.storage_permission_not_granted, Toast.LENGTH_SHORT).show();
+                Toast.makeText(ctx(), R.string.storage_permission_not_granted, Toast.LENGTH_SHORT).show();
             }
         }
     }
