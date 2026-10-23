@@ -1075,23 +1075,11 @@ Do not re-run this RE from scratch; these are the conclusions.
   Format is the one the game reads: `id:name:ip:port:timestamp`, id one past the current maximum;
   an existing name+ip+port is refused so the row cannot duplicate.
 
-## Blue firework touch layer (FireworkTouchLayer + BaseActivity)
-- One shared `FireworkTouchLayer` is attached by `BaseActivity.wrapWithNavBar` as a sibling drawn
-  over the whole screen (a `FrameLayout` holds the nav wrapper and the layer). It is only attached
-  where the nav bar is attached, so it never appears over Minecraft. `onTouchEvent` always returns
-  false тАФ it observes the gesture and never consumes it, so a tap still reaches the screen below.
-- The effect is **pooled and single-`onDraw`**: a fixed `Spark[256]` array, no per-particle Views,
-  no allocation during a burst, additive blending (`BlendMode.PLUS` on Q+), capped at
-  `MAX_BURSTS = 6`, and the driver `ValueAnimator` cancels itself when nothing is alive so an idle
-  screen burns no frames. Intensity Low/Med/High sets the spark count (14/17/20).
-- It auto-disables under Battery Saver (`PowerManager.isPowerSaveMode`), Android's "remove
-  animations" (`ANIMATOR_DURATION_SCALE == 0`), and the personalization `isShowAnimations` gate.
-  `refresh(context)` re-reads all of them; `BaseActivity.onResume` calls it so a toggle applied
-  while backgrounded takes effect. Settings changes call `refreshFireworkLayer()` (a walk for the
-  layer in the view tree) so no recreate is needed.
-- Prefs live in `PersonalizationManager`: `isFireworkTouchEnabled` (default **off** тАФ a flourish,
-  not chrome), `getFireworkIntensity`, `isFireworkFollowAccent` (off = blue palette). `resetAllCustomizations`
-  clears all three.
+## Blue firework touch layer тАФ REMOVED (U12)
+- `FireworkTouchLayer`, its three `PersonalizationManager` prefs (`firework_touch_enabled`,
+  `firework_intensity`, `firework_follow_accent`), the Settings switches and the eight
+  `firework_*` strings were deleted. It was a flourish no one asked for, and it drew over every
+  launcher screen. Do not reintroduce a decorative touch layer over the nav wrapper.
 
 ## Cosmetics status diagnostic тАФ REMOVED
 - `CosmeticsDiagnostics` + `CosmeticsStatusActivity` (and the Skins-screen "Cosmetics status"

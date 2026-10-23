@@ -1538,14 +1538,6 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="font_caveat">Caveat</string>
     <string name="font_orbitron">Orbitron</string>
     <string name="font_preview">The quick brown fox jumps over the lazy dog</string>
-    <string name="firework_touch">Firework touch effect</string>
-    <string name="firework_touch_desc">A burst of blue sparks follows your taps and swipes on launcher screens.</string>
-    <string name="firework_intensity">Firework intensity</string>
-    <string name="firework_low">Low</string>
-    <string name="firework_medium">Medium</string>
-    <string name="firework_high">High</string>
-    <string name="firework_follow_accent">Use accent color</string>
-    <string name="firework_follow_accent_desc">Off uses the blue palette.</string>
     <string name="mod_menu_keybinds">Keybinds</string>
     <string name="mod_menu_keybinds_desc">Choose the inputs that open the Mod Menu while in game.</string>
     <string name="mod_menu_keyboard_bind">Keyboard / mouse bind</string>

@@ -34,7 +34,6 @@ import org.chimeramc.client.R;
 import org.chimeramc.client.core.auth.MsftAccountStore;
 import org.chimeramc.client.launcher.controller.ControllerConnectionMonitor;
 import org.chimeramc.client.launcher.controller.ControllerToastView;
-import org.chimeramc.client.ui.views.FireworkTouchLayer;
 import org.chimeramc.client.launcher.controller.ControllerType;
 import org.chimeramc.client.ui.animation.DynamicAnim;
 import org.chimeramc.client.ui.navigation.LauncherTab;
@@ -130,50 +129,8 @@ public class BaseActivity extends AppCompatActivity {
         wrapWithNavBar(view);
     }
 
-    /** The firework touch layer for this screen, or null when the nav bar is skipped. */
-    private FireworkTouchLayer fireworkLayer;
-
     /** True once the nav indicator has been placed once, so later moves spring instead of jump. */
     private boolean navIndicatorPlaced;
-
-    /**
-     * Installs the shared firework touch layer over the screen.
-     *
-     * It is a sibling drawn on top, non-clickable and never consuming a touch, so it can decorate
-     * the whole screen without intercepting a gesture meant for the content underneath. It is
-     * skipped where the nav bar is skipped (the game activity, dialogs hosted elsewhere), so the
-     * effect never appears over Minecraft.
-     */
-    private View attachFireworkLayer(View root) {
-        // The holder observes every touch that reaches it (it is on top), then passes the event
-        // down itself. The firework view cannot return true for a DOWN without swallowing the
-        // gesture, and a view that returns false never receives the MOVE stream, so a drag trail
-        // was impossible from inside the child. Observing here is what makes the trail work while
-        // the screen below still gets a completely normal gesture.
-        FrameLayout holder = new FrameLayout(this) {
-            @Override
-            public boolean onInterceptTouchEvent(MotionEvent ev) {
-                if (fireworkLayer != null) fireworkLayer.observe(ev);
-                return false;
-            }
-
-            @Override
-            public boolean onTouchEvent(MotionEvent ev) {
-                if (fireworkLayer != null) fireworkLayer.observe(ev);
-                return false;
-            }
-        };
-        holder.setLayoutParams(new ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        holder.addView(root, new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        fireworkLayer = new FireworkTouchLayer(this);
-        holder.addView(fireworkLayer, new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        fireworkLayer.setClickable(false);
-        fireworkLayer.setFocusable(false);
-        return holder;
-    }
 
     private void wrapWithNavBar(View contentView) {
         if (shouldSkipNavBar()) {
@@ -200,7 +157,7 @@ public class BaseActivity extends AppCompatActivity {
         contentView.setAlpha(0f);
         contentView.setTranslationY(8f * getResources().getDisplayMetrics().density);
 
-        super.setContentView(attachFireworkLayer(wrapper));
+        super.setContentView(wrapper);
         navBarInjected = true;
         setupBaseNavBar();
 
@@ -631,11 +588,6 @@ public class BaseActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (fireworkLayer != null) {
-            // Re-read the gates on every resume: Battery Saver and "remove animations" can be
-            // toggled while the app is backgrounded, and a settings change must take effect.
-            fireworkLayer.refresh(this);
-        }
         int currentGen = ThemeManager.getThemeChangeGeneration();
         int currentPGen = PersonalizationManager.getChangeGeneration();
         if (appliedThemeGeneration != currentGen || appliedPersonalizationGeneration != currentPGen) {

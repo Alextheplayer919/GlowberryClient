@@ -790,52 +790,6 @@ public class SettingsActivity extends BaseActivity {
             });
         }
 
-        // Firework touch effect
-        SwitchMaterial switchFirework = findViewById(R.id.switch_firework_touch);
-        SwitchMaterial switchFireworkAccent = findViewById(R.id.switch_firework_accent);
-        Spinner spinnerFirework = findViewById(R.id.spinner_firework_intensity);
-        View rowFireworkIntensity = findViewById(R.id.row_firework_intensity);
-        View rowFireworkAccent = findViewById(R.id.row_firework_accent);
-        if (switchFirework != null) {
-            switchFirework.setChecked(personalizationManager.isFireworkTouchEnabled());
-            applyFireworkEnabledState(rowFireworkIntensity, rowFireworkAccent, switchFirework.isChecked());
-            switchFirework.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                personalizationManager.setFireworkTouchEnabled(isChecked);
-                applyFireworkEnabledState(rowFireworkIntensity, rowFireworkAccent, isChecked);
-                refreshFireworkLayer();
-            });
-        }
-        if (spinnerFirework != null) {
-            String[] levels = {
-                    getString(R.string.firework_low),
-                    getString(R.string.firework_medium),
-                    getString(R.string.firework_high),
-            };
-            ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
-                    android.R.layout.simple_spinner_item, levels);
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            spinnerFirework.setAdapter(adapter);
-            spinnerFirework.setSelection(personalizationManager.getFireworkIntensity());
-            spinnerFirework.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                    personalizationManager.setFireworkIntensity(position);
-                    refreshFireworkLayer();
-                }
-
-                @Override
-                public void onNothingSelected(AdapterView<?> parent) {
-                }
-            });
-        }
-        if (switchFireworkAccent != null) {
-            switchFireworkAccent.setChecked(personalizationManager.isFireworkFollowAccent());
-            switchFireworkAccent.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                personalizationManager.setFireworkFollowAccent(isChecked);
-                refreshFireworkLayer();
-            });
-        }
-
         // Haptic Feedback Toggle
         SwitchMaterial switchHaptics = findViewById(R.id.switch_haptic_feedback);
         if (switchHaptics != null) {
@@ -959,47 +913,6 @@ public class SettingsActivity extends BaseActivity {
         if (iconSystem != null) iconSystem.setImageTintList(android.content.res.ColorStateList.valueOf(currentMode == 0 ? selectedColor : unselectedColor));
         if (iconLight != null) iconLight.setImageTintList(android.content.res.ColorStateList.valueOf(currentMode == 1 ? selectedColor : unselectedColor));
         if (iconDark != null) iconDark.setImageTintList(android.content.res.ColorStateList.valueOf(currentMode == 2 ? selectedColor : unselectedColor));
-    }
-
-    /**
-     * Greys out the intensity/accent rows while the effect is off, so the dependency is obvious.
-     */
-    private void applyFireworkEnabledState(View intensityRow, View accentRow, boolean enabled) {
-        float alpha = enabled ? 1f : 0.4f;
-        if (intensityRow != null) {
-            intensityRow.setAlpha(alpha);
-            intensityRow.setEnabled(enabled);
-        }
-        if (accentRow != null) {
-            accentRow.setAlpha(alpha);
-            accentRow.setEnabled(enabled);
-        }
-    }
-
-    /** Pushes a changed firework setting to the live layer without recreating the activity. */
-    private void refreshFireworkLayer() {
-        View root = findViewById(android.R.id.content);
-        if (root instanceof ViewGroup) {
-            org.chimeramc.client.ui.views.FireworkTouchLayer layer =
-                    findFireworkLayer((ViewGroup) root);
-            if (layer != null) layer.refresh(this);
-        }
-    }
-
-    /** Finds the shared firework layer in a view tree, or null. */
-    private static org.chimeramc.client.ui.views.FireworkTouchLayer findFireworkLayer(ViewGroup group) {
-        for (int i = 0; i < group.getChildCount(); i++) {
-            View child = group.getChildAt(i);
-            if (child instanceof org.chimeramc.client.ui.views.FireworkTouchLayer) {
-                return (org.chimeramc.client.ui.views.FireworkTouchLayer) child;
-            }
-            if (child instanceof ViewGroup) {
-                org.chimeramc.client.ui.views.FireworkTouchLayer found =
-                        findFireworkLayer((ViewGroup) child);
-                if (found != null) return found;
-            }
-        }
-        return null;
     }
 
     private void setupColorPicker() {

@@ -53,16 +53,6 @@ public class PersonalizationManager {
     private static final String KEY_BLUR_INTENSITY = "blur_intensity";
     private static final String KEY_SHOW_ANIMATIONS = "show_animations";
     private static final String KEY_ENABLE_GLOW = "enable_glow_effects";
-
-    /** Blue firework touch effect (Part C1). */
-    private static final String KEY_FIREWORK_ENABLED = "firework_touch_enabled";
-    private static final String KEY_FIREWORK_INTENSITY = "firework_intensity";
-    private static final String KEY_FIREWORK_FOLLOW_ACCENT = "firework_follow_accent";
-
-    /** Intensity levels for the firework effect; Low/Med/High map to particle counts. */
-    public static final int FIREWORK_LOW = 0;
-    public static final int FIREWORK_MEDIUM = 1;
-    public static final int FIREWORK_HIGH = 2;
     private static final String KEY_COMPACT_MODE = "compact_mode";
     private static final String KEY_HAPTIC_FEEDBACK = "haptic_feedback";
     public static final String KEY_DYNAMIC_COLOR = "dynamic_color";
@@ -317,34 +307,6 @@ public class PersonalizationManager {
         sChangeGeneration++;
     }
 
-    /** Whether the blue firework touch layer is on. Off by default: it is a flourish, not chrome. */
-    public boolean isFireworkTouchEnabled() {
-        return prefs.getBoolean(KEY_FIREWORK_ENABLED, false);
-    }
-
-    public void setFireworkTouchEnabled(boolean enabled) {
-        prefs.edit().putBoolean(KEY_FIREWORK_ENABLED, enabled).apply();
-    }
-
-    public int getFireworkIntensity() {
-        return clamp(prefs.getInt(KEY_FIREWORK_INTENSITY, FIREWORK_MEDIUM),
-                FIREWORK_LOW, FIREWORK_HIGH);
-    }
-
-    public void setFireworkIntensity(int level) {
-        prefs.edit().putInt(KEY_FIREWORK_INTENSITY,
-                clamp(level, FIREWORK_LOW, FIREWORK_HIGH)).apply();
-    }
-
-    /** Whether the sparks follow the user's accent instead of the blue default palette. */
-    public boolean isFireworkFollowAccent() {
-        return prefs.getBoolean(KEY_FIREWORK_FOLLOW_ACCENT, false);
-    }
-
-    public void setFireworkFollowAccent(boolean follow) {
-        prefs.edit().putBoolean(KEY_FIREWORK_FOLLOW_ACCENT, follow).apply();
-    }
-
     public boolean isEnableGlowEffects() {
         return prefs.getBoolean(KEY_ENABLE_GLOW, true);
     }
@@ -410,9 +372,6 @@ public class PersonalizationManager {
             .remove(KEY_BLUR_INTENSITY)
             .remove(KEY_SHOW_ANIMATIONS)
             .remove(KEY_ENABLE_GLOW)
-            .remove(KEY_FIREWORK_ENABLED)
-            .remove(KEY_FIREWORK_INTENSITY)
-            .remove(KEY_FIREWORK_FOLLOW_ACCENT)
             .remove(KEY_COMPACT_MODE)
             .remove(KEY_HAPTIC_FEEDBACK)
             .remove(KEY_DYNAMIC_COLOR)
