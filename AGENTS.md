@@ -139,10 +139,10 @@
   a screen asks for a role, never a raw sp. The family is the **variable** `dmsans`
   (`UiType.FAMILY`), so a weight is a real axis value: `UiType.weightAxis(w)` builds the platform's
   `"'wght' 600"` string (pure and pinned by `UiTypeTest`), `applyWeight` sets it, and the coarse
-  `BOLD`/`NORMAL` flag stays only as a fallback for a device that ignores the axis. Check a font is
-  actually variable (`fvar` table with a `wght` axis) before using it as a role family — `dmsans` is
-  *not* (it exposes only `opsz`), so **do not switch `UiType.FAMILY` to `dmsans`**; `inter`/`worksans`
-  /`outfit`/`manrope` are the variable families on disk.
+  `BOLD`/`NORMAL` flag stays only as a fallback for a device that ignores the axis. `dmsans` **is**
+  variable (`wght` 100–1000, plus `opsz`), which is why it is the family; check a font's `fvar` table
+  for a `wght` axis before using it as a role family — `misans`/`poppins`/`lato` are static and a
+  weight axis on one of those does nothing.
 - **`UiShape` is the Expressive shape scale plus its morph.** The stops are a closed set
   (`EXTRA_SMALL 4` … `FULL`), a superset of the token radii, exposed as `Role`s (INDICATOR/CHIP/
   FIELD/CARD/WINDOW/PILL). `morph(from, to, t)` is a pure interpolation with one rule worth knowing:

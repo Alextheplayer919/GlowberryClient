@@ -25,7 +25,7 @@ should say a screen "works in game" until this list passes.
    - [ ] Tapping a chip toggles the module and the dot changes colour.
 4. Release on a sector opens that screen; releasing outside the ring or pressing Back closes.
 
-## 2. Touch Mod Menu (Screen A)
+## 2. Mod Menu (one screen, touch and bind)
 
 - [ ] The window is centred, ~66% of the width (capped at 720dp), ~78% of the height, with a
   hairline border and a shadow.
@@ -34,9 +34,6 @@ should say a screen "works in game" until this list passes.
 - [ ] A module row: icon, name, toggle on the right; the whole row taps to toggle.
 - [ ] Toggling a module updates the toggle and the row tint; a settings gear opens the side sheet.
 - [ ] No violet/magenta anywhere; the accent is blue.
-
-## 3. Mod Menu (one screen)
-
 - [ ] The in-game bind opens the radial wheel; its sectors open the same Mod Menu the launcher's
   Mods screen opens, on the page the sector names.
 - [ ] The rail lists every page (General, Voice, Packs, Cosmetics, HUD editor, Replay, Settings,
@@ -46,6 +43,17 @@ should say a screen "works in game" until this list passes.
 - [ ] The Controller page draws the connected pad and lights the pressed button; a modifier
   capture in the full editor takes the next press.
 - [ ] The Keyboard page draws the board, flashes a captured key and rebinds the action.
+
+## 3. Adaptive navigation (U5) and the type/shape scales (U6)
+
+- [ ] On a phone-width window the destinations are a horizontal bar at the top, icon-only, with
+  the selected entry's label shown.
+- [ ] On a 600-839dp window the destinations are a vertical icon rail on the leading edge.
+- [ ] On an 840dp+ window the rail also shows every label.
+- [ ] Rotating does not change the navigation shape; unfolding / resizing across a breakpoint does.
+- [ ] Every label uses a type role (display/title/body/label/caption); no screen sets a raw sp.
+- [ ] The active rail row's corners animate between the chip and card stops as the selection moves,
+  and its label is heavier than the inactive rows'.
 
 ## 4. Closet (cosmetics)
 
