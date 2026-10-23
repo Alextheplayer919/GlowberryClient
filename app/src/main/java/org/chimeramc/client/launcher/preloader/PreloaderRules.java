@@ -286,7 +286,20 @@ public final class PreloaderRules {
         return keys;
     }
 
-    /** True when the merged rule carries a render vtable index (the hook-slot field). */
+    /**
+     * True when [content]'s rule DB contains at least one rule covering [version].
+     *
+     * <p>This is the fail-closed coverage test (item G5): if the DB has no entry for the running
+     * Bedrock build, the preloader's byte-pattern hook discovery cannot succeed, so the launcher
+     * refuses to hand the rules over instead of logging scan-and-hope misses at runtime. It uses
+     * the same rule-selection path the native merge uses, so the Java refusal and the native
+     * install agree on which builds are covered.
+     */
+    public static boolean coversVersion(String content, String version) {
+        return mergeRuleForVersion(content, version) != null;
+    }
+
+    /** True when [merged] carries a usable {@code playerRenderVtableIndex} (skin/cosmetic slot). */
     public static boolean hasPlayerRenderIndex(JsonObject merged) {
         return hasIndex(merged, "playerRenderVtableIndex");
     }

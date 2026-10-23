@@ -126,6 +126,41 @@ public final class PreloaderSignatureRulesManager {
         }
     }
 
+    /**
+     * True when the signature-rules DB in use contains at least one rule that covers
+     * [version] (format {@code 26.60.28} or {@code 1.26.60.28}).
+     *
+     * <p>This is the fail-closed half of item G5. Signature-based hook discovery only works when
+     * the rule DB actually has an entry for the installed build; a build with no covering rule
+     * cannot be hooked by byte pattern, so the launcher must say so before launch rather than
+     * hand the rules to the preloader and let it "scan and hope". A build with no covering rule
+     * is not necessarily broken — RTTI-slot seams still work — but every byte-pattern-driven
+     * hook is off, and the caller (launch preflight / diagnostics) needs to know.
+     */
+    public static boolean coversInstalledVersion(Context context, String version) {
+        try {
+            String content = readRulesFile(getRulesFile(context));
+            return PreloaderRules.coversVersion(content, version);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * A human-readable statement of signature-rule coverage for [version]: null when a rule
+     * covers it, or a message naming the version the diagnostics can show when one does not.
+     */
+    public static String describeCoverageFailure(Context context, String version) {
+        if (coversInstalledVersion(context, version)) {
+            return null;
+        }
+        String expected = version != null
+                ? (version.startsWith("1.") ? version.substring(2) : version)
+                : "?";
+        return "No signature rule covers Bedrock " + expected
+                + ": byte-pattern hooks (menu/HUD screens) are disabled for this build";
+    }
+
     private static String readRulesFile(File file) {
         if (file == null || !file.isFile()) {
             return null;

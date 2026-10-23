@@ -158,6 +158,17 @@ public class DiagnosticsActivity extends BaseActivity {
         int revision = PreloaderSignatureRulesManager.getRulesRevision(this);
         addRow(rows, R.string.diagnostics_field_signature_rules_revision,
                 revision < 0 ? "?" : String.valueOf(revision));
+
+        // G5: fail-closed coverage visibility. When the rule DB has no entry for the selected
+        // build, every byte-pattern hook is off; the report must say that explicitly.
+        GameVersion version = selectedVersion();
+        if (version != null && version.versionCode != null && !version.versionCode.isEmpty()) {
+            String failure = PreloaderSignatureRulesManager
+                    .describeCoverageFailure(this, version.versionCode);
+            addRow(rows, R.string.diagnostics_field_signature_rules_coverage,
+                    failure == null ? getString(R.string.diagnostics_rules_covers_build)
+                            : getString(R.string.diagnostics_rules_no_coverage));
+        }
     }
 
     private void renderNativeRows() {
@@ -302,6 +313,11 @@ public class DiagnosticsActivity extends BaseActivity {
         String source = PreloaderSignatureRulesManager.getRulesSource(this);
         sb.append("Signature rules source: ").append(source != null ? source : "unknown").append("\n");
         sb.append("Signature rules revision: ").append(PreloaderSignatureRulesManager.getRulesRevision(this)).append("\n");
+        if (version != null && version.versionCode != null && !version.versionCode.isEmpty()) {
+            sb.append("Signature rule coverage: ")
+                    .append(PreloaderSignatureRulesManager.describeCoverageFailure(this, version.versionCode) == null
+                            ? "covered" : "NOT COVERED (byte-pattern hooks disabled)").append("\n");
+        }
 
         boolean nativeLoaded = isNativeLoaded();
         sb.append("Native library loaded: ").append(nativeLoaded ? "yes" : "no").append("\n");

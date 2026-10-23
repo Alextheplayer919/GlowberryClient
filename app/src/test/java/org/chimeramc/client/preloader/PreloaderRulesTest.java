@@ -53,6 +53,22 @@ public class PreloaderRulesTest {
     }
 
     @Test
+    public void coversVersionIsFailClosedForUncoveredBuilds() {
+        // G5: a build with no covering rule must read as uncovered so the launcher refuses to
+        // hand the rules over instead of scanning-and-hoping at runtime.
+        assertTrue(PreloaderRules.coversVersion(shippedShape(), "1.26.50.24"));
+        assertTrue(PreloaderRules.coversVersion(shippedShape(), "1.26.33.1"));
+        assertTrue(PreloaderRules.coversVersion(shippedShape(), "26.50.24"));
+        // The shipped shape's lowest floor is 1.21.132; anything below it is uncovered even by
+        // merge, so the launcher must refuse to hand rules to the preloader for it.
+        assertFalse(PreloaderRules.coversVersion(shippedShape(), "1.21.130"));
+        assertFalse(PreloaderRules.coversVersion(shippedShape(), "1.20.0.0"));
+        assertFalse(PreloaderRules.coversVersion(null, "1.26.50.24"));
+        assertFalse(PreloaderRules.coversVersion("not json", "1.26.50.24"));
+        assertFalse(PreloaderRules.coversVersion(shippedShape(), null));
+    }
+
+    @Test
     public void aVersionWithNoDirectRuleInheritsTheSlotFromABroaderRule() {
         JsonObject merged = PreloaderRules.mergeRuleForVersion(shippedShape(), "1.26.33.1");
         assertNotNull("1.26.33.1 must match a rule", merged);

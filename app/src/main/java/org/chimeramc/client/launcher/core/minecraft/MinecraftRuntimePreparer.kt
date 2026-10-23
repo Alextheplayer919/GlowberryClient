@@ -125,9 +125,24 @@ object MinecraftRuntimePreparer {
         // the preloader's own "rules not delivered" guard at hook-install time; delivering into
         // the void here would leave the same silent state the crash came from.
         if (ModManager.ensurePreloaderLoaded()) {
-            val signatureRulesFile = PreloaderSignatureRulesManager.getRulesFile(context.applicationContext)
-            PreloaderInput.configureSignatureRules(signatureRulesFile, version.versionCode)
-            trace.mark("Preloader signature rules configured", signatureRulesFile?.absolutePath ?: "<none>")
+            // G5: fail closed on a build the signature DB does not cover. A rule file with no
+            // matching entry would feed scan-and-hope byte patterns into the preloader; the
+            // hooks silently never install. Refuse to hand the file over and record a reason
+            // the diagnostics screen can show instead of pretending the build is supported.
+            val coverageFailure = PreloaderSignatureRulesManager
+                .describeCoverageFailure(context.applicationContext, version.versionCode)
+            if (coverageFailure == null) {
+                val signatureRulesFile = PreloaderSignatureRulesManager
+                    .getRulesFile(context.applicationContext)
+                PreloaderInput.configureSignatureRules(signatureRulesFile, version.versionCode)
+                trace.mark("Preloader signature rules configured",
+                    signatureRulesFile?.absolutePath ?: "<none>")
+            } else {
+                fileListener.onLog("Signature rules skipped: $coverageFailure")
+                trace.mark("Preloader signature rules skipped (no coverage)", coverageFailure)
+            }
+        } else {
+            fileListener.onLog("Game loader unavailable; preloader signature rules not delivered")
         }
 
         fileListener.onLog("Loading native libraries")
