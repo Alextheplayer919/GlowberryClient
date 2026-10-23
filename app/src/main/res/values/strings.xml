@@ -1368,6 +1368,33 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="settings_backup_imported">Settings restored, %1$d controller profiles included.</string>
     <string name="settings_backup_failed">Backup failed: %1$s</string>
 
+    <!-- Settings > Scheduled world backups (G13): SAF-folder backups on a schedule. -->
+    <string name="settings_world_backup_title">Scheduled world backups</string>
+    <string name="settings_world_backup_desc">Back up every world automatically to a folder you pick, on a schedule you choose. The latest copies of each world are kept; older ones are pruned.</string>
+    <string name="settings_world_backup_enable">Enabled</string>
+    <string name="settings_world_backup_interval">Back up every</string>
+    <string name="settings_world_backup_interval_daily">Day</string>
+    <string name="settings_world_backup_interval_3_days">3 days</string>
+    <string name="settings_world_backup_interval_weekly">Week</string>
+    <string name="settings_world_backup_destination">Backup folder</string>
+    <string name="settings_world_backup_destination_pick">Choose folder</string>
+    <string name="settings_world_backup_destination_picked">%1$s</string>
+    <string name="settings_world_backup_destination_missing">No folder chosen</string>
+    <string name="settings_world_backup_destination_lost">Chosen folder is no longer accessible. Choose it again.</string>
+    <string name="settings_world_backup_back_up_now">Back up now</string>
+    <string name="settings_world_backup_retention">Keep the newest %1$d backups of each world</string>
+    <string name="settings_world_backup_next_run">Next backup: %1$s</string>
+    <string name="settings_world_backup_next_run_pending">Next backup: once a destination is chosen</string>
+    <string name="settings_world_backup_disabled">Scheduled backups are off</string>
+    <string name="world_backup_notification_title">World backup</string>
+    <string name="world_backup_channel">World backups</string>
+    <string name="world_backup_running">Backing up worlds…</string>
+    <string name="world_backup_result">Backed up %1$d worlds, pruned %2$d old backups.</string>
+    <string name="world_backup_status_no_destination">No backup folder granted — open Settings and choose one.</string>
+    <string name="world_backup_status_failed">Backup failed: %1$s</string>
+    <string name="world_backup_ran_ok">Last backup succeeded.</string>
+    <string name="world_backup_started_background">Backed up in the background.</string>
+
     <!-- Settings > Diagnostics (U16): in-app diagnostics report + G2 "Repair installation". -->
     <string name="settings_diagnostics_open">Diagnostics</string>
     <string name="settings_diagnostics">Diagnostics</string>

@@ -127,7 +127,7 @@ public final class WorldBackupConfig {
     }
 
     /** Pure schedule math used by both the UI (status preview) and the alarm scheduler. */
-    static long nextRunAfter(long lastRunAt, int intervalHours) {
+    public static long nextRunAfter(long lastRunAt, int intervalHours) {
         int clamped = foldIntoIntervalHours(intervalHours);
         if (lastRunAt <= 0L) {
             return 0L;

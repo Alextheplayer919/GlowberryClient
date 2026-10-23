@@ -48,6 +48,9 @@ import org.chimeramc.client.util.LauncherStorage;
 import org.chimeramc.client.util.PermissionsHandler;
 import org.chimeramc.client.util.PersonalizationManager;
 import org.chimeramc.client.util.ThemeManager;
+import org.chimeramc.client.util.WorldBackupConfig;
+import org.chimeramc.client.util.WorldBackupScheduler;
+import org.chimeramc.client.util.WorldBackupStore;
 
 import java.text.DateFormat;
 import java.util.Date;
@@ -110,6 +113,14 @@ public class SettingsActivity extends BaseActivity {
     private SwitchMaterial switchCompactMode;
     private Button btnResetCustomizations;
 
+    // Scheduled world backups (G13)
+    private ActivityResultLauncher<Uri> worldBackupFolderLauncher;
+    private SwitchMaterial switchWorldBackupEnabled;
+    private Spinner spinnerWorldBackupInterval;
+    private TextView worldBackupDestinationStatus;
+    private TextView worldBackupStatus;
+    private WorldBackupConfig worldBackupConfig;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -161,6 +172,13 @@ public class SettingsActivity extends BaseActivity {
                 new ActivityResultContracts.OpenDocument(),
                 uri -> {
                     if (uri != null) importSettingsBackup(uri);
+                }
+        );
+
+        worldBackupFolderLauncher = registerForActivityResult(
+                new ActivityResultContracts.OpenDocumentTree(),
+                uri -> {
+                    if (uri != null) onWorldBackupFolderPicked(uri);
                 }
         );
 
@@ -1440,6 +1458,145 @@ public class SettingsActivity extends BaseActivity {
             migrationCleanupButton.setOnClickListener(v -> confirmCleanupLegacyDir());
         }
         refreshMigrationCleanupUi();
+        setupWorldBackupSection();
+    }
+
+    /**
+     * Scheduled world backups (G13): toggle + interval spinner + SAF destination + run-now.
+     */
+    private void setupWorldBackupSection() {
+        worldBackupConfig = new WorldBackupConfig(this);
+        switchWorldBackupEnabled = findViewById(R.id.switch_world_backup_enabled);
+        spinnerWorldBackupInterval = findViewById(R.id.spinner_world_backup_interval);
+        worldBackupDestinationStatus = findViewById(R.id.world_backup_destination_status);
+        worldBackupStatus = findViewById(R.id.world_backup_status);
+        Button pickFolder = findViewById(R.id.btn_world_backup_pick_folder);
+        Button backUpNow = findViewById(R.id.btn_world_backup_now);
+
+        if (switchWorldBackupEnabled != null) {
+            switchWorldBackupEnabled.setChecked(worldBackupConfig.isEnabled());
+            switchWorldBackupEnabled.setOnCheckedChangeListener((v, checked) -> {
+                worldBackupConfig.setEnabled(checked);
+                WorldBackupScheduler.reschedule(this);
+                refreshWorldBackupUi();
+            });
+        }
+
+        if (spinnerWorldBackupInterval != null) {
+            String[] labels = {
+                    getString(R.string.settings_world_backup_interval_daily),
+                    getString(R.string.settings_world_backup_interval_3_days),
+                    getString(R.string.settings_world_backup_interval_weekly),
+            };
+            ArrayAdapter<String> adapter = new ArrayAdapter<>(this, R.layout.spinner_item, labels);
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            spinnerWorldBackupInterval.setAdapter(adapter);
+
+            int index = indexOfInterval(worldBackupConfig.getIntervalHours());
+            spinnerWorldBackupInterval.setSelection(index);
+            spinnerWorldBackupInterval.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(AdapterView<?> parent, android.view.View view, int position, long id) {
+                    worldBackupConfig.setIntervalHours(intervalForIndex(position));
+                    WorldBackupScheduler.reschedule(SettingsActivity.this);
+                    refreshWorldBackupUi();
+                }
+
+                @Override
+                public void onNothingSelected(AdapterView<?> parent) {
+                }
+            });
+        }
+
+        if (pickFolder != null) {
+            pickFolder.setOnClickListener(v -> {
+                if (worldBackupFolderLauncher != null) {
+                    worldBackupFolderLauncher.launch(null);
+                }
+            });
+            DynamicAnim.applyPressScale(pickFolder);
+        }
+
+        if (backUpNow != null) {
+            backUpNow.setOnClickListener(v -> WorldBackupScheduler.runNow(this));
+            DynamicAnim.applyPressScale(backUpNow);
+        }
+
+        refreshWorldBackupUi();
+    }
+
+    private void onWorldBackupFolderPicked(Uri uri) {
+        try {
+            getContentResolver().takePersistableUriPermission(uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        } catch (SecurityException e) {
+            // Permission not persistable is fine — the run still checks access each time.
+        }
+        worldBackupConfig.setFolderUri(uri);
+        worldBackupConfig.setEnabled(true);
+        if (switchWorldBackupEnabled != null) {
+            switchWorldBackupEnabled.setChecked(true);
+        }
+        WorldBackupScheduler.reschedule(this);
+        refreshWorldBackupUi();
+    }
+
+    private void refreshWorldBackupUi() {
+        if (worldBackupConfig == null) return;
+        if (worldBackupDestinationStatus != null) {
+            if (worldBackupConfig.hasDestinationPermission()) {
+                Uri uri = worldBackupConfig.getFolderUri();
+                worldBackupDestinationStatus.setText(getString(
+                        R.string.settings_world_backup_destination_picked,
+                        uri == null ? getString(R.string.settings_world_backup_destination_missing)
+                                : WorldBackupStore.displayNameFromTreeUri(this, uri)));
+            } else {
+                worldBackupDestinationStatus.setText(
+                        R.string.settings_world_backup_destination_missing);
+            }
+        }
+        if (worldBackupStatus != null) {
+            refreshBackupRunStatus();
+        }
+    }
+
+    private void refreshBackupRunStatus() {
+        if (worldBackupStatus == null || worldBackupConfig == null) return;
+        if (!worldBackupConfig.isEnabled()) {
+            worldBackupStatus.setText(R.string.settings_world_backup_disabled);
+            return;
+        }
+        if (!worldBackupConfig.hasDestinationPermission()) {
+            worldBackupStatus.setText(R.string.settings_world_backup_next_run_pending);
+            return;
+        }
+        long next = WorldBackupConfig.nextRunAfter(worldBackupConfig.getLastRunAt(),
+                worldBackupConfig.getIntervalHours());
+        long now = System.currentTimeMillis();
+        String lastResult = worldBackupConfig.getLastResult();
+        if (worldBackupConfig.getLastRunAt() > 0L && next > now) {
+            String when = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT,
+                    Locale.getDefault()).format(new Date(next));
+            String base = getString(R.string.settings_world_backup_next_run, when);
+            worldBackupStatus.setText(lastResult != null && !lastResult.isEmpty()
+                    ? lastResult + "\n" + base : base);
+        } else {
+            worldBackupStatus.setText(R.string.settings_world_backup_next_run_pending);
+        }
+    }
+
+    private static int intervalForIndex(int position) {
+        switch (position) {
+            case 1: return 72;
+            case 2: return 168;
+            default: return 24;
+        }
+    }
+
+    private static int indexOfInterval(int hours) {
+        if (hours <= 24) return 0;
+        if (hours <= 72) return 1;
+        return 2;
     }
 
     private void refreshSharedStorageLayoutUi() {
