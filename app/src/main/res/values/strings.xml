@@ -666,7 +666,7 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="fps_optimizer_title">FPS Optimization</string>
     <string name="fps_optimizer_desc">While a game is running, keeps the launcher out of the way: serves cached news and update data instead of polling, and steps further back automatically when the device gets hot, low on memory, or battery saver is on. It only reduces work the launcher itself does — it never changes Minecraft\'s own graphics or framerate.</string>
 
-    <string name="optifine_mode_title">Bedrock Optifine Mode</string>
+    <string name="optifine_mode_title">Game Performance Mode</string>
     <string name="optifine_badge_text">FPS+</string>
     <string name="optifine_mode_desc">Applies host-level performance changes to the game process through the preloader: a faster allocator, a real-time render thread, performance-core pinning and the panel\'s top refresh rate. Every item is listed below with what it actually did, and can be turned off on its own if your device does not like it. It never claims a frame rate.</string>
     <string name="optifine_tier1_header">Host optimizations (safe)</string>

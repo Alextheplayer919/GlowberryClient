@@ -1,0 +1,28 @@
+name: 📦 Mod / packaging question
+description: Ask about the .AntEgg format, the Preloader API, mod loading, or packaging.
+labels: ["modding"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For mod authoring questions, the [developer guide](https://github.com/ChimeraAnt-DEV/GlowberryClient/blob/main/docs/guide/developer.md)
+        and the [.AntEgg template](https://github.com/ChimeraAnt-DEV/GlowberryClient/tree/main/examples/antegg-template)
+        cover most of the surface. Search the existing issues before opening a new one.
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      description: Be specific. Include the manifest (egg.json) if your package fails to load.
+    validations:
+      required: true
+  - type: input
+    id: sdktag
+    attributes:
+      label: preloader-android GIT_TAG (if pinned)
+      placeholder: e.g. 0.2.2
+  - type: textarea
+    id: error
+    attributes:
+      label: Error text (if any)
+      description: The one-line failure reason shown on the mod's row in the Mods tab.
+      render: text

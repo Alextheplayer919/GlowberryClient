@@ -1,0 +1,31 @@
+name: ✨ Feature request
+description: Suggest an improvement or a new capability for GlowberryClient.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: "Please open one issue per feature request, and search existing issues first."
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the player or developer need, not just a UI suggestion.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+    validations:
+      required: true
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - label: Launcher UI
+        - label: Mod menu / in-game overlay
+        - label: .AntEgg / Preloader SDK
+        - label: Installations / import pipeline
+        - label: Cosmetics / voice / replay
+        - label: Documentation

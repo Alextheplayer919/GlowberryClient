@@ -170,7 +170,7 @@ Copy-Item -LiteralPath $LibraryPath `
 
 Invoke-Checked $Generator $PackageDir
 
-$ArchivePath = Join-Path $DistDir "full-cpp-mod.levipack"
+$ArchivePath = Join-Path $DistDir "full-cpp-mod.antegg"
 $TempZipPath = Join-Path $DistDir "full-cpp-mod.zip"
 if (Test-Path $ArchivePath) {
     Remove-Item -LiteralPath $ArchivePath -Force

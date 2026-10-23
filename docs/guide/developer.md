@@ -5,11 +5,13 @@ mods. The public SDK is published in
 [ChimeraAnt-DEV/preloader-android](https://github.com/ChimeraAnt-DEV/preloader-android).
 
 For standalone third-party mods, start from the
-[GlowberryClient Android mod template](https://github.com/QYCottage/levilauncher-android-mod-template).
+[LeviLauncher Android mod template](https://github.com/QYCottage/levilauncher-android-mod-template),
+which GlowberryClient's native-modding layer builds upon and adapts as `.AntEgg`
+packages.
 
 Use `examples/full-cpp-mod` as the reference implementation. It includes
 lifecycle registration, typed config, Mod Menu integration, Android packaging,
-and `.levipack` output.
+and `.AntEgg` output.
 
 ## Build the Example
 
@@ -26,10 +28,10 @@ Output:
 
 ```text
 examples\full-cpp-mod\dist\arm64-v8a\full-cpp-mod\
-examples\full-cpp-mod\dist\arm64-v8a\full-cpp-mod.levipack
+examples\full-cpp-mod\dist\arm64-v8a\full-cpp-mod.antegg
 ```
 
-Import the `.levipack`, or copy the unpacked mod directory into the launcher
+Import the `.antegg`, or copy the unpacked mod directory into the launcher
 native mod location.
 
 ## Package Layout
@@ -52,7 +54,7 @@ it is used for paths, Mod Menu ownership, and persisted user state.
 {
   "type": "preload-native",
   "name": "Full C++ Lifecycle Mod Example",
-  "author": "LiteLDev",
+  "author": "Your Name",
   "version": "1.0.0",
   "entry": "libfull_cpp_mod.so",
   "minecraft_versions": [],
@@ -172,7 +174,7 @@ bool FullCppMod::load() {
 ```
 
 Package `config.json` and `config.schema.json` with your mod. The full example
-build script produces both files before creating the `.levipack`.
+build script produces both files before creating the `.antegg` package.
 
 ## Mod Menu
 

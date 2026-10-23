@@ -13,7 +13,7 @@ This page is for contributors who want to build GlowberryClient itself. Native m
 ## Open the Project
 
 ```bash
-git clone https://github.com/ChimeraAnt-DEV/ChimeraLauncher.git
+git clone https://github.com/ChimeraAnt-DEV/GlowberryClient.git
 cd GlowberryClient
 ```
 

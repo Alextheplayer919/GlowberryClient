@@ -38,7 +38,7 @@ GlowberryClient is an open-source Android launcher for **Minecraft: Bedrock Edit
 
 It is built for legitimate players: it runs the copy of Minecraft you already own, it does not ship the game, and it does not bypass licensing.
 
-> **Independent project:** GlowberryClient has its own architecture, branding, feature set, and maintenance. It is **not a fork** of any other launcher. Its native-modding layer builds on conventions from the wider open-source Bedrock modding ecosystem, but every component here is developed and maintained as part of GlowberryClient.
+> **Independent project:** GlowberryClient has its own architecture, branding, feature set, and maintenance. It is not a fork of any other launcher, though its native-modding layer builds on conventions from the wider open-source Bedrock modding ecosystem — in particular the **LeviLamina / Levilamina-Android** mod template and loader conventions, which are credited under [Acknowledgements](#acknowledgements). Every component here is developed and maintained as part of GlowberryClient.
 
 **Jump to:** [Screenshots](#screenshots) · [Quick start](#quick-start-players) · [Features](#key-features) · [Status](#project-status--compatibility) · [Developers](#for-developers) · [Docs](#documentation)
 
@@ -79,7 +79,7 @@ It is built for legitimate players: it runs the copy of Minecraft you already ow
 | **Architecture** | 64-bit (`arm64-v8a`). Most versions ship both 64- and 32-bit libs and run fine; a version whose APK ships 32-bit **only** is refused |
 | **RAM** | 1 GB minimum, **3 GB+ recommended** |
 | **Storage** | 2 GB minimum, **5 GB+ recommended** |
-| **Minecraft** | You must **install** A unofficial Minecraft Apk to be able to launch Minecraft bedrock edition without any missing .so file errors.|
+| **Minecraft** | You need a **Minecraft: Bedrock Edition APK** on your device — either the official Google Play app or an officially-signed APK of a supported version. GlowberryClient extracts native libraries from that APK; it never ships or redistributes the game. See the [compatibility guide](docs/guide/compatibility.md) for the one-page statement. |
 
 ### Install in 4 steps
 
@@ -111,7 +111,7 @@ It is built for legitimate players: it runs the copy of Minecraft you already ow
 - **Playtime Tracking** – Per-instance playtime, shown on the home hero card and the instance list.
 
 **Modding**
-- **Native Mod System (Preloader)** – Load external native `.so` modules packaged as `.chimerapack` (or a plain `.so`), with a Preloader input/output pipeline, hook installation, patches, and keyboard/gamepad input callbacks. See [`docs/api`](docs/api) and [`examples/full-cpp-mod`](examples/full-cpp-mod).
+- **Native Mod System (Preloader)** – Load external native `.so` modules packaged as `.AntEgg` (or a plain `.so`), with a Preloader input/output pipeline, hook installation, patches, and keyboard/gamepad input callbacks. See [`docs/api`](docs/api) and [`examples/full-cpp-mod`](examples/full-cpp-mod).
 - **`.AntEgg` Mod Packaging** – A ZIP-based format for shipping **native or Lua-script** mods, with a validated manifest, sandboxed extraction, and atomic install. Script mods run on an embedded Lua VM and report failures in the Mods tab instead of taking the launcher down. See [`examples/antegg-template`](examples/antegg-template).
 - **Mod Sourcing** – Import from **CurseForge** (user API key) and install `.mcpack`/`.mcaddon` files, or pick local files. A **Mod Hub** browses the **Modrinth** index and scans local Downloads; Modrinth hosts Java Edition content this launcher cannot install, so it is browse-only and says so.
 - **Mod Load Diagnostics & Safe Mode** – Failed mods are recorded with a user-readable reason and badged inline instead of crashing the process; a crash-loop safe mode offers to disable the mods loaded before a crash.
@@ -244,6 +244,7 @@ Full legal details: see the [LICENSE](LICENSE).
 GlowberryClient is an independent project that stands on the shoulders of the open-source Android and Minecraft modding ecosystems.
 
 - **Chimera Team** – For designing, building, and maintaining GlowberryClient and providing infrastructure support.
+- **LeviLamina / Levilamina-Android ecosystem** – For the `levilauncher-android-mod-template` ([QYCottage/levilauncher-android-mod-template](https://github.com/QYCottage/levilauncher-android-mod-template)) and its mod lifecycle / packaging conventions, which the GlowberryClient native-modding layer builds upon and adapts as `.AntEgg`.
 - **Open-Source Bedrock Modding Community** – For the shared knowledge, tooling conventions, and ecosystem research that inform how native modules are packaged, loaded, and kept safe.
 - **Android Community** – For the documentation, libraries, and tools that made this launcher possible.
 - **Open Source Community** – For the libraries, frameworks, and tools that power this project.
@@ -257,8 +258,9 @@ GlowberryClient is an independent project that stands on the shoulders of the op
 |---|---|
 | **Author / Team** | Chimera Team |
 | **Repository** | [github.com/ChimeraAnt-DEV/GlowberryClient](https://github.com/ChimeraAnt-DEV/GlowberryClient) |
-| **Report an issue** | [GitHub Issues](https://github.com/ChimeraAnt-DEV/GlowberryClient/issues) |
-| **Support & questions** | Open an issue on the repository |
+| **Report an issue** | [GitHub Issues](https://github.com/ChimeraAnt-DEV/GlowberryClient/issues) — templates for bugs, mod questions, and feature requests |
+| **Community support** | [Discord](https://discord.gg/chimeramc) — setup help, crash triage, and modding questions |
+| **Security** | Report privately via [Security Advisories](https://github.com/ChimeraAnt-DEV/GlowberryClient/security/advisories/new) |
 
 ---
 
@@ -270,11 +272,11 @@ GlowberryClient is an independent project that stands on the shoulders of the op
 
 <img src="docs/assets/glowberry_mark.png" alt="GlowberryClient" width="72">
 
-[![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/ChimeraAnt-DEV/badge.svg)](https://hub.xerj.org/contributors/ChimeraAnt-DEV)
+[![XERJ Corpus Hub contributor (in review)](https://hub.xerj.org/contributors/ChimeraAnt-DEV/badge.svg)](https://hub.xerj.org/contributors/ChimeraAnt-DEV)
 
 **Made with ❤️ by the Chimera Team Community**
 
-<sub>All rights reserved.</sub>
+<sub>Licensed under the Apache License 2.0.</sub>
 <sub>This account is shared among the 20 members of the Official ChimeraTeam.</sub>
 
 </div>
