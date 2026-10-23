@@ -23,6 +23,7 @@ import android.graphics.Canvas;
 import org.chimeramc.client.R;
 import org.chimeramc.client.core.mods.FileHandler;
 import org.chimeramc.client.core.mods.Mod;
+import org.chimeramc.client.core.mods.ModCrashAttribution;
 import org.chimeramc.client.core.mods.ModLoadDiagnostics;
 import org.chimeramc.client.core.mods.ModManager;
 import org.chimeramc.client.core.mods.ModSafeMode;
@@ -214,6 +215,10 @@ public class ModsFullscreenActivity extends BaseActivity {
      * Offers to disable the mods recorded as loaded before the crash. Disabling is the only
      * useful action: the user cannot be expected to know which of several native mods was at
      * fault, and leaving them enabled guarantees the same crash loop.
+     *
+     * <p>When the same suspect set has crashed {@code AUTO_DISABLE_THRESHOLD}+ launches in a row
+     * (item G8), the disable happens here without asking — the attribution has made the cause
+     * trustworthy and a second crash prompt would just read as a broken launcher.
      */
     private void promptForCrashSafeMode() {
         List<String> suspectIds = ModSafeMode.suspectModIds(this);
@@ -224,12 +229,34 @@ public class ModsFullscreenActivity extends BaseActivity {
 
         List<Mod> installed = viewModel.getModsLiveData().getValue();
         List<Mod> suspects = new ArrayList<>();
+        java.util.Set<String> autoDisabled = new java.util.HashSet<>(
+                ModCrashAttribution.getAutoDisabledMods(this));
         if (installed != null) {
             for (Mod mod : installed) {
                 if (suspectIds.contains(mod.getId()) && mod.isEnabled()) {
                     suspects.add(mod);
                 }
             }
+        }
+        // G8: the same suspects crashed twice in a row — disable without asking, then say why.
+        boolean anyAutoDisable = false;
+        for (Mod mod : suspects) {
+            if (autoDisabled.contains(mod.getId())) {
+                anyAutoDisable = true;
+                break;
+            }
+        }
+        if (anyAutoDisable && !suspects.isEmpty()) {
+            for (Mod mod : suspects) {
+                viewModel.setModEnabled(mod.getId(), false);
+            }
+            ModSafeMode.acknowledgeCrash(this, true);
+            Toast.makeText(this,
+                    getString(R.string.mod_safe_mode_auto_disabled,
+                            ModCrashAttribution.AUTO_DISABLE_THRESHOLD, suspects.size()),
+                    Toast.LENGTH_LONG).show();
+            viewModel.refreshMods();
+            return;
         }
         if (suspects.isEmpty()) {
             ModSafeMode.acknowledgeCrash(this, false);
@@ -310,7 +337,13 @@ public class ModsFullscreenActivity extends BaseActivity {
         modsAdapter.setOnModEnableChangeListener((mod, enabled) -> {
             if (viewModel != null) {
                 viewModel.setModEnabled(mod.getId(), enabled);
-                updateModsCount(); 
+                updateModsCount();
+            }
+            // An explicit enable is the user taking control of the mod set; the consecutive-crash
+            // attribution (and any persisted auto-disable) no longer applies and would otherwise
+            // re-disable the mod behind the user's back on the next launch.
+            if (enabled) {
+                ModCrashAttribution.clear(this);
             }
         });
         

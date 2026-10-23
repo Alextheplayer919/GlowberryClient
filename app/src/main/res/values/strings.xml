@@ -32,6 +32,7 @@
     <string name="mod_safe_mode_disable">Disable them</string>
     <string name="mod_safe_mode_keep">Keep enabled</string>
     <string name="mod_safe_mode_disabled">Mods disabled. Turn them back on one at a time in the Mods tab.</string>
+    <string name="mod_safe_mode_auto_disabled">%1$d crashes in a row: disabled %2$d mod(s) automatically. Re-enable one at a time in the Mods tab.</string>
     <string name="mod_safe_mode_recent">recently</string>
     <string name="drag_to_reorder">Drag to reorder</string>
     <string name="mod_reordered">Mod order updated</string>

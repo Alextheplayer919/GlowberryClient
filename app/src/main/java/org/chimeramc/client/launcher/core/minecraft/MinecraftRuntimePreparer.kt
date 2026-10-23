@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.os.Build
 import org.chimeramc.client.core.mods.Mod
+import org.chimeramc.client.core.mods.ModCrashAttribution
 import org.chimeramc.client.core.mods.ModLoadDiagnostics
 import org.chimeramc.client.core.mods.ModManager
 import org.chimeramc.client.core.mods.ModNativeLoader
@@ -398,6 +399,37 @@ val modsDir = modManager.currentVersion?.modsDir?.absolutePath
         val skippedIncompatibleMods = mutableListOf<String>()
         val loadedModIds = linkedSetOf<String>()
         val failedModRecords = mutableListOf<ModLoadDiagnostics.Record>()
+
+        // G8: per-mod crash attribution. The decision to auto-disable a mod that has crashed
+        // the previous N launches comes from the attribution counter; ModSafeMode still owns the
+        // single-shot crash-loop marker this launch's outcome is recorded on.
+        val crashEvaluation = ModCrashAttribution.onLaunchStart(
+            context,
+            ModSafeMode.hasCrashLoop(context),
+            ModSafeMode.suspectModIds(context)
+        )
+        if (crashEvaluation.autoDisable.isNotEmpty()) {
+            // Same suspects crashed AUTO_DISABLE_THRESHOLD+ launches in a row. Disable them now
+            // so this launch is the one that finally goes through; ModsFullscreenActivity shows
+            // the explanatory toast when the Mods tab is opened.
+            val byId = modManager.mods.associateBy(Mod::getId)
+            for (modId in crashEvaluation.autoDisable) {
+                val mod = byId[modId]
+                if (mod == null) continue
+                if (!mod.isEnabled) continue
+                modManager.setModEnabled(modId, false)
+                val reason = "Disabled after ${crashEvaluation.crashCount} crashes in a row; " +
+                    "re-enable one at a time in the Mods tab"
+                failedModRecords.add(
+                    ModLoadDiagnostics.Record(
+                        modId, mod.displayName, mod.version ?: "",
+                        reason, ModLoadDiagnostics.KIND_INCOMPATIBLE, System.currentTimeMillis()
+                    )
+                )
+                listener.onLog("Auto-disabled $reason: ${mod.displayName}")
+                trace.warning("Mod auto-disabled (crash attribution)", mod.displayName)
+            }
+        }
         ModSafeMode.beginLaunch(context, modManager.mods.filter { it.isEnabled }.map { it.id })
         ModNativeLoader.loadEnabledSoMods(
             modManager,
