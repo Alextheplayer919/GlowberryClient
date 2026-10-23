@@ -113,6 +113,36 @@ public final class PreloaderSignatureRulesManager {
         return ensureLocalRulesFile(context.getApplicationContext());
     }
 
+    /**
+     * The revision number of the signature rules currently in use, or -1 when unreadable.
+     * Used by the diagnostics screen so a player can share which rule set their build ran with.
+     */
+    public static int getRulesRevision(Context context) {
+        try {
+            String content = readRulesFile(getRulesFile(context));
+            return PreloaderRules.revision(content);
+        } catch (Exception e) {
+            return -1;
+        }
+    }
+
+    private static String readRulesFile(File file) {
+        if (file == null || !file.isFile()) {
+            return null;
+        }
+        try {
+            java.io.FileInputStream in = new java.io.FileInputStream(file);
+            try {
+                byte[] bytes = in.readAllBytes();
+                return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+            } finally {
+                in.close();
+            }
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private static void refresh(Context context, RefreshCallback callback) {
         if (context == null) {
             postCallback(callback, new RefreshResult(false, false, "Context is null", 0L));

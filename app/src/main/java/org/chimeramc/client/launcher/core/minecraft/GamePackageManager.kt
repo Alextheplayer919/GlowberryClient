@@ -8,6 +8,7 @@ import android.content.res.AssetManager
 import android.os.Build
 import android.os.SystemClock
 import android.util.Log
+import org.chimeramc.client.BuildConfig
 import org.chimeramc.client.core.versions.GameVersion
 import org.levimc.launcher.util.NativeBridgeHelper
 import org.levimc.launcher.util.NativeImageGuard
@@ -245,8 +246,26 @@ class GamePackageManager private constructor(
         } catch (_: Exception) {
             false
         }
+        // A launcher update changes the extraction pipeline (new NativeImageGuard step, ABI
+        // handling, packaging rules). Stale extracted libs from an older extractor can fail
+        // dlopen with confusing errors until wiped. Invalidate on both a manual extractor bump
+        // and the app's own version so a plain update always wipes + re-extracts before any
+        // dlopen can touch the old files.
+        val nativeExtractionVersion = nativeExtractionVersion()
+        val versionFile = File(nativeLibDir, "native_extraction_version")
+        val versionMatches = try {
+            versionFile.isFile && versionFile.readText().trim() == nativeExtractionVersion.toString()
+        } catch (_: Exception) {
+            false
+        }
         val cacheRequiredLibs = getCacheRequiredLibs()
-        var allPresent = markerMatches
+
+        if (markerMatches && !versionMatches) {
+            report("Extraction version changed ($nativeExtractionVersion): wiping stale native library cache")
+            wipeExtractedLibraries(outputDir, cacheRequiredLibs)
+        }
+
+        var allPresent = markerMatches && versionMatches
         if (allPresent) {
             for (lib in cacheRequiredLibs) {
                 val file = File(outputDir, lib)
@@ -256,7 +275,7 @@ class GamePackageManager private constructor(
                 }
             }
         }
-        
+
         if (allPresent) {
             report("Minecraft library cache hit: ${outputDir.absolutePath}")
             for (lib in extractableLibs) {
@@ -298,10 +317,63 @@ class GamePackageManager private constructor(
             try {
                 manifestFile.writeText(manifestString)
                 File(outputDir, ".extraction_marker").delete()
+                writeNativeExtractionVersion(versionFile, nativeExtractionVersion)
                 report("Minecraft library cache manifest written")
             } catch (e: Exception) {
                 mirrorLogcat('W', "Failed to write extraction manifest: ${e.message}")
                 report("Failed to write extraction manifest: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Version of the extraction pipeline itself. Tied to both an explicit manual bump and the
+     * launcher's own version code, so shipping a new launcher build always invalidates the
+     * extracted library cache instead of trusting stale `.so` files.
+     */
+    private fun nativeExtractionVersion(): Int {
+        val manual = EXTRACTOR_VERSION
+        val appVersion = try {
+            BuildConfig.VERSION_CODE
+        } catch (_: Throwable) {
+            0
+        }
+        // Fold both into one monotonic value. App version codes are monotonic per build;
+        // the manual bump covers pipeline changes without a version bump.
+        return (manual shl 16) or (appVersion and 0xffff)
+    }
+
+    private fun writeNativeExtractionVersion(versionFile: File, version: Int) {
+        try {
+            versionFile.writeText(version.toString())
+        } catch (e: Exception) {
+            mirrorLogcat('W', "Failed to write native extraction version: ${e.message}")
+        }
+    }
+
+    private fun wipeExtractedLibraries(outputDir: File, keep: Array<out String>) {
+        val keepSet = keep.toHashSet()
+        keepSet.add(".extraction_manifest")
+        keepSet.add("native_extraction_version")
+        val children = outputDir.listFiles() ?: return
+        for (child in children) {
+            if (child.isFile && child.name.endsWith(".so")) {
+                if (!keepSet.contains(child.name)) {
+                    try {
+                        child.setWritable(true, true)
+                        if (child.delete()) {
+                            mirrorLogcat('W', "Wiped stale extracted library: ${child.name}")
+                        }
+                    } catch (e: Exception) {
+                        mirrorLogcat('W', "Failed to wipe stale library ${child.name}: ${e.message}")
+                    }
+                }
+            }
+        }
+        // Remove any .tmp leftover from an interrupted extraction.
+        outputDir.listFiles()?.forEach { child ->
+            if (child.isFile && child.name.endsWith(".tmp") && child.delete()) {
+                mirrorLogcat('W', "Removed interrupted extraction temp file: ${child.name}")
             }
         }
     }
@@ -812,7 +884,7 @@ class GamePackageManager private constructor(
 
     companion object {
         private const val TAG = "GamePackageManager"
-        private const val EXTRACTOR_VERSION = 3
+        private const val EXTRACTOR_VERSION = 4
 
         @Volatile
         private var instance: GamePackageManager? = null
@@ -853,5 +925,74 @@ class GamePackageManager private constructor(
         }
 
         fun isInitialized() = instance != null
+
+        /** Manual extractor pipeline version; bump when the extraction logic changes. */
+        @JvmStatic
+        fun extractorVersion(): Int = EXTRACTOR_VERSION
+
+        /**
+         * The extraction version this launcher build expects, as written to the
+         * `native_extraction_version` marker. Combining the manual pipeline version with the
+         * app version code means a launcher update automatically invalidates stale extracted
+         * libs without a manual bump.
+         */
+        @JvmStatic
+        fun calculateNativeExtractionVersion(): Int {
+            val manual = EXTRACTOR_VERSION
+            val appVersion = try {
+                BuildConfig.VERSION_CODE
+            } catch (_: Throwable) {
+                0
+            }
+            return (manual shl 16) or (appVersion and 0xffff)
+        }
+
+        /**
+         * True when the extraction cache for this version still holds the expected marker and
+         * will be reused on the next launch instead of being wiped + re-extracted.
+         */
+        @JvmStatic
+        fun isExtractionCacheCurrent(context: Context, version: GameVersion?): Boolean {
+            return try {
+                if (version == null) return false
+                val profileId = MinecraftLauncher.getStorageProfileId(version)
+                val expected = calculateNativeExtractionVersion()
+                val dir = MinecraftLauncher.getRuntimeLibDir(context, profileId)
+                val abis = listOf("arm64", "arm", "x86_64", "x86")
+                for (abi in abis) {
+                    val versionFile = File(File(dir, abi), "native_extraction_version")
+                    if (versionFile.isFile && versionFile.readText().trim() == expected.toString()) {
+                        return true
+                    }
+                }
+                false
+            } catch (_: Exception) {
+                false
+            }
+        }
+
+        /** Removes the extraction version marker so the next launch re-extracts native libs. */
+        @JvmStatic
+        fun invalidateExtractionCache(context: Context, version: GameVersion?) {
+            try {
+                if (version == null) return
+                val profileId = MinecraftLauncher.getStorageProfileId(version)
+                val dir = MinecraftLauncher.getRuntimeLibDir(context, profileId)
+                val abis = listOf("arm64", "arm", "x86_64", "x86")
+                for (abi in abis) {
+                    val abiDir = File(dir, abi)
+                    val versionFile = File(abiDir, "native_extraction_version")
+                    val manifestFile = File(abiDir, ".extraction_manifest")
+                    if (versionFile.exists() && !versionFile.delete()) {
+                        Log.w(TAG, "Failed to remove extraction version marker: ${versionFile.absolutePath}")
+                    }
+                    if (manifestFile.exists() && !manifestFile.delete()) {
+                        Log.w(TAG, "Failed to remove extraction manifest: ${manifestFile.absolutePath}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to invalidate extraction cache: ${e.message}")
+            }
+        }
     }
 }

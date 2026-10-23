@@ -37,6 +37,7 @@ import org.chimeramc.client.preloader.PreloaderSignatureRulesManager;
 import org.chimeramc.client.settings.FeatureSettings;
 import org.chimeramc.client.settings.LowLatencyNetworkManager;
 import org.chimeramc.client.settings.PerformancePresetManager;
+import org.chimeramc.client.launcher.ui.activities.DiagnosticsActivity;
 import org.chimeramc.client.ui.animation.DynamicAnim;
 import org.chimeramc.client.ui.dialogs.LogcatOverlayManager;
 import org.chimeramc.client.util.GithubReleaseUpdater;
@@ -248,6 +249,13 @@ public class SettingsActivity extends BaseActivity {
         LanguageManager languageManager = new LanguageManager(this);
         FeatureSettings fs = FeatureSettings.getInstance();
         setupPerformancePreset();
+
+        View openDiagnostics = findViewById(R.id.settings_open_diagnostics);
+        if (openDiagnostics != null) {
+            openDiagnostics.setOnClickListener(v ->
+                    startActivity(new Intent(this, DiagnosticsActivity.class)));
+            DynamicAnim.applyPressScale(openDiagnostics);
+        }
 
         // Keep English at the top (default language).
         // Sort all other languages alphabetically by their display name.
