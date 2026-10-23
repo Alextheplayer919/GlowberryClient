@@ -102,6 +102,8 @@ public class InbuiltModManager {
     private static final String KEY_VOICE_CAPACITY = "voice_channel_capacity";
     private static final String KEY_VOICE_MIC = "voice_mic_enabled";
     private static final String KEY_VOICE_MUTES = "voice_member_mutes";
+    private static final String KEY_VOICE_BLOCKS = "voice_member_blocks";
+    private static final String KEY_VOICE_CONSENT_VERSION = "voice_consent_version";
     private static final String KEY_VOICE_ICON_STYLE = "voice_icon_style";
     private static final String KEY_VOICE_ICON_ANIMATE = "voice_icon_animate";
     private static final String KEY_VOICE_ICON_SHOW_NAMETAG = "voice_icon_show_nametag";
@@ -1005,6 +1007,55 @@ public class InbuiltModManager {
     /** Persists the local per-member mute set. Nothing here goes on the wire; it is viewer-only. */
     public void saveVoiceMutes(org.chimeramc.client.core.voice.VoiceMutes mutes) {
         prefs.edit().putString(KEY_VOICE_MUTES, mutes == null ? "" : mutes.serialize()).apply();
+    }
+
+    /** Restores the persisted local block list into {@code target}. */
+    public void loadVoiceBlocks(org.chimeramc.client.core.voice.VoiceBlockList target) {
+        if (target == null) return;
+        String raw = prefs.getString(KEY_VOICE_BLOCKS, "");
+        java.util.List<String> keys = new java.util.ArrayList<>();
+        if (raw != null && !raw.isEmpty()) {
+            for (String part : raw.split(",")) keys.add(part);
+        }
+        target.restoreFrom(keys);
+    }
+
+    /**
+     * Persists the local block list.
+     *
+     * <p>Nothing here goes on the wire; a block is enforced locally and the blocked party is never
+     * told. It is keyed by device id where the transport carries one so a reconnect stays blocked.
+     */
+    public void saveVoiceBlocks(org.chimeramc.client.core.voice.VoiceBlockList blocks) {
+        prefs.edit().putString(KEY_VOICE_BLOCKS, blocks == null ? "" : blocks.serialize()).apply();
+    }
+
+    /**
+     * Whether the user has recorded voice-chat consent for the current consent version.
+     *
+     * <p>Off by default and versioned, exactly like {@code LlmSettings.hasConsent}: a bump to the
+     * consent text re-asks, and a fresh install has no consent at all. The start path consults
+     * this through {@code VoiceConsent.canStart}, so the feature cannot come up on its own.
+     */
+    public boolean hasVoiceConsent() {
+        return org.chimeramc.client.core.voice.VoiceConsent.isCurrentVersion(
+                prefs.getString(KEY_VOICE_CONSENT_VERSION, null));
+    }
+
+    /** Records consent for the current voice consent version. */
+    public void recordVoiceConsent() {
+        prefs.edit()
+                .putString(KEY_VOICE_CONSENT_VERSION,
+                        org.chimeramc.client.core.voice.VoiceConsent.CONSENT_VERSION)
+                .apply();
+    }
+
+    /** Withdraws recorded voice consent and turns the master switch off with it. */
+    public void revokeVoiceConsent() {
+        prefs.edit()
+                .remove(KEY_VOICE_CONSENT_VERSION)
+                .putBoolean(KEY_INBUILT_MOD_ENABLED_PREFIX + org.chimeramc.client.core.mods.inbuilt.model.ModIds.VOICE_CHAT, false)
+                .apply();
     }
 
     /** The mic-icon sprite style for the in-world nametag icon; see {@code MicIconStyle}. */

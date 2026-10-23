@@ -40,6 +40,14 @@ public final class VoicePeer {
     public final float yaw, pitch;
     /** Uptime milliseconds when this peer last advertised. */
     public final long lastSeenMs;
+    /**
+     * The peer's stable device id, or "" when the transport did not carry one.
+     *
+     * <p>Used as the key for a persistent {@link VoiceBlockList} entry: it survives a session
+     * reconnect, where the per-session {@link #id} does not. The v3 multicast beacon has no device
+     * id, so a block made on the LAN path falls back to the peer id.
+     */
+    public final String deviceId;
 
     public VoicePeer(String id, String name, float x, float y, float z,
                      String channel, long lastSeenMs) {
@@ -64,6 +72,14 @@ public final class VoicePeer {
                      String channel, String channelName, byte visibility,
                      int capacity, float level, boolean selfMuted,
                      float yaw, float pitch, long lastSeenMs) {
+        this(id, name, x, y, z, channel, channelName, visibility,
+                capacity, level, selfMuted, yaw, pitch, lastSeenMs, "");
+    }
+
+    public VoicePeer(String id, String name, float x, float y, float z,
+                     String channel, String channelName, byte visibility,
+                     int capacity, float level, boolean selfMuted,
+                     float yaw, float pitch, long lastSeenMs, String deviceId) {
         this.id = id;
         this.name = name == null || name.trim().isEmpty() ? "Player" : name.trim();
         this.x = x;
@@ -81,6 +97,7 @@ public final class VoicePeer {
         this.yaw = yaw;
         this.pitch = pitch;
         this.lastSeenMs = lastSeenMs;
+        this.deviceId = deviceId == null ? "" : deviceId.trim();
     }
 
     /** Whether this peer is still fresh enough to count as present. */
@@ -107,28 +124,28 @@ public final class VoicePeer {
 
     public VoicePeer seenAt(long uptimeMs) {
         return new VoicePeer(id, name, x, y, z, channel, channelName, visibility,
-                capacity, level, selfMuted, yaw, pitch, uptimeMs);
+                capacity, level, selfMuted, yaw, pitch, uptimeMs, deviceId);
     }
 
     /** Returns a copy carrying a fresh position and rotation, as advertised on the wire. */
     public VoicePeer withPose(float nx, float ny, float nz, float nYaw, float nPitch) {
         return new VoicePeer(id, name, nx, ny, nz, channel, channelName, visibility,
-                capacity, level, selfMuted, nYaw, nPitch, lastSeenMs);
+                capacity, level, selfMuted, nYaw, nPitch, lastSeenMs, deviceId);
     }
 
     public VoicePeer withState(float nx, float ny, float nz, String nChannel) {
         return new VoicePeer(id, name, nx, ny, nz, nChannel, channelName, visibility,
-                capacity, level, selfMuted, yaw, pitch, lastSeenMs);
+                capacity, level, selfMuted, yaw, pitch, lastSeenMs, deviceId);
     }
 
     public VoicePeer withChannel(String nChannel, String nChannelName, byte nVisibility) {
         return new VoicePeer(id, name, x, y, z, nChannel, nChannelName, nVisibility,
-                capacity, level, selfMuted, yaw, pitch, lastSeenMs);
+                capacity, level, selfMuted, yaw, pitch, lastSeenMs, deviceId);
     }
 
     /** Returns a copy carrying a fresh level/mute pair, as advertised on the wire. */
     public VoicePeer withLevel(float nLevel, boolean nMuted) {
         return new VoicePeer(id, name, x, y, z, channel, channelName, visibility,
-                capacity, nLevel, nMuted, yaw, pitch, lastSeenMs);
+                capacity, nLevel, nMuted, yaw, pitch, lastSeenMs, deviceId);
     }
 }

@@ -1953,6 +1953,29 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="voice_directory_capacity" formatted="false">%1$s members</string>
     <string name="voice_mute">Mute</string>
     <string name="voice_unmute">Unmute</string>
+    <string name="voice_block">Block</string>
+    <string name="voice_unblock">Unblock</string>
+    <string name="voice_block_scope">Blocking is permanent and local: the player is silenced, hidden from your member list and your in-world icons, and they are never told. It is kept by device, so it survives them rejoining.</string>
+    <string name="voice_block_failed">That player cannot be blocked from this connection.</string>
+    <string name="voice_blocked_players">Blocked players</string>
+    <string name="voice_blocked_none">You have not blocked anyone.</string>
+    <string name="voice_unblock_all">Unblock everyone</string>
+    <string name="voice_consent_title">Before you turn on voice chat</string>
+    <string name="voice_consent_body" formatted="false">Voice chat opens your microphone and connects you to other players over the local network or, if you set one, a relay server. Audio is not end-to-end encrypted: on a relay the server carries it. You can mute or block any player locally at any time, and blocking is never shared with them. Only turn this on if you are old enough to use it and agree to talk to the players you meet.</string>
+    <string name="voice_consent_accept">I understand, turn on voice chat</string>
+    <string name="voice_consent_granted">Voice chat is allowed. You can withdraw this any time from this screen.</string>
+    <string name="voice_consent_withdraw">Withdraw consent and turn voice off</string>
+    <string name="voice_consent_revoked">Consent withdrawn. Voice chat is off.</string>
+    <string name="voice_consent_required">Accept the voice chat notice before turning it on.</string>
+    <string name="voice_report_button">Report a player</string>
+    <string name="voice_report_title">Report a player</string>
+    <string name="voice_report_hint">What happened?</string>
+    <string name="voice_report_send">Open a report</string>
+    <string name="voice_report_scope">Reports are written up by you in your own email or chat app and sent to the team; nothing is uploaded automatically. Your report includes your per-session voice id so it can be matched to the session, and nothing else that identifies you.</string>
+    <string name="voice_report_chooser">Send report</string>
+    <string name="voice_report_subject">GlowberryClient voice chat report</string>
+    <string name="voice_report_empty">Describe what happened before opening a report.</string>
+    <string name="voice_report_mail_hint">No email app found. The report text was copied to your clipboard.</string>
     <string name="voice_mute_scope">Muting is local to you. The other player is not told and stays in the channel.</string>
     <string name="voice_channel_created" formatted="false">Created channel %1$s</string>
     <string name="voice_channel_name_required">Enter a name for the channel</string>

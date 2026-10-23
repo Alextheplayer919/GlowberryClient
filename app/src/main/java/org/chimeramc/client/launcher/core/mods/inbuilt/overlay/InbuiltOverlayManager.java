@@ -993,6 +993,16 @@ public class InbuiltOverlayManager {
      */
     private void startVoiceChat(InbuiltModManager manager) {
         try {
+            // B15 safety gate: the module refuses to start without recorded consent, but leaving
+            // the pref on would show the feature as enabled while nothing runs. Revert the switch
+            // and say why, so the state on screen matches reality.
+            if (!manager.hasVoiceConsent()) {
+                manager.setInbuiltModEnabled(ModIds.VOICE_CHAT, false);
+                android.widget.Toast.makeText(activity,
+                        org.chimeramc.client.R.string.voice_consent_required,
+                        android.widget.Toast.LENGTH_LONG).show();
+                return;
+            }
             if (manager.isVoiceMicEnabled()
                     && activity.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)
                     != android.content.pm.PackageManager.PERMISSION_GRANTED) {

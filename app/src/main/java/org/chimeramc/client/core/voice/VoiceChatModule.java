@@ -45,6 +45,7 @@ public final class VoiceChatModule {
     private final Context context;
     private final VoiceRegistry registry = new VoiceRegistry();
     private final VoiceMutes mutes = new VoiceMutes();
+    private final VoiceBlockList blocks = new VoiceBlockList();
     private final String peerId;
     private final String displayName;
     private final VoiceAudioEngine audio = new VoiceAudioEngine();
@@ -93,7 +94,10 @@ public final class VoiceChatModule {
         // Restore the local mute set once, at construction. The set never goes on the wire, so
         // this is the only place it needs loading; toggles persist on the way out.
         InbuiltModManager manager = InbuiltModManager.getInstance(this.context);
-        if (manager != null) manager.loadVoiceMutes(mutes);
+        if (manager != null) {
+            manager.loadVoiceMutes(mutes);
+            manager.loadVoiceBlocks(blocks);
+        }
     }
 
     public static synchronized VoiceChatModule get(Context context, String displayName) {
@@ -271,6 +275,14 @@ public final class VoiceChatModule {
     public synchronized boolean start(InbuiltModManager manager) {
         if (running) return true;
         if (manager == null) return false;
+        // B15 safety gate: voice chat never comes up without recorded consent, and never as a
+        // side effect of another feature. The master switch alone is not enough.
+        if (!VoiceConsent.canStart(manager.resolveInbuiltModEnabled(
+                org.chimeramc.client.core.mods.inbuilt.model.ModIds.VOICE_CHAT, false),
+                manager.hasVoiceConsent())) {
+            lastError = "voice consent not recorded";
+            return false;
+        }
         transmit = manager.isVoiceMicEnabled();
 
         if (!audio.start(transmit)) {
@@ -587,7 +599,17 @@ public final class VoiceChatModule {
         String channel = VoiceChannel.normalize(packet.channel);
         VoicePeer peer = new VoicePeer(packet.peerId, packet.name,
                 packet.x, packet.y, packet.z, channel, packet.channelName, packet.visibility,
-                packet.capacity, packet.level, packet.muted, packet.yaw, packet.pitch, now);
+                packet.capacity, packet.level, packet.muted, packet.yaw, packet.pitch, now,
+                packet.deviceId);
+        // A blocked peer is dropped before anything is registered or mixed: they must not appear
+        // in the member list, drive a nametag icon, or have a stream. The block is keyed by the
+        // stable device id when the transport carries one, so a reconnect under a new session id
+        // stays blocked. Nothing about this is transmitted.
+        if (blocks.isBlocked(peer)) {
+            registry.remove(packet.peerId);
+            streams.remove(packet.peerId);
+            return;
+        }
         if (packet.type == VoiceProtocol.TYPE_BEACON) {
             registry.put(peer);
             return;
@@ -775,6 +797,68 @@ public final class VoiceChatModule {
     /** Whether the listener has muted this peer locally. */
     public boolean isMuted(String peerId) {
         return mutes.isMuted(peerId);
+    }
+
+    // --- Persistent per-member block (B15) ------------------------------------------------
+
+    /**
+     * The persistent block list. Viewer-only, never transmitted, keyed by device id where
+     * available so a reconnect stays blocked.
+     */
+    public VoiceBlockList blocks() {
+        return blocks;
+    }
+
+    /**
+     * Blocks a peer and persists the block.
+     *
+     * <p>Stronger than a mute: the peer is dropped at the datagram boundary, so they leave the
+     * member list and the nametag icons immediately as well as being silenced.
+     *
+     * @return true when the peer could be blocked (has a stable key) and the state changed
+     */
+    public boolean blockPeer(VoicePeer peer) {
+        String key = VoiceBlockList.keyFor(peer);
+        if (key.isEmpty()) return false;
+        boolean changed = blocks.block(key);
+        if (changed) {
+            // Drop the live state at once; otherwise the peer lingers until the next datagram.
+            if (peer.id != null) {
+                registry.remove(peer.id);
+                streams.remove(peer.id);
+            }
+            persistBlocks();
+        }
+        return changed;
+    }
+
+    /** Removes a peer from the block list and persists the change. */
+    public boolean unblockPeer(VoicePeer peer) {
+        boolean changed = blocks.unblock(VoiceBlockList.keyFor(peer));
+        if (changed) persistBlocks();
+        return changed;
+    }
+
+    /** Removes a raw block key and persists the change. */
+    public boolean unblockKey(String key) {
+        boolean changed = blocks.unblock(key);
+        if (changed) persistBlocks();
+        return changed;
+    }
+
+    /** Whether this peer is blocked. */
+    public boolean isBlocked(VoicePeer peer) {
+        return blocks.isBlocked(peer);
+    }
+
+    /** Whether this raw key is blocked. */
+    public boolean isBlockedKey(String key) {
+        return blocks.isBlocked(key);
+    }
+
+    private void persistBlocks() {
+        InbuiltModManager manager = InbuiltModManager.getInstance(context);
+        if (manager != null) manager.saveVoiceBlocks(blocks);
     }
 
     /** The local channel id currently selected. */
