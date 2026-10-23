@@ -237,6 +237,18 @@ public final class AntEggPackage {
         return ids;
     }
 
+    /**
+     * Reads the version of an installed mod by id, or null when the mod is absent or its manifest
+     * cannot be read. Used by the loader to validate a dependency's version range (item G4).
+     */
+    public static String versionOfInstalled(File sandboxRoot, String modId) {
+        if (sandboxRoot == null || modId == null || modId.isEmpty()) return null;
+        File dir = new File(sandboxRoot, modId);
+        Result result = readExtracted(dir);
+        if (result == null || !result.isValid() || result.manifest == null) return null;
+        return result.manifest.version;
+    }
+
     /** Reads a mod's manifest back out of an extracted sandbox directory. */
     public static Result readExtracted(File modDirectory) {
         if (modDirectory == null || !modDirectory.isDirectory()) {
