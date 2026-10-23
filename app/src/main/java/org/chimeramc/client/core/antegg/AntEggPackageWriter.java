@@ -148,14 +148,16 @@ public final class AntEggPackageWriter {
         if (!manifest.sha256.isEmpty()) {
             appendField(sb, "sha256", manifest.sha256, true);
         }
-        if (!manifest.permissions.isEmpty()) {
-            sb.append("  \"permissions\": [");
-            for (int i = 0; i < manifest.permissions.size(); i++) {
-                if (i > 0) sb.append(", ");
-                sb.append(jsonString(manifest.permissions.get(i)));
-            }
-            sb.append("],\n");
+        // Item C3: the permissions slot is always written, even when empty. Reserving it now means
+        // the script-API surface can be introduced without a schema change, and an author can
+        // declare capabilities before any of them are enforced. The sandbox does not grant host
+        // access from this list today; it is the declaration an author signs up to.
+        sb.append("  \"permissions\": [");
+        for (int i = 0; i < manifest.permissions.size(); i++) {
+            if (i > 0) sb.append(", ");
+            sb.append(jsonString(manifest.permissions.get(i)));
         }
+        sb.append("],\n");
         sb.append("  \"dependencies\": [");
         for (int i = 0; i < manifest.dependencies.size(); i++) {
             if (i > 0) sb.append(", ");

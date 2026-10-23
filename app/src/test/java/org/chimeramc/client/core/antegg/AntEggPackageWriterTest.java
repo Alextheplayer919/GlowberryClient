@@ -134,7 +134,10 @@ public class AntEggPackageWriterTest {
         assertFalse(json.contains("ai_ported"));
         assertFalse(json.contains("origin_mod"));
         assertFalse(json.contains("sha256"));
-        assertFalse(json.contains("permissions"));
+        // C3: the permissions slot is always written, even for a manifest that declares none, so
+        // the script-API surface is reserved without a schema change.
+        assertTrue(json, json.contains("\"permissions\""));
+        assertTrue(json, json.contains("\"permissions\": []"));
     }
 
     @Test
