@@ -141,14 +141,15 @@ jobs:
         run: bash app/src/main/cpp/preloader/tests/cosmetics/run_tests.sh
 
       - name: Run Python tooling host tests
-        # The rule-generation helpers and the offline binary analyzer are pure Python. numpy is
-        # required by the analyzer's instruction scan; without it the analyzer test would skip
-        # the assertions it exists to make, so it is installed rather than left to the runner's
-        # default image.
+        # The rule-generation helpers, the offline binary analyzer and the release checksum
+        # helper are pure Python. numpy is required by the analyzer's instruction scan; without
+        # it the analyzer test would skip the assertions it exists to make, so it is installed
+        # rather than left to the runner's default image.
         run: |
           python3 -m pip install --quiet numpy
           python3 tools/tests/gen_rules_test.py
           python3 tools/tests/verify_binary_test.py
+          python3 scripts/tests/compute_checksums_test.py
 
       - name: Inject API Keys
         env:
@@ -166,26 +167,38 @@ jobs:
       - name: Run unit tests
         run: ./gradlew :app:testDebugUnitTest
 
+      - name: Compute APK checksums
+        # B16: no public artifact ships without a digest. Write a coreutils-format
+        # <file>.sha256 sidecar next to every built APK; the upload steps below carry both.
+        if: env.HAS_GOOGLE_SERVICES == 'true'
+        run: python3 scripts/compute_checksums.py --dir app/build/outputs/apk
+
       - name: Upload Debug APK
         if: env.HAS_GOOGLE_SERVICES == 'true'
         uses: actions/upload-artifact@v4.6.2
         with:
           name: ChimeraClient-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/debug/*.apk.sha256
 
       - name: Upload Unsigned Release APK
         if: env.HAS_GOOGLE_SERVICES == 'true'
         uses: actions/upload-artifact@v4.6.2
         with:
           name: ChimeraClient-release-unsigned-apk
-          path: app/build/outputs/apk/release/*-unsigned.apk
+          path: |
+            app/build/outputs/apk/release/*-unsigned.apk
+            app/build/outputs/apk/release/*-unsigned.apk.sha256
 
       - name: Upload Beta APK
         if: env.HAS_GOOGLE_SERVICES == 'true'
         uses: actions/upload-artifact@v4.6.2
         with:
           name: ChimeraClient-beta-apk
-          path: app/build/outputs/apk/beta/*.apk
+          path: |
+            app/build/outputs/apk/beta/*.apk
+            app/build/outputs/apk/beta/*.apk.sha256
 
       - name: Sign Release APK
         if: env.HAS_GOOGLE_SERVICES == 'true' && startsWith(github.ref, 'refs/tags/')
@@ -201,7 +214,7 @@ jobs:
         env:
           BUILD_TOOLS_VERSION: "35.0.0"
 
-      - name: Rename APK with tag
+      - name: Rename and checksum signed APK
         if: env.HAS_GOOGLE_SERVICES == 'true' && startsWith(github.ref, 'refs/tags/')
         run: |
           TAG=${GITHUB_REF_NAME}
@@ -209,13 +222,18 @@ jobs:
           APK_DST="ChimeraClient-${TAG}-release.apk"
           cp "$SIGNED_APK" "$APK_DST"
           echo "Signed APK renamed to $APK_DST"
+          # B16: the published release carries a digest next to the signed APK.
+          python3 scripts/compute_checksums.py --dir . --pattern "${APK_DST}"
+          echo "Checksum: $(cat "${APK_DST}.sha256")"
 
       - name: Upload Signed APK Artifact
         if: env.HAS_GOOGLE_SERVICES == 'true' && startsWith(github.ref, 'refs/tags/')
         uses: actions/upload-artifact@v4.6.2
         with:
           name: ChimeraClient-${{ github.ref_name }}-release.apk
-          path: ChimeraClient-${{ github.ref_name }}-release.apk
+          path: |
+            ChimeraClient-${{ github.ref_name }}-release.apk
+            ChimeraClient-${{ github.ref_name }}-release.apk.sha256
 
       - name: Generate GitHub release notes
         if: env.HAS_GOOGLE_SERVICES == 'true' && startsWith(github.ref, 'refs/tags/')
@@ -225,7 +243,9 @@ jobs:
         if: env.HAS_GOOGLE_SERVICES == 'true' && startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: ChimeraClient-${{ github.ref_name }}-release.apk
+          files: |
+            ChimeraClient-${{ github.ref_name }}-release.apk
+            ChimeraClient-${{ github.ref_name }}-release.apk.sha256
           body_path: release-notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
