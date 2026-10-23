@@ -43,7 +43,7 @@ public final class PreloaderSignatureRulesManager {
      * resort, so an offline launch still has current rules.
      */
     private static final String[] REMOTE_RULES_URLS = {
-            "https://raw.githubusercontent.com/ChimeraAnt-DEV/ChimeraLauncher/main/resources/preloader/preloader_signature_rules_source.json",
+            "https://raw.githubusercontent.com/ChimeraAnt-DEV/GlowberryClient/main/resources/preloader/preloader_signature_rules_source.json",
             "https://raw.githubusercontent.com/LiteLDev/LeviLaunchroid/refs/heads/main/resources/preloader/preloader_signature_rules_source.json"
     };
 
