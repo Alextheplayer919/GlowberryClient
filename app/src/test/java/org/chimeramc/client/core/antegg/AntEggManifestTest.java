@@ -49,6 +49,84 @@ public class AntEggManifestTest {
         assertEquals("Core Lib", manifest.dependencies.get(0));
     }
 
+    private static final String HASH_VALID = "a" + "b".repeat(63); // 64 hex chars total, all valid hex digits
+
+    @Test
+    public void parsesAnOptionalSha256PinAndNormalisesItToLowercase() {
+        String json = VALID.replace(
+                "\"dependencies\":[\"Core Lib\"]",
+                "\"sha256\":\"" + "AB12CD".repeat(10) + "ef90\",\"dependencies\":[\"Core Lib\"]");
+        AntEggManifest.Result result = AntEggManifest.parse(json);
+        assertTrue(result.error, result.isValid());
+        assertEquals("ab12cd".concat("ab12cd".repeat(9)).concat("ef90"),
+                result.manifest.sha256);
+    }
+
+    @Test
+    public void rejectsAMalformedSha256Pin() {
+        String json = VALID.replace(
+                "\"dependencies\":[\"Core Lib\"]",
+                "\"sha256\":\"nothex\",\"dependencies\":[\"Core Lib\"]");
+        AntEggManifest.Result result = AntEggManifest.parse(json);
+        assertFalse(result.error, result.isValid());
+    }
+
+    @Test
+    public void anAbsentSha256PinIsEmptyAndNeedsNoVerification() {
+        AntEggManifest.Result result = AntEggManifest.parse(VALID);
+        assertTrue(result.error, result.isValid());
+        assertEquals("", result.manifest.sha256);
+    }
+
+    @Test
+    public void parsesAnOptionalPermissionsSlot() {
+        String json = VALID.replace(
+                "\"dependencies\":[\"Core Lib\"]",
+                "\"permissions\":[\"files.read\",\"network\"],\"dependencies\":[\"Core Lib\"]");
+        AntEggManifest.Result result = AntEggManifest.parse(json);
+        assertTrue(result.error, result.isValid());
+        assertEquals(2, result.manifest.permissions.size());
+        assertEquals("files.read", result.manifest.permissions.get(0));
+        assertEquals("network", result.manifest.permissions.get(1));
+    }
+
+    @Test
+    public void permissionsMustBeAnArrayOfStrings() {
+        String json = VALID.replace(
+                "\"dependencies\":[\"Core Lib\"]",
+                "\"permissions\":\"broadcast\",\"dependencies\":[\"Core Lib\"]");
+        AntEggManifest.Result result = AntEggManifest.parse(json);
+        assertFalse(result.error, result.isValid());
+    }
+
+    @Test
+    public void anAbsentPermissionsSlotIsAnEmptyList() {
+        AntEggManifest.Result result = AntEggManifest.parse(VALID);
+        assertTrue(result.error, result.isValid());
+        assertTrue(result.manifest.permissions.isEmpty());
+    }
+
+    @Test
+    public void withSha256RejectsAMalformedPinAndAcceptsAValidOne() throws Exception {
+        AntEggManifest.Result result = AntEggManifest.parse(VALID);
+        assertTrue(result.error, result.isValid());
+
+        try {
+            result.manifest.withSha256("not-a-hash");
+            assertFalse("a malformed pin must be rejected", true);
+        } catch (IllegalArgumentException expected) {
+            // the pin is rejected
+        }
+
+        String pin = "ab".repeat(32);
+        assertEquals(pin, result.manifest.withSha256(pin).sha256);
+        // Uppercase pins are normalised to lowercase.
+        assertEquals(pin, result.manifest.withSha256(pin.toUpperCase()).sha256);
+        // A null/blank pin clears the field (unpin).
+        assertEquals("", result.manifest.withSha256(null).sha256);
+        assertEquals("", result.manifest.withSha256("   ").sha256);
+    }
+
     @Test
     public void scriptTypeRequiresALuaEntryPoint() {
         String json = VALID.replace("\"native\"", "\"script\"")

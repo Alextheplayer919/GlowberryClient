@@ -102,6 +102,28 @@ public final class AntEggLoader {
         }
         AntEggManifest manifest = extracted.manifest;
 
+        // Item G12: a manifest that pins a sha256 must be verified. The pin is the hash of the
+        // entry-point bytes (the .so or .lua), not the whole archive — the manifest lives inside
+        // the archive, so a whole-package pin would be circular (editing the pin changes the
+        // bytes it claims to verify). Verifying the entry file keeps the check non-circular and
+        // identical in shape to the native-mod manifest.json pin. A mismatch is a hard refusal
+        // recorded as KIND_HASH_MISMATCH: a package whose entry differs from what the author
+        // pinned is not the package the author shipped.
+        if (!manifest.sha256.isEmpty()) {
+            File entryFile = new File(extracted.directory, manifest.entryPoint);
+            if (!entryFile.isFile()) {
+                return fail(context, manifest.name, "entry point is missing: " + manifest.entryPoint,
+                        ModLoadDiagnostics.KIND_HASH_MISMATCH);
+            }
+            if (!ModHash.matches(entryFile, manifest.sha256)) {
+                String reason = "entry file does not match the manifest pin (expected sha256 "
+                        + manifest.sha256 + ")";
+                Log.w(TAG, "Rejected " + packageFile.getName() + ": " + reason);
+                return fail(context, manifest.name, reason,
+                        ModLoadDiagnostics.KIND_HASH_MISMATCH);
+            }
+        }
+
         String dependencyError = missingDependencies(sandbox, manifest);
         if (dependencyError != null) {
             return fail(context, manifest.name, LoadResult.fail(dependencyError));
@@ -196,7 +218,18 @@ public final class AntEggLoader {
 
     private static LoadResult fail(Context context, String modName, LoadResult result) {
         if (!result.success) {
-            recordFailure(context, modName, result.error);
+            recordFailure(context, modName, result.error, ModLoadDiagnostics.KIND_DLOPEN);
+        }
+        return result;
+    }
+
+    private static LoadResult fail(Context context, String modName, String reason, String kind) {
+        return fail(context, modName, LoadResult.fail(reason), kind);
+    }
+
+    private static LoadResult fail(Context context, String modName, LoadResult result, String kind) {
+        if (!result.success) {
+            recordFailure(context, modName, result.error, kind);
         }
         return result;
     }
@@ -209,12 +242,16 @@ public final class AntEggLoader {
      * import itself, hence the catch.
      */
     public static void recordFailure(Context context, String modName, String reason) {
+        recordFailure(context, modName, reason, ModLoadDiagnostics.KIND_DLOPEN);
+    }
+
+    public static void recordFailure(Context context, String modName, String reason, String kind) {
         if (context == null) return;
         try {
             List<ModLoadDiagnostics.Record> records = new ArrayList<>(ModLoadDiagnostics.getAll(context));
             records.add(0, new ModLoadDiagnostics.Record(
                     AntEggManifest.slug(modName), modName, "0", reason,
-                    ModLoadDiagnostics.KIND_DLOPEN, System.currentTimeMillis()));
+                    kind, System.currentTimeMillis()));
             ModLoadDiagnostics.record(context, records);
         } catch (Throwable t) {
             Log.w(TAG, "Could not record AntEgg load failure", t);

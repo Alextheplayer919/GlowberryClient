@@ -16,6 +16,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.chimeramc.client.core.antegg.ModHash;
+
 public class ModNativeLoader {
     private static final String TAG = "ModNativeLoader";
     private static final int CACHE_MANIFEST_VERSION = 4;
@@ -90,6 +92,19 @@ public class ModNativeLoader {
                 Log.w(TAG, "Skipping incompatible mod " + mod.getDisplayName()
                         + " for Minecraft " + minecraftVersion);
                 notifySkipped(listener, mod, minecraftVersion);
+                continue;
+            }
+
+            // Item G12: a mod whose manifest pins a hash is refused the moment its on-disk library
+            // stops matching it, before any copy reaches the loader. An unpinned mod loads as
+            // before, and a pinned-but-correct mod passes through without an extra digest pass
+            // (the discovery-time check already passed; this guard is defence in depth against a
+            // file changed between discovery and load).
+            if (!mayLoad(mod)) {
+                IOException error = new IOException("refusing to load: entry does not match the "
+                        + "pinned checksum in the mod manifest");
+                Log.e(TAG, "Refusing to load " + mod.getDisplayName() + ": " + error.getMessage());
+                notifyFailure(listener, mod, error);
                 continue;
             }
 
@@ -189,6 +204,15 @@ public class ModNativeLoader {
         if (listener != null) {
             listener.onModLoadFailed(mod, error);
         }
+    }
+
+    /**
+     * Hash-pinning gate (item G12): a mod whose manifest pins a SHA-256 loads only while the
+     * on-disk entry still matches the pin. Unpinned mods always load; the discovery-time
+     * verification already passed for pinned-and-correct mods, so they are never re-hashed here.
+     */
+    static boolean mayLoad(Mod mod) {
+        return mod.getDeclaredSha256().isEmpty() || mod.isVerified();
     }
 
     private static void notifyMessage(LoadListener listener, String message) {

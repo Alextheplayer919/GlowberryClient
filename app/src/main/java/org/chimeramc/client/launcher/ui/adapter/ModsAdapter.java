@@ -87,6 +87,8 @@ public class ModsAdapter extends RecyclerView.Adapter<ModsAdapter.ModViewHolder>
                 return R.string.mod_load_diagnostics_symbol;
             case ModLoadDiagnostics.KIND_MISSING_DEPENDENCY:
                 return R.string.mod_load_diagnostics_missing_dependency;
+            case ModLoadDiagnostics.KIND_HASH_MISMATCH:
+                return R.string.mod_load_diagnostics_hash_mismatch;
             default:
                 return R.string.mod_load_diagnostics_unknown;
         }
@@ -117,6 +119,16 @@ public class ModsAdapter extends RecyclerView.Adapter<ModsAdapter.ModViewHolder>
 
         if (holder.configBadge != null) {
             holder.configBadge.setVisibility(View.GONE);
+        }
+
+        if (holder.verifiedBadge != null) {
+            if (mod.isVerified()) {
+                holder.verifiedBadge.setVisibility(View.VISIBLE);
+                holder.verifiedBadge.setContentDescription(holder.itemView.getContext()
+                        .getString(R.string.mod_verified_badge_desc));
+            } else {
+                holder.verifiedBadge.setVisibility(View.GONE);
+            }
         }
 
         if (holder.failureBadge != null) {
@@ -226,6 +238,7 @@ public class ModsAdapter extends RecyclerView.Adapter<ModsAdapter.ModViewHolder>
         TextView name;
         TextView orderText;
         TextView configBadge;
+        TextView verifiedBadge;
         TextView failureBadge;
         TextView authorText;
         TextView versionText;
@@ -237,6 +250,7 @@ public class ModsAdapter extends RecyclerView.Adapter<ModsAdapter.ModViewHolder>
             name = itemView.findViewById(R.id.mod_name);
             orderText = itemView.findViewById(R.id.mod_order);
             configBadge = itemView.findViewById(R.id.mod_config_badge);
+            verifiedBadge = itemView.findViewById(R.id.mod_verified_badge);
             failureBadge = itemView.findViewById(R.id.mod_failure_badge);
             authorText = itemView.findViewById(R.id.mod_author);
             versionText = itemView.findViewById(R.id.mod_version);

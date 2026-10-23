@@ -145,6 +145,17 @@ public final class AntEggPackageWriter {
         if (manifest.originAuthor != null && !manifest.originAuthor.isEmpty()) {
             appendField(sb, "origin_author", manifest.originAuthor, true);
         }
+        if (!manifest.sha256.isEmpty()) {
+            appendField(sb, "sha256", manifest.sha256, true);
+        }
+        if (!manifest.permissions.isEmpty()) {
+            sb.append("  \"permissions\": [");
+            for (int i = 0; i < manifest.permissions.size(); i++) {
+                if (i > 0) sb.append(", ");
+                sb.append(jsonString(manifest.permissions.get(i)));
+            }
+            sb.append("],\n");
+        }
         sb.append("  \"dependencies\": [");
         for (int i = 0; i < manifest.dependencies.size(); i++) {
             if (i > 0) sb.append(", ");

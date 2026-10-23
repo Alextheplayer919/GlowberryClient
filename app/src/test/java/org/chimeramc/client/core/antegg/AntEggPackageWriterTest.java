@@ -10,6 +10,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Pins the generated .AntEgg package against the real reader.
@@ -132,6 +133,69 @@ public class AntEggPackageWriterTest {
         String json = AntEggPackageWriter.manifestJson(ordinary);
         assertFalse(json.contains("ai_ported"));
         assertFalse(json.contains("origin_mod"));
+        assertFalse(json.contains("sha256"));
+        assertFalse(json.contains("permissions"));
+    }
+
+    @Test
+    public void emitsSha256AndPermissionsOnlyWhenPresent() {
+        AntEggManifest pinned = AntEggManifest.parse(
+                "{\"name\":\"Pinned\",\"version\":\"1.0.0\",\"author\":\"Me\","
+                        + "\"type\":\"script\",\"entry_point\":\"m.lua\","
+                        + "\"sha256\":\"" + "ab".repeat(32) + "\","
+                        + "\"permissions\":[\"network\"]}").manifest;
+        assertNotNull(pinned);
+        String json = AntEggPackageWriter.manifestJson(pinned);
+        assertTrue(json, json.contains("\"sha256\""));
+        assertTrue(json, json.contains("\"permissions\""));
+        assertTrue(json, json.contains("\"network\""));
+
+        // Round trip: the writer's JSON must parse back to the same fields.
+        AntEggManifest reparsed = AntEggManifest.parse(json).manifest;
+        assertNotNull(reparsed);
+        assertEquals(pinned.sha256, reparsed.sha256);
+        assertEquals(1, reparsed.permissions.size());
+        assertEquals("network", reparsed.permissions.get(0));
+    }
+
+    @Test
+    public void aPinnedPackageVerifiesAndAnAlteredOneDoesNot() throws Exception {
+        AntEggManifest base = AntEggManifest.parse(
+                "{\"name\":\"Pinned Mod\",\"version\":\"1.0.0\",\"author\":\"Me\","
+                        + "\"type\":\"script\",\"entry_point\":\"m.lua\"}").manifest;
+
+        // The pin must reference the entry file (non-circular), not the whole archive. Compute
+        // the entry bytes' hash first, pin it, then write and read the package back through the
+        // real reader to confirm the round trip keeps the pin.
+        String entryHash = ModHash.sha256(writeBytes(folder.getRoot(), "entry.dat",
+                "print('x')".getBytes(StandardCharsets.UTF_8)));
+        assertNotNull(entryHash);
+
+        AntEggManifest pinned = base.withSha256(entryHash);
+        AntEggPackageWriter.Result pinnedResult = AntEggPackageWriter.write(pinned,
+                new AntEggPackageWriter.PackageFiles().add("m.lua", "print('x')"),
+                new File(folder.getRoot(), "pinned.antegg"));
+        assertTrue(pinnedResult.error, pinnedResult.success);
+
+        AntEggPackage.Result extracted = AntEggPackage.extract(pinnedResult.file,
+                folder.getRoot());
+        assertTrue(extracted.error, extracted.isValid());
+        File entry = new File(extracted.directory, "m.lua");
+        assertTrue(ModHash.matches(entry, entryHash));
+
+        // The same pin on a package whose entry bytes differ must not match.
+        File other = new File(folder.getRoot(), "other.antegg");
+        assertTrue(AntEggPackageWriter.write(pinned,
+                new AntEggPackageWriter.PackageFiles().add("m.lua", "print('y')"), other).success);
+        AntEggPackage.Result otherExtracted = AntEggPackage.extract(other, folder.getRoot());
+        assertTrue(otherExtracted.error, otherExtracted.isValid());
+        assertFalse(ModHash.matches(new File(otherExtracted.directory, "m.lua"), entryHash));
+    }
+
+    private static File writeBytes(File dir, String name, byte[] bytes) throws Exception {
+        File file = new File(dir, name);
+        java.nio.file.Files.write(file.toPath(), bytes);
+        return file;
     }
 
     @Test

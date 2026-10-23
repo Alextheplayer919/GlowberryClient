@@ -390,6 +390,22 @@ public class JavaBridgeActivity extends BaseActivity {
         provenance.setTextColor(getColor(R.color.text_secondary));
         provenance.setPadding(dp(24), 0, dp(24), dp(6));
         wrapper.addView(provenance);
+
+        // Item G12: every ported package is pinned at generation time, so the review dialog can
+        // show the verified checksum as evidence of what will be installed. The pin was computed
+        // over the entry bytes by the porter and stored in the manifest — display it, never
+        // recompute from a path string.
+        TextView pin = new TextView(this);
+        if (result.manifest.sha256.isEmpty()) {
+            pin.setText(R.string.javabridge_no_pin);
+            pin.setTextColor(getColor(R.color.ui_warning));
+        } else {
+            pin.setText(getString(R.string.javabridge_verified_pin, result.manifest.sha256));
+            pin.setTextColor(getColor(R.color.ui_success));
+        }
+        pin.setTextSize(12f);
+        pin.setPadding(dp(24), 0, dp(24), dp(6));
+        wrapper.addView(pin);
         TextView note = new TextView(this);
         note.setText(R.string.javabridge_review_note);
         note.setTextSize(12f);
