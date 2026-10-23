@@ -311,6 +311,7 @@ class GamePackageManager private constructor(
             val abi = getDeviceAbi(apkFiles)
             apkFiles.forEach { extractFromApk(it.absolutePath, outputDir, abi) }
         }
+        ensureLibCppSharedFallback(outputDir)
         verifyLibraries(outputDir)
 
         if (cacheRequiredLibs.all { File(outputDir, it).let { f -> f.exists() && f.length() > 0 } }) {
@@ -331,17 +332,8 @@ class GamePackageManager private constructor(
      * launcher's own version code, so shipping a new launcher build always invalidates the
      * extracted library cache instead of trusting stale `.so` files.
      */
-    private fun nativeExtractionVersion(): Int {
-        val manual = EXTRACTOR_VERSION
-        val appVersion = try {
-            BuildConfig.VERSION_CODE
-        } catch (_: Throwable) {
-            0
-        }
-        // Fold both into one monotonic value. App version codes are monotonic per build;
-        // the manual bump covers pipeline changes without a version bump.
-        return (manual shl 16) or (appVersion and 0xffff)
-    }
+    private fun nativeExtractionVersion(): Int =
+        Companion.calculateNativeExtractionVersion()
 
     private fun writeNativeExtractionVersion(versionFile: File, version: Int) {
         try {
@@ -534,6 +526,54 @@ class GamePackageManager private constructor(
         if (missing.isNotEmpty()) {
             mirrorLogcat('W', "Missing libraries in $dir: ${missing.joinToString()}")
             report("Missing libraries in ${dir.absolutePath}: ${missing.joinToString()}")
+        }
+
+        verifyLibraryAbi(dir)
+    }
+
+    /**
+     * G3: SONAME/ABI validation. Reads each extracted ELF header and reports any library whose
+     * architecture cannot load in this process *before* a launch attempt, instead of the raw
+     * "dlopen failed: is 32-bit instead of 64-bit" surfacing mid-launch. A mismatched library is
+     * not removed here — the launch preflight decides what to do — but every mismatch is logged
+     * so the diagnostics report and logcat agree about the failure cause.
+     */
+    private fun verifyLibraryAbi(dir: File) {
+        val processIs64Bit = Build.SUPPORTED_64_BIT_ABIS.isNotEmpty()
+        val libs = getCacheRequiredLibs().plus(systemLoadedLibs)
+        for (name in libs) {
+            val file = File(dir, name)
+            if (!file.isFile) continue
+            val mismatch = ElfHeaderValidator.describeMismatch(file, processIs64Bit)
+            if (mismatch != null) {
+                mirrorLogcat('E', "ABI mismatch: $mismatch")
+                report("ABI-mismatched native library: $mismatch")
+            }
+        }
+    }
+
+    /**
+     * G3: multi-`.so` robustness. When a version's package does not ship `libc++_shared.so`, fall
+     * back to the launcher's own bundled copy (the preloader is linked against `c++_shared`), so
+     * the extracted cache always has the STL the game's libraries load against. Copied only when
+     * the file is absent — the game's own copy, if present, is the correct version for that build.
+     */
+    private fun ensureLibCppSharedFallback(outputDir: File) {
+        val target = File(outputDir, "libc++_shared.so")
+        if (target.exists() && target.length() > 0) {
+            return
+        }
+        try {
+            val appNativeDir = File(context.applicationInfo.nativeLibraryDir)
+            val source = File(appNativeDir, "libc++_shared.so")
+            if (source.isFile && source.length() > 0) {
+                copyStreamToReadOnlyFile(source.inputStream(), File(outputDir, "libc++_shared.so"))
+                report("libc++_shared.so missing from game package; copied launcher-bundled copy")
+            } else {
+                mirrorLogcat('W', "libc++_shared.so not found in APK or launcher native dir")
+            }
+        } catch (e: Exception) {
+            mirrorLogcat('W', "libc++_shared.so fallback failed: ${e.message}")
         }
     }
 
@@ -746,6 +786,15 @@ class GamePackageManager private constructor(
         val libFile = resolvedPath?.let(::File) ?: File(nativeLibDir, fileName)
         val source = "Minecraft extracted library cache"
         return if (libFile.exists() && libFile.length() > 0) {
+            // G3: refuse a library whose ELF architecture cannot load in this process before
+            // dlopen; the raw error names neither the file nor the mismatch.
+            val processIs64Bit = Build.SUPPORTED_64_BIT_ABIS.isNotEmpty()
+            val abiMismatch = ElfHeaderValidator.describeMismatch(libFile, processIs64Bit)
+            if (abiMismatch != null) {
+                val detail = abiMismatch
+                mirrorLogcat('E', "Refusing to load $fileName from ${libFile.absolutePath}: $detail")
+                return LibraryLoadResult(normalizedName, fileName, source, false, elapsedSince(startedAt), detail)
+            }
             try {
                 ensureReadOnly(libFile)
                 System.load(libFile.absolutePath)
