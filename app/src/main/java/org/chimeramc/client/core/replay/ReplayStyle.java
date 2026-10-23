@@ -46,7 +46,7 @@ public final class ReplayStyle {
         boolean glow = true;
         try {
             PersonalizationManager pm = new PersonalizationManager(context);
-            if (pm.hasCustomAccent()) resolved = pm.getAccentColor();
+            resolved = pm.getAccentColor();
             glow = pm.isEnableGlowEffects();
         } catch (Throwable ignored) {
         }

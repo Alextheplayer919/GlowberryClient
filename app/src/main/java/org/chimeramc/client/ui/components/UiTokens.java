@@ -74,17 +74,32 @@ public final class UiTokens {
 
     // --- Shape (dp) --------------------------------------------------------------------------
 
-    public static final int RADIUS_WINDOW = 16;
-    public static final int RADIUS_CARD = 10;
-    public static final int RADIUS_CHIP = 11;
-    public static final int RADIUS_BUTTON = 14;
+    /**
+     * The single radius scale (U10): 8 / 12 / 16 / 28dp. Every surface picks one of the four —
+     * a bespoke radius is how two cards that should match end up one pixel apart.
+     */
+    public static final int RADIUS_SMALL = 8;
+    public static final int RADIUS_MEDIUM = 12;
+    public static final int RADIUS_LARGE = 16;
+    public static final int RADIUS_XLARGE = 28;
+
+    public static final int RADIUS_WINDOW = RADIUS_XLARGE;
+    public static final int RADIUS_CARD = RADIUS_LARGE;
+    public static final int RADIUS_CHIP = RADIUS_MEDIUM;
+    public static final int RADIUS_BUTTON = RADIUS_LARGE;
+    /** A full pill: half the height, so the drawable clamps it to a stadium. */
     public static final int RADIUS_TOGGLE = 999;
 
+    /**
+     * The single spacing scale (U9): 4 / 8 / 12 / 16 / 24 / 32dp. Any margin or padding in a
+     * Glowberry surface is one of these, so vertical rhythm is consistent by construction.
+     */
     public static final int SPACE_1 = 4;
     public static final int SPACE_2 = 8;
     public static final int SPACE_3 = 12;
     public static final int SPACE_4 = 16;
     public static final int SPACE_6 = 24;
+    public static final int SPACE_8 = 32;
 
     // --- Elevation ---------------------------------------------------------------------------
 
@@ -103,12 +118,61 @@ public final class UiTokens {
     public static final int SECTION_WEIGHT = 600;
     public static final float SECTION_LETTER_SPACING = 0.08f;
 
+    /**
+     * The five type roles (U8), in descending size: display, title, body, label, caption. A
+     * surface picks a role, never a raw sp value, so two screens showing the same kind of text
+     * cannot drift apart.
+     */
+    public static final float TEXT_DISPLAY = 22f;
+    public static final int DISPLAY_WEIGHT = 600;
+    /** Alias of {@link #TEXT_TITLE} — the role name is what new code should use. */
+    public static final float TEXT_TITLE_ROLE = TEXT_TITLE;
+    public static final float TEXT_BODY = 14f;
+    public static final int BODY_WEIGHT = 400;
+    /** Alias of {@link #TEXT_ROW_TITLE}. */
+    public static final float TEXT_LABEL = TEXT_ROW_TITLE;
+
     // --- Motion ------------------------------------------------------------------------------
 
     public static final long MOTION_DEFAULT_MS = 160L;
     public static final long MOTION_PRESS_MS = 80L;
     public static final float MOTION_OPEN_OVERSHOOT = 0.6f;
     public static final long MOTION_MAX_MS = 240L;
+
+    /**
+     * The two motion schemes (U11). Every animated surface reads its duration and easing from
+     * here rather than hard-coding a spring, so "Reduce motion" is one switch instead of a hunt
+     * through the codebase. {@link #REDUCED} is a short linear fade — still a transition, so a
+     * screen does not pop, but with no travel and no overshoot.
+     */
+    public static final class Motion {
+        public final long durationMs;
+        public final float damping;
+        public final float stiffness;
+        public final boolean linear;
+
+        private Motion(long durationMs, float damping, float stiffness, boolean linear) {
+            this.durationMs = durationMs;
+            this.damping = damping;
+            this.stiffness = stiffness;
+            this.linear = linear;
+        }
+
+        /** Springy, expressive motion (the Material 3 Expressive default). */
+        public static final Motion EXPRESSIVE =
+                new Motion(MOTION_DEFAULT_MS, 0.78f, 380f, false);
+        /** Short, flat motion for Reduce motion / Reduce transparency. */
+        public static final Motion REDUCED =
+                new Motion(120L, 1f, 0f, true);
+    }
+
+    /**
+     * The motion scheme to use, honouring the app's Reduce motion switch and the platform's
+     * "remove animations" developer/accessibility setting.
+     */
+    public static Motion motionScheme(boolean reduceMotion, boolean platformAnimationsOff) {
+        return (reduceMotion || platformAnimationsOff) ? Motion.REDUCED : Motion.EXPRESSIVE;
+    }
 
     // --- Component geometry (dp) -------------------------------------------------------------
 
@@ -128,15 +192,15 @@ public final class UiTokens {
     public static final float WINDOW_WIDTH_FRACTION = 0.66f;
     public static final float WINDOW_HEIGHT_FRACTION = 0.78f;
 
-    /** The accent to draw with, honouring a user-selected accent but defaulting to blue. */
+    /**
+     * The accent to draw with: the theme's primary (dynamic colour when the wallpaper provides
+     * one, the brand colour otherwise). Falls back to {@link #ACCENT_500} with no context.
+     */
     public static int resolveAccent(Context context) {
         if (context == null) return ACCENT_500;
         try {
-            PersonalizationManager pm = new PersonalizationManager(context);
-            if (pm.hasCustomAccent()) {
-                int accent = pm.getAccentColor();
-                if (accent != 0) return accent;
-            }
+            int accent = new PersonalizationManager(context).getAccentColor();
+            if (accent != 0) return accent;
         } catch (Throwable ignored) {
         }
         return ACCENT_500;

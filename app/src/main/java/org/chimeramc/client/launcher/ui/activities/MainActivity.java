@@ -1343,9 +1343,6 @@ import okhttp3.OkHttpClient;
         boolean glow = pm.isEnableGlowEffects();
         applyGlowEffects(glow);
         
-        // Apply Compact Mode
-        boolean compact = pm.isCompactMode();
-        applyCompactMode(compact);
         
         // Apply Show Animations toggle
         boolean showAnims = pm.isShowAnimations();
@@ -1422,24 +1419,6 @@ import okhttp3.OkHttpClient;
         }
     }
     
-    private void applyCompactMode(boolean enabled) {
-        if (binding == null) return;
-        
-        if (enabled) {
-            // Reduce padding/margins for compact mode
-            int smallPadding = (int)(8 * getResources().getDisplayMetrics().density);
-            if (binding.getRoot() instanceof ViewGroup) {
-                ((ViewGroup) binding.getRoot()).setPadding(smallPadding, smallPadding, smallPadding, smallPadding);
-            }
-        } else {
-            // Restore normal padding
-            int normalPadding = (int)(16 * getResources().getDisplayMetrics().density);
-            if (binding.getRoot() instanceof ViewGroup) {
-                ((ViewGroup) binding.getRoot()).setPadding(normalPadding, normalPadding, normalPadding, normalPadding);
-            }
-        }
-    }
-
     private void startHeroCardPulse() {
         View heroCard = findViewById(R.id.last_played_card);
         if (heroCard == null) return;

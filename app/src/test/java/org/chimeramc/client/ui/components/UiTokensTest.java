@@ -134,6 +134,53 @@ public class UiTokensTest {
     }
 
     @Test
+    public void theRadiusScaleHasExactlyFourSteps() {
+        assertEquals(8, UiTokens.RADIUS_SMALL);
+        assertEquals(12, UiTokens.RADIUS_MEDIUM);
+        assertEquals(16, UiTokens.RADIUS_LARGE);
+        assertEquals(28, UiTokens.RADIUS_XLARGE);
+        // Every named surface radius is one of the four, never a bespoke value.
+        assertEquals(UiTokens.RADIUS_XLARGE, UiTokens.RADIUS_WINDOW);
+        assertEquals(UiTokens.RADIUS_LARGE, UiTokens.RADIUS_CARD);
+        assertEquals(UiTokens.RADIUS_MEDIUM, UiTokens.RADIUS_CHIP);
+        assertEquals(UiTokens.RADIUS_LARGE, UiTokens.RADIUS_BUTTON);
+    }
+
+    @Test
+    public void theSpacingScaleIsTheFourEightProgression() {
+        assertEquals(4, UiTokens.SPACE_1);
+        assertEquals(8, UiTokens.SPACE_2);
+        assertEquals(12, UiTokens.SPACE_3);
+        assertEquals(16, UiTokens.SPACE_4);
+        assertEquals(24, UiTokens.SPACE_6);
+        assertEquals(32, UiTokens.SPACE_8);
+    }
+
+    @Test
+    public void theTypeScaleIsOrderedAndHasFiveRoles() {
+        float[] roles = {
+                UiTokens.TEXT_DISPLAY, UiTokens.TEXT_TITLE_ROLE, UiTokens.TEXT_BODY,
+                UiTokens.TEXT_LABEL, UiTokens.TEXT_CAPTION
+        };
+        assertEquals(5, roles.length);
+        for (int i = 1; i < roles.length; i++) {
+            assertTrue("role " + i + " must be smaller than the one above it",
+                    roles[i] < roles[i - 1]);
+        }
+    }
+
+    @Test
+    public void reduceMotionSelectsTheFlatScheme() {
+        assertEquals(UiTokens.Motion.EXPRESSIVE, UiTokens.motionScheme(false, false));
+        assertEquals(UiTokens.Motion.REDUCED, UiTokens.motionScheme(true, false));
+        // The platform "remove animations" setting wins too.
+        assertEquals(UiTokens.Motion.REDUCED, UiTokens.motionScheme(false, true));
+        assertTrue(UiTokens.Motion.REDUCED.linear);
+        assertTrue(UiTokens.Motion.REDUCED.durationMs <= UiTokens.Motion.EXPRESSIVE.durationMs);
+        assertTrue("reduced motion must not overshoot", UiTokens.Motion.REDUCED.damping >= 1f);
+    }
+
+    @Test
     public void windowBoundsAreCentredAndCapped() {
         // On a very wide screen the 720dp cap applies.
         float[] wide = UiWindow.boundsArray(4000, 2000, 1f);

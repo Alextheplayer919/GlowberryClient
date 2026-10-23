@@ -85,8 +85,6 @@ public class SettingsActivity extends BaseActivity {
     private int selectedTabIndex = 0;
 
     private PersonalizationManager personalizationManager;
-    private LinearLayout colorGridContainer;
-    private LinearLayout moreColorsContainer;
     private TextView bgImageStatus;
     private TextView bgImageBlurValue;
     private TextView bgImageBrightnessValue;
@@ -108,9 +106,7 @@ public class SettingsActivity extends BaseActivity {
     private TextView iconSizeValue;
     private TextView fontScaleValue;
     private TextView blurIntensityValue;
-    private SwitchMaterial switchShowAnimations;
-    private SwitchMaterial switchEnableGlow;
-    private SwitchMaterial switchCompactMode;
+    private SwitchMaterial switchReduceMotion;
     private Button btnResetCustomizations;
 
     // Scheduled world backups (G13)
@@ -606,7 +602,6 @@ public class SettingsActivity extends BaseActivity {
             itemDark.setOnClickListener(v -> { themeManager.setThemeMode(2); });
         }
 
-        setupColorPicker();
         setupBackgroundImagePicker();
     }
 
@@ -618,9 +613,7 @@ public class SettingsActivity extends BaseActivity {
         iconSizeValue = findViewById(R.id.icon_size_value);
         fontScaleValue = findViewById(R.id.font_scale_value);
         blurIntensityValue = findViewById(R.id.blur_intensity_value);
-        switchShowAnimations = findViewById(R.id.switch_show_animations);
-        switchEnableGlow = findViewById(R.id.switch_enable_glow);
-        switchCompactMode = findViewById(R.id.switch_compact_mode);
+        switchReduceMotion = findViewById(R.id.switch_reduce_motion);
         btnResetCustomizations = findViewById(R.id.btn_reset_customizations);
         // Animation Speed SeekBar
         SeekBar seekAnimationSpeed = findViewById(R.id.seek_animation_speed);
@@ -766,27 +759,11 @@ public class SettingsActivity extends BaseActivity {
             });
         }
 
-        // Show Animations Toggle
-        if (switchShowAnimations != null) {
-            switchShowAnimations.setChecked(personalizationManager.isShowAnimations());
-            switchShowAnimations.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                personalizationManager.setShowAnimations(isChecked);
-            });
-        }
-
-        // Enable Glow Effects Toggle
-        if (switchEnableGlow != null) {
-            switchEnableGlow.setChecked(personalizationManager.isEnableGlowEffects());
-            switchEnableGlow.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                personalizationManager.setEnableGlowEffects(isChecked);
-            });
-        }
-
-        // Compact Mode Toggle
-        if (switchCompactMode != null) {
-            switchCompactMode.setChecked(personalizationManager.isCompactMode());
-            switchCompactMode.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                personalizationManager.setCompactMode(isChecked);
+        // Reduce motion / transparency: the single accessibility switch (U11).
+        if (switchReduceMotion != null) {
+            switchReduceMotion.setChecked(personalizationManager.isReduceMotion());
+            switchReduceMotion.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                personalizationManager.setReduceMotion(isChecked);
             });
         }
 
@@ -913,224 +890,6 @@ public class SettingsActivity extends BaseActivity {
         if (iconSystem != null) iconSystem.setImageTintList(android.content.res.ColorStateList.valueOf(currentMode == 0 ? selectedColor : unselectedColor));
         if (iconLight != null) iconLight.setImageTintList(android.content.res.ColorStateList.valueOf(currentMode == 1 ? selectedColor : unselectedColor));
         if (iconDark != null) iconDark.setImageTintList(android.content.res.ColorStateList.valueOf(currentMode == 2 ? selectedColor : unselectedColor));
-    }
-
-    private void setupColorPicker() {
-        colorGridContainer = findViewById(R.id.color_preset_grid);
-        moreColorsContainer = findViewById(R.id.color_more_grid);
-
-        if (colorGridContainer != null && moreColorsContainer != null) {
-            int currentAccent = personalizationManager.getAccentColor();
-            buildColorGrid(colorGridContainer, PersonalizationManager.PRESET_COLORS, currentAccent);
-            buildColorGrid(moreColorsContainer, PersonalizationManager.MORE_COLORS, currentAccent);
-        }
-
-        android.widget.EditText inputCustomColor = findViewById(R.id.input_custom_color);
-        Button btnApplyColor = findViewById(R.id.btn_apply_color);
-        if (inputCustomColor != null && btnApplyColor != null) {
-            btnApplyColor.setOnClickListener(v -> {
-                String input = inputCustomColor.getText().toString().trim();
-                try {
-                    int color;
-                    if (input.startsWith("#")) {
-                        color = Color.parseColor(input);
-                    } else if (input.contains(",")) {
-                        String[] parts = input.split(",");
-                        if (parts.length == 3) {
-                            color = Color.rgb(Integer.parseInt(parts[0].trim()),
-                                    Integer.parseInt(parts[1].trim()),
-                                    Integer.parseInt(parts[2].trim()));
-                        } else {
-                            throw new IllegalArgumentException("Invalid RGB format");
-                        }
-                    } else {
-                        color = Color.parseColor("#" + input);
-                    }
-                    personalizationManager.setAccentColor(color);
-                    refreshColorPickerInPlace();
-                } catch (Exception e) {
-                    Toast.makeText(this, R.string.invalid_color_format, Toast.LENGTH_SHORT).show();
-                }
-            });
-        }
-    }
-
-    private void buildColorGrid(LinearLayout container, int[] colors, int selectedColor) {
-        container.removeAllViews();
-
-        float density = getResources().getDisplayMetrics().density;
-        int circleSize = (int) (32 * density);
-        int margin = (int) (4 * density);
-        int checkSize = (int) (14 * density);
-
-        int columns = 15;
-        int index = 0;
-        while (index < colors.length) {
-            LinearLayout row = new LinearLayout(this);
-            row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setLayoutParams(new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT));
-
-            for (int col = 0; col < columns && index < colors.length; col++, index++) {
-                int color = colors[index];
-
-                FrameLayout wrapper = new FrameLayout(this);
-                LinearLayout.LayoutParams wrapParams = new LinearLayout.LayoutParams(circleSize, circleSize);
-                wrapParams.setMargins(margin, margin, margin, margin);
-                wrapper.setLayoutParams(wrapParams);
-
-                View circle = new View(this);
-                circle.setLayoutParams(new FrameLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT));
-                GradientDrawable circleDrawable = new GradientDrawable();
-                circleDrawable.setShape(GradientDrawable.OVAL);
-                circleDrawable.setColor(color);
-                if (color == selectedColor) {
-                    circleDrawable.setStroke((int) (2 * density), Color.WHITE);
-                }
-                circle.setBackground(circleDrawable);
-                wrapper.addView(circle);
-
-                if (color == selectedColor) {
-                    ImageView check = new ImageView(this);
-                    FrameLayout.LayoutParams checkParams = new FrameLayout.LayoutParams(checkSize, checkSize);
-                    checkParams.gravity = Gravity.CENTER;
-                    check.setLayoutParams(checkParams);
-                    check.setImageResource(R.drawable.ic_check);
-                    check.setColorFilter(Color.WHITE);
-                    wrapper.addView(check);
-                }
-
-                wrapper.setClickable(true);
-                wrapper.setFocusable(true);
-                final int finalColor = color;
-                wrapper.setOnClickListener(v -> {
-                    personalizationManager.setAccentColor(finalColor);
-                    refreshColorPickerInPlace();
-                });
-                DynamicAnim.applyPressScale(wrapper);
-
-                row.addView(wrapper);
-            }
-
-            container.addView(row);
-        }
-
-    }
-
-    private void refreshColorPickerInPlace() {
-        setupColorPicker();
-        PersonalizationManager pm = new PersonalizationManager(this);
-        int accent = pm.getAccentColor();
-        
-        pm.applyToActivity(this);
-
-        refreshThemeSelectionUI();
-        
-        TextView[] tabs = getSettingsTabs();
-        selectTab(tabs[selectedTabIndex]);
-        
-        View settingsTitle = findViewById(R.id.settings_title);
-        if (settingsTitle instanceof TextView && accent != 0) {
-            ((TextView) settingsTitle).setTextColor(accent);
-        }
-        
-        Button btnSelectImage = findViewById(R.id.btn_select_bg_image);
-        if (btnSelectImage != null && accent != 0) {
-            btnSelectImage.setBackgroundTintList(ColorStateList.valueOf(accent));
-            btnSelectImage.setTextColor(Color.WHITE);
-        }
-        
-        Button btnCheckUpdate = findViewById(R.id.btn_check_update);
-        if (btnCheckUpdate != null && accent != 0) {
-            btnCheckUpdate.setBackgroundTintList(ColorStateList.valueOf(accent));
-            btnCheckUpdate.setTextColor(Color.WHITE);
-        }
-
-        Button btnUpdatePreloaderSigs = findViewById(R.id.btn_update_preloader_sigs);
-        if (btnUpdatePreloaderSigs != null && accent != 0) {
-            btnUpdatePreloaderSigs.setBackgroundTintList(ColorStateList.valueOf(accent));
-            btnUpdatePreloaderSigs.setTextColor(Color.WHITE);
-        }
-        
-        SwitchMaterial switchLogcat = findViewById(R.id.switch_logcat);
-        if (switchLogcat != null && accent != 0) {
-            int[][] states = {{android.R.attr.state_checked}, {}};
-            switchLogcat.setThumbTintList(new ColorStateList(states, new int[]{accent, 0xFFAAAAAA}));
-            int trackChecked = Color.argb(100, Color.red(accent), Color.green(accent), Color.blue(accent));
-            switchLogcat.setTrackTintList(new ColorStateList(states, new int[]{trackChecked, 0xFF555555}));
-        }
-        
-        SwitchMaterial switchManagedLogin = findViewById(R.id.switch_managed_login);
-        if (switchManagedLogin != null && accent != 0) {
-            int[][] states = {{android.R.attr.state_checked}, {}};
-            switchManagedLogin.setThumbTintList(new ColorStateList(states, new int[]{accent, 0xFFAAAAAA}));
-            int trackChecked = Color.argb(100, Color.red(accent), Color.green(accent), Color.blue(accent));
-            switchManagedLogin.setTrackTintList(new ColorStateList(states, new int[]{trackChecked, 0xFF555555}));
-        }
-
-        SwitchMaterial switchCrashUpload = findViewById(R.id.switch_crash_upload);
-        if (switchCrashUpload != null && accent != 0) {
-            int[][] states = {{android.R.attr.state_checked}, {}};
-            switchCrashUpload.setThumbTintList(new ColorStateList(states, new int[]{accent, 0xFFAAAAAA}));
-            int trackChecked = Color.argb(100, Color.red(accent), Color.green(accent), Color.blue(accent));
-            switchCrashUpload.setTrackTintList(new ColorStateList(states, new int[]{trackChecked, 0xFF555555}));
-        }
-        
-        SwitchMaterial switchLowInputDelay = findViewById(R.id.switch_low_input_delay);
-        if (switchLowInputDelay != null && accent != 0) {
-            int[][] states = {{android.R.attr.state_checked}, {}};
-            switchLowInputDelay.setThumbTintList(new ColorStateList(states, new int[]{accent, 0xFFAAAAAA}));
-            int trackChecked = Color.argb(100, Color.red(accent), Color.green(accent), Color.blue(accent));
-            switchLowInputDelay.setTrackTintList(new ColorStateList(states, new int[]{trackChecked, 0xFF555555}));
-        }
-
-        SwitchMaterial switchGxCore = findViewById(R.id.switch_gxcore);
-        if (switchGxCore != null && accent != 0) {
-            int[][] states = {{android.R.attr.state_checked}, {}};
-            switchGxCore.setThumbTintList(new ColorStateList(states, new int[]{accent, 0xFFAAAAAA}));
-            int trackChecked = Color.argb(100, Color.red(accent), Color.green(accent), Color.blue(accent));
-            switchGxCore.setTrackTintList(new ColorStateList(states, new int[]{trackChecked, 0xFF555555}));
-        }
-
-        SwitchMaterial switchReduceNetworkLatency = findViewById(R.id.switch_reduce_network_latency);
-        if (switchReduceNetworkLatency != null && accent != 0) {
-            int[][] states = {{android.R.attr.state_checked}, {}};
-            switchReduceNetworkLatency.setThumbTintList(new ColorStateList(states, new int[]{accent, 0xFFAAAAAA}));
-            int trackChecked = Color.argb(100, Color.red(accent), Color.green(accent), Color.blue(accent));
-            switchReduceNetworkLatency.setTrackTintList(new ColorStateList(states, new int[]{trackChecked, 0xFF555555}));
-        }
-
-        SwitchMaterial switchFpsOptimizer = findViewById(R.id.switch_fps_optimizer);
-        if (switchFpsOptimizer != null && accent != 0) {
-            int[][] states = {{android.R.attr.state_checked}, {}};
-            switchFpsOptimizer.setThumbTintList(new ColorStateList(states, new int[]{accent, 0xFFAAAAAA}));
-            int trackChecked = Color.argb(100, Color.red(accent), Color.green(accent), Color.blue(accent));
-            switchFpsOptimizer.setTrackTintList(new ColorStateList(states, new int[]{trackChecked, 0xFF555555}));
-        }
-
-        TextView navAppName = findViewById(R.id.nav_app_name);
-        if (navAppName != null && accent != 0) {
-            pm.applySolidAccentText(navAppName, accent);
-        }
-        
-        Button navSignInBtn = findViewById(R.id.nav_sign_in_button);
-        if (navSignInBtn != null && accent != 0) {
-            navSignInBtn.setBackgroundTintList(ColorStateList.valueOf(accent));
-            navSignInBtn.setTextColor(Color.WHITE);
-        }
-        
-        int[] navTabIds = {R.id.nav_tab_launch, R.id.nav_tab_instances, R.id.nav_tab_customize, R.id.nav_tab_settings};
-        for (int id : navTabIds) {
-            TextView navTab = findViewById(id);
-            if (navTab != null && id == R.id.nav_tab_settings && accent != 0) {
-                navTab.setTextColor(accent);
-                navTab.setTypeface(navTab.getTypeface(), android.graphics.Typeface.BOLD);
-                androidx.core.widget.TextViewCompat.setCompoundDrawableTintList(navTab, ColorStateList.valueOf(accent));
-            }
-        }
     }
 
     private void setupBackgroundImagePicker() {

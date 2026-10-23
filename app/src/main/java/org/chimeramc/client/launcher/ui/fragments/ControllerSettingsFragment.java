@@ -483,7 +483,8 @@ public class ControllerSettingsFragment extends Fragment {
     private void applyCompactAndRounding(PersonalizationManager pm) {
         View root = getView() == null ? null : getView().findViewById(R.id.controller_root);
         if (root instanceof ViewGroup viewGroup) {
-            int pad = (int) ((pm.isCompactMode() ? 8 : 16) * getResources().getDisplayMetrics().density);
+            int pad = (int) (org.chimeramc.client.ui.components.UiTokens.SPACE_4
+                    * getResources().getDisplayMetrics().density);
             viewGroup.setPadding(pad, pad, pad, pad);
         }
     }

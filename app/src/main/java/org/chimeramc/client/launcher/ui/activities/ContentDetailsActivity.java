@@ -283,7 +283,7 @@ public class ContentDetailsActivity extends BaseActivity {
         dialog.setContentView(R.layout.dialog_file_list);
 
         org.chimeramc.client.util.PersonalizationManager pm = new org.chimeramc.client.util.PersonalizationManager(this);
-        int accent = pm.hasCustomAccent() ? pm.getAccentColor() : androidx.core.content.ContextCompat.getColor(this, R.color.primary);
+        int accent = pm.getAccentColor();
 
         RecyclerView recycler = dialog.findViewById(R.id.recycler_files);
 
