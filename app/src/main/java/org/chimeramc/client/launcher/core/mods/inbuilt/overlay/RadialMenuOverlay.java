@@ -17,7 +17,7 @@ import org.chimeramc.client.core.mods.inbuilt.overlay.RadialWheelLayout.Sector;
 /**
  * The radial mod wheel as an in-game overlay (section 1 of the update spec).
  *
- * <p>It is a second screen beside the touch Mod Menu (Screen A) and the VIP menu (Screen B): it is
+ * <p>It is a second screen beside the one Mod Menu: it is
  * opened from the same in-game bind and points at the same destinations. The four sectors route to
  * the module list, the cosmetics wardrobe, the settings and the HUD editor; the floating chips
  * toggle individual modules without opening a menu at all.

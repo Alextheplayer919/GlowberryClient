@@ -18,7 +18,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  *
  * <p>It owns the permission round-trip, starts and stops {@link ReplayCaptureService}, tracks the
  * elapsed recording time, applies the storage cap after a clip lands, and fans state changes out to
- * whatever Replay UI is open. Both screens share it — the Replay tab on Screen A and Screen B is
+ * whatever Replay UI is open. Every host shares it — the Replay page of the Mod Menu is
  * one feature with one backend, so there is a single recorder state, not one per screen.
  *
  * <p>State lives on the main thread; a listener is invoked on the main thread. The class is a

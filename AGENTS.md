@@ -955,42 +955,50 @@ Do not re-run this RE from scratch; these are the conclusions.
   pack changer with no reloader whenever the voice module happened to be off).
 
 
-## VIP Mod Menu (Screen B) vs the touch Mod Menu (Screen A)
-- **Two screens, not two versions of one.** Screen A is the existing touch Mod Menu (`ModMenuOverlay`), opened from the
-  launcher nav bar's Controller tab; it stays exactly as it was. Screen B is the premium VIP Mod Menu
-  (`org.chimeramc.client.core.mods.inbuilt.vip.VipModMenuOverlay`), opened **only** by the in-game bind
-  (`InbuiltOverlayManager.handleKeyEvent` тЖТ `ModMenuButton.toggleMenuFromBind`). A bind press must never open Screen A, and the
-  nav bar must keep the Controller tab. Do not merge them or ship one as a "version" of the other.
-- **Screen B is bind-driven, so it selects its own sub-mode from the input family.** `VipInputMode.forGamepad(hasGamepad)` (pure)
-  returns CONTROLLER or KEYBOARD, and `VipTab.defaultFor(mode)` opens the matching surface; the shared module list is
-  one shoulder press away. Touch is deliberately not a VIP mode тАФ the touch surface is Screen A.
-- `VipTab` declaration order is both the tab order and the L1/R1 cycle order (`next()`/`previous()` wrap), exactly like
-  `LauncherTab`. `MODULES` is the grid; `CONTROLLER`/`KEYBOARD` are the two sub-modes of the same screen.
-- **`VipKeyLayout` owns the keyboard geometry** (a 7-row board including the arrow cluster), so `KeyboardIllustrationView`
-  only paints. `VipMenuLogicTest` pins the invariants тАФ every letter row sums to the board width, no two caps on a row
-  overlap, every cap stays inside the board тАФ and it already caught a real arrow-cluster overlap. Rounded/extent-bearing
-  caps must be tested with their real extents, not as circles.
-- **The VIP overlay is the one that wins controller input while open.** `InbuiltOverlayManager.handleMenuControllerKey`
-  and `handleMenuControllerMotion` check the open VIP overlay before Screen A's `ModMenuOverlay`, so a pad drives whichever
-  screen is showing and never both. `ModMenuButton.isMenuShowing()` covers both screens so the HUD-visibility tick does not
-  leave a VIP overlay stranded when the pause menu closes.
-- **`MenuBindRelay` is the single in-game bind-capture sink** (`set`/`clear`/`deliver`/`isCapturing`), shared by Screen A's
-  bind picker and the VIP keyboard tab, replacing the two separate capture paths that had drifted.
-- `VipTheme` holds the 3-4 tier VIP palette and glass/elevation tokens as named constants; `bg_vip_*` drawables and
-  `ic_vip_*` icons are the premium surface. Do not add raw ARGB literals in the VIP layouts тАФ add a token.
-- **The "clicking Modules crashes" bug was a `GradientDrawable` cast on a raw-colour background.** `item_vip_module_card.xml`
-  sets the accent strip's `android:background="#7C5CFF"`, which inflates as a `ColorDrawable`, and
-  `item_vip_group_header.xml` does the same for the group bar. `VipModuleAdapter.bindAccent`/`onBindViewHolder` did
-  `((GradientDrawable) view.getBackground().mutate()).setColor(...)`, so the very first bind threw `ClassCastException`
-  and the grid died the moment the General tab populated. The fix builds a fresh `GradientDrawable` and calls
-  `setBackground(...)` instead of casting whatever the layout happened to set тАФ do not reintroduce the cast.
-- **Availability must be passed into `bindAccent`, not read from `itemView.isEnabled()`.** `isEnabled()` is set *after*
-  `bindAccent` in `onBindViewHolder`, so reading it there painted a recycled card with the previous item's availability
-  (an unavailable module looked available and vice versa). `bindAccent(holder, groupId, isEnabled, isAvailable)` takes it
-  as a parameter.
-- **`show()` detaches a half-built tree before the fallback.** `showInternal` may throw *after* `addView`, so the catch
-  calls `detachWindowViewQuietly()` before `showFallback()`, or the fallback's `addView` layers a second copy (and a
-  second set of listeners) over the broken one.
+## One Mod Menu (U4): the touch screen and the VIP screen were merged
+- **There is one Mod Menu.** `ModMenuOverlay` is the only menu. The VIP window
+  (`VipModMenuOverlay`, `VipModuleAdapter`, `VipInputMode`, `overlay_vip_mod_menu.xml`, the VIP card
+  layouts) is **deleted** — do not reintroduce a second menu, a second page list, or a "premium
+  version" of the same screen. A module or a destination that exists in one and not the other is
+  exactly the class of bug the merge removes.
+- **`ModMenuPage` is the one page registry.** `pages()` returns every page in rail/cycle order;
+  `next()`/`previous()` wrap; `defaultForInput(hasGamepad)` picks the opening page. The pages that
+  used to be premium-only (`CONTROLLER`, `KEYBOARD`) are ordinary entries flagged `isSupporter()`,
+  and `supporterPages()` returns them. `ModMenuPageTest` pins all of it. Do **not** add a
+  `vipPages()`/`sharedPages()` split again — the badge marks a page, the list does not exclude it.
+- **The Supporter badge is a small accent dot on the rail tile** (`ModMenuRail.build`, from
+  `page.isSupporter()`). It is presentation only: the page behaves like every other page.
+- **The launcher's Mods screen and the in-game bind open the same menu.** `ModMenuButton` no longer
+  holds a second overlay; `openMenuSection(page)` creates the one `ModMenuOverlay` and calls
+  `showPage(page)`. `showPage` records `pendingPage` when the menu is not open yet, and `setupViews`
+  consumes it after the views exist, so the radial wheel's sectors land on the right page.
+- **`activePage` is set in `selectPage`, not only in `updateNavigationItems`.** Controller and
+  Keyboard pass all-false navigation booleans, so the shoulder cycle and the controller-input
+  routing would otherwise not know which page is showing. `selectPage` also paints the rail tile and
+  the top-bar title.
+- **The Supporter pages are ported, not stubbed.** `ModMenuControllerSection` (profiles, dead zone,
+  sensitivity, rumble, the shared `ControllerProfileEditor`) and `ModMenuKeyboardSection` (the
+  `KeyboardIllustrationView` board, the rebindable actions via `MenuBindRelay`, the pointer slider)
+  are real pages of the one menu, hosted in `controller_container` / `keyboard_container` in
+  `overlay_mod_menu.xml`. Each step is isolated through `ModMenuGuard`, because a page built over a
+  running game must not take the session down.
+- **`hideAllContentExcept(keep)` is the one page-hiding path**, and it runs the panels' own
+  `onHidden()` side effects (a Cosmetics spinner list is a separate window; a Replay panel owns a
+  live recorder listener). Pages that hide their siblings by hand call `hideSupporterPages()`. Add a
+  new host to both places, or a page switch will leave the previous host visible.
+- **The Visuals/Misc filters are the VIP window's category split, kept.** They live in
+  `ModuleFilter` and their predicates come from the tested `ModCategory` (`vip_category_visuals` /
+  `vip_category_misc`), so there is one classification rule, not two. `ModCategory` stays in the
+  `vip` package.
+- **The VIP overlay's controller-input priority is gone with it.** `InbuiltOverlayManager` hands
+  controller keys/motion to the one `ModMenuOverlay`; the radial wheel still takes the stick first
+  while it is open. `ModMenuButton.isMenuShowing()` now covers the menu and the wheel.
+- `VipTheme` and `bg_vip_*` / `ic_vip_*` survive only where the ported pages use them
+  (`bg_vip_topbar`, `bg_vip_surface`, `bg_vip_icon_tile`, `bg_vip_icon_button`, `bg_vip_status_off`).
+  The VIP-only shimmer/skeleton/empty/indicator drawables and the VIP module cards were deleted with
+  the window; do not re-add a VIP card layout.
+- **`MenuBindRelay` remains the single bind-capture sink**, now shared by the Settings tab's bind
+  rows and the Keyboard page's rows.
 
 ## Mod Menu focus highlight (the "50% white overlay")
 - **The white wash is the platform's default focus highlight.** A clickable View is implicitly
@@ -1203,28 +1211,25 @@ Do not re-run this RE from scratch; these are the conclusions.
   repeat delay so a held stick does not race through the list.
 
 
-## Replay system (core.replay + ReplayPanel in both Mod Menu screens)
-- **One backend, two hosts.** `core.replay` (`ReplayManager`, `ReplayCaptureService`,
+## Replay system (core.replay + ReplayPanel in the Mod Menu and the launcher screen)
+- **One backend, several hosts.** `core.replay` (`ReplayManager`, `ReplayCaptureService`,
   `ReplayClipRepository`, `ReplayLibrary`, `ReplayStorage`, `ReplaySidecar`, `ReplayExporter`,
   `ReplayTrim`, `ReplayFormat`, `ReplayMetadata`, `ReplayQuality`) owns capture, the on-disk clip
   library, trimming and export. The UI is `ReplayPanel`, and the *same* instance type is hosted by
-  both screens: Screen A (`ModMenuOverlay`, the touch menu) puts it in `replay_container` and Screen
-  B (`VipModMenuOverlay`, the in-game bind menu) in `vip_replay_view`. Neither screen has its own
-  clip list, sort, filter or export code - that is the point of the shared panel.
-- **Two screens, two navigation homes.** In Screen A Replay is a top-bar entry
-  (`nav_replay` / `R.id.nav_replay`) alongside General/Cosmetics/Packs/Voice/Settings. In Screen B
-  Replay is a `VipTab` (`MODULES, REPLAY, CONTROLLER, KEYBOARD`), so the shoulder cycle and the tab
-  indicator cover it. `VipMenuLogicTest.declarationOrderIsTheTabOrder` /
-  `shouldersWrapInBothDirections` pin that order - adding or moving a tab must update both.
-- **Screen B re-inflates its overlay tree on every `show()`**, so `setupViews()` resets
-  `replayPanel = null` and `hide()` calls `replayPanel.dispose()`. A panel carried across a
-  re-inflate would draw into a detached tree. Screen A keeps its panel alive between opens (it owns
-  a background executor and a live recorder listener) and only calls `onHidden()`.
+  the Mod Menu (page `REPLAY`, in `replay_container`) and by the launcher's `ReplayActivity`. No
+  host has its own clip list, sort, filter or export code - that is the point of the shared panel.
+- **One menu, one navigation home.** Replay is a `ModMenuPage` (the `REPLAY` page), so the rail and
+  the shoulder cycle cover it like every other page; the launcher reaches the same panel through
+  `ReplayActivity`. `ModMenuPageTest` pins the page order - moving a page must not leave a stale
+  hard-coded cycle behind.
+- **The Mod Menu keeps its panel alive between opens** (it owns a background executor and a live
+  recorder listener) and calls `onHidden()` when the page is left; `hide()` also calls `onHidden()`.
+  A host that re-inflates its tree must instead drop the panel, or it would draw into a detached
+  tree.
 - **Controller binds match the on-screen hint.** The hint (`replay_controller_hint` vs
-  `replay_keyboard_hint`) follows the *detected input*, not the screen: `ReplayPanel
-  .setGamepadDetected(...)` is set from `VipInputMode` in Screen B and from a real `InputManager`
-  gamepad scan in Screen A. A controller hint on a keyboard-only player teaches buttons that do
-  nothing.
+  `replay_keyboard_hint`) follows the *detected input*, not the host: `ReplayPanel
+  .setGamepadDetected(...)` is set from a real `InputManager` gamepad scan. A controller hint on a
+  keyboard-only player teaches buttons that do nothing.
 - **Touch users act on clips through a long-press sheet.** `ReplayClipActionsDialog.showActions`
   offers play/trim/export/favorite/rename/delete and `showRename` is the rename prompt. Both screens
   call it; the controller routes (`cycleSelection`/`playSelected`/`deleteSelectedOrFirst`/

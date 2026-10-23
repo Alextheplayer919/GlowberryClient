@@ -34,15 +34,8 @@ public class ModMenuButton {
     private static final long TAP_TIMEOUT = 200;
     private static final float DRAG_THRESHOLD = 10f;
     
+    /** The one Mod Menu (U4). It used to be two windows; the bind and the launcher open this. */
     private ModMenuOverlay menuOverlay;
-    /**
-     * The VIP Mod Menu (Screen B), created lazily on the first bind press.
-     *
-     * <p>Kept separate from {@link #menuOverlay} (Screen A, the touch menu) on purpose: the two
-     * screens are independent, and only one is open at a time because they are opened from
-     * different inputs.
-     */
-    private org.chimeramc.client.core.mods.inbuilt.vip.VipModMenuOverlay vipMenuOverlay;
     /** The radial mod wheel (section 1), opened from the same bind. */
     private org.chimeramc.client.core.mods.inbuilt.overlay.RadialMenuOverlay radialMenuOverlay;
     
@@ -225,17 +218,9 @@ public class ModMenuButton {
 
         if (menuOverlay == null) {
             menuOverlay = new ModMenuOverlay(activity);
-            menuOverlay.setCallback(new ModMenuOverlay.ModMenuCallback() {
-                @Override
-                public void onModToggled(String modId, boolean enabled) {
-                }
-                @Override
-                public void onButtonOpacityChanged(int opacity) {
-                    applyButtonOpacity();
-                }
-            });
+            menuOverlay.setCallback(new ModMenuCallback());
         }
-        
+
         if (menuOverlay.isShowing()) {
             menuOverlay.hide();
         } else {
@@ -256,10 +241,6 @@ public class ModMenuButton {
         if (menuOverlay != null) {
             menuOverlay.hide();
             menuOverlay = null;
-        }
-        if (vipMenuOverlay != null) {
-            vipMenuOverlay.hide();
-            vipMenuOverlay = null;
         }
         if (!isShowing || buttonView == null) return;
         handler.post(() -> {
@@ -301,16 +282,15 @@ public class ModMenuButton {
 
     public boolean isMenuShowing() {
         return (menuOverlay != null && menuOverlay.isShowing())
-                || (vipMenuOverlay != null && vipMenuOverlay.isShowing())
                 || (radialMenuOverlay != null && radialMenuOverlay.isShowing());
     }
 
     /**
-     * Opens or closes the VIP Mod Menu from the bound input.
+     * Opens or closes the Mod Menu from the bound input.
      *
-     * <p>The bind opens Screen B (the premium VIP screen), never the touch Mod Menu: the touch
-     * screen is Screen A, reached from the launcher nav bar, and the two are deliberately separate
-     * screens. A bind press therefore never touches {@link ModMenuOverlay}.
+     * <p>The bind opens the radial wheel, whose sectors route into the one Mod Menu (U4). The
+     * launcher's Mods screen opens the same menu, so a module or a page cannot exist in one and be
+     * missing from the other.
      */
     public void toggleMenuFromBind() {
         if (!isShowing) return;
@@ -335,19 +315,20 @@ public class ModMenuButton {
                     .RadialMenuOverlay.Destinations() {
                 @Override
                 public void openMods() {
-                    ensureVipMenu().showModuleList();
+                    openMenuSection(
+                            org.chimeramc.client.core.mods.inbuilt.overlay.ModMenuPage.GENERAL);
                 }
 
                 @Override
                 public void openCloset() {
-                    ensureVipMenu().showSection(
-                            org.chimeramc.client.core.mods.inbuilt.overlay.ModMenuPage.GENERAL);
+                    openMenuSection(
+                            org.chimeramc.client.core.mods.inbuilt.overlay.ModMenuPage.COSMETICS);
                 }
 
                 @Override
                 public void openSettings() {
-                    ensureVipMenu().showSection(
-                            org.chimeramc.client.core.mods.inbuilt.overlay.ModMenuPage.GENERAL);
+                    openMenuSection(
+                            org.chimeramc.client.core.mods.inbuilt.overlay.ModMenuPage.SETTINGS);
                 }
 
                 @Override
@@ -362,29 +343,35 @@ public class ModMenuButton {
         return radialMenuOverlay;
     }
 
-    /** The VIP menu, created lazily. */
-    private org.chimeramc.client.core.mods.inbuilt.vip.VipModMenuOverlay ensureVipMenu() {
-        if (vipMenuOverlay == null) {
-            vipMenuOverlay = new org.chimeramc.client.core.mods.inbuilt.vip.VipModMenuOverlay(activity);
+    /**
+     * Opens the one Mod Menu on a specific page, creating it if needed.
+     *
+     * <p>The radial wheel's sectors route here, so a sector opens the same menu the launcher and
+     * the bind do, on the page it names.
+     */
+    private void openMenuSection(org.chimeramc.client.core.mods.inbuilt.overlay.ModMenuPage page) {
+        if (menuOverlay == null) {
+            menuOverlay = new ModMenuOverlay(activity);
+            menuOverlay.setCallback(new ModMenuCallback());
         }
-        return vipMenuOverlay;
+        menuOverlay.showPage(page);
+    }
+
+    /** The callback the overlay calls back into, kept in one place so both paths share it. */
+    private final class ModMenuCallback implements ModMenuOverlay.ModMenuCallback {
+        @Override
+        public void onModToggled(String modId, boolean enabled) {
+        }
+
+        @Override
+        public void onButtonOpacityChanged(int opacity) {
+            applyButtonOpacity();
+        }
     }
 
     /** The open radial wheel, or null. */
     public org.chimeramc.client.core.mods.inbuilt.overlay.RadialMenuOverlay getRadialMenuOverlay() {
         return radialMenuOverlay;
-    }
-
-    /** The open VIP Mod Menu (Screen B), or null. */
-    public org.chimeramc.client.core.mods.inbuilt.vip.VipModMenuOverlay getVipMenuOverlay() {
-        return vipMenuOverlay;
-    }
-
-    /** Closes the VIP screen, e.g. when the game session ends. */
-    public void hideVipMenu() {
-        if (vipMenuOverlay != null && vipMenuOverlay.isShowing()) {
-            vipMenuOverlay.hide();
-        }
     }
 
     public void hideMenu() {

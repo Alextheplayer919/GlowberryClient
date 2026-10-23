@@ -40,6 +40,7 @@ import org.chimeramc.client.core.mods.inbuilt.manager.InbuiltModManager;
 import org.chimeramc.client.core.replay.ReplayPanel;
 import org.chimeramc.client.core.mods.inbuilt.model.ModIds;
 import org.chimeramc.client.core.mods.inbuilt.model.ModLoadoutStore;
+import org.chimeramc.client.core.mods.inbuilt.vip.ModCategory;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -55,7 +56,12 @@ public class ModMenuOverlay {
         ENABLED,
         INBUILT,
         EXTERNAL,
-        PVP
+        PVP,
+        // The category split the VIP window used to own. With one menu (U4) they are filters of
+        // this menu, and their predicates come from the tested ModCategory rather than a second
+        // implementation.
+        VISUALS,
+        MISC
     }
 
     private final Activity activity;
@@ -72,14 +78,17 @@ public class ModMenuOverlay {
     private ModMenuTheme theme;
     /** The destination the rail is currently showing, so a theme rebuild can restore it. */
     private ModMenuPage activePage;
+    /** The page to open on, set when showPage() has to open the menu first. */
+    private ModMenuPage pendingPage;
     private boolean hasStaggeredOnce = false;
     private EditText searchInput;
     private ImageButton clearSearchBtn;
     private TextView navGeneral, navSettings, navHudEditor, navCosmetics, navPacks, navVoice, navReplay;
 
-    /** The icon rail. Built from ModMenuPage.sharedPages(), the registry the VIP menu also reads. */
+    /** The icon rail. Built from ModMenuPage.pages(), the one page registry the whole menu reads. */
     private ModMenuRail rail;
-    private TextView filterAll, filterFavorites, filterEnabled, filterInbuilt, filterExternal, filterPvp;
+    private TextView filterAll, filterFavorites, filterEnabled, filterInbuilt, filterExternal,
+            filterPvp, filterVisuals, filterMisc;
     private TextView moduleCountText, emptyStateText;
     private TextView compactFilterSelector, compactModuleCount;
 
@@ -101,6 +110,10 @@ public class ModMenuOverlay {
     private VoicePanel voicePanel;
     private FrameLayout replayContainer;
     private ReplayPanel replayPanel;
+    private FrameLayout controllerContainer;
+    private FrameLayout keyboardContainer;
+    private ModMenuControllerSection controllerSection;
+    private ModMenuKeyboardSection keyboardSection;
     private PackChangerPanel packChangerPanel;
     private View emptyState;
     private View menuContainer;
@@ -141,8 +154,8 @@ public class ModMenuOverlay {
      * Offers the raw key to whichever menu is currently waiting for a bind.
      *
      * <p>The capture itself lives in {@link org.chimeramc.client.core.mods.inbuilt.vip.MenuBindRelay},
-     * shared with the VIP Mod Menu (Screen B), so the touch screen and the VIP screen cannot both
-     * hold a capture and silently steal each other's presses. This method is kept as the single
+     * shared by every bind picker in the menu, so two pickers cannot both hold a capture and
+     * silently steal each other's presses. This method is kept as the single
      * entry point the game activity calls at the top of {@code dispatchKeyEvent}.
      */
     public static boolean deliverBindKey(int keyCode) {
@@ -244,6 +257,20 @@ public class ModMenuOverlay {
             return;
         }
         showInternal();
+    }
+
+    /**
+     * Opens the menu on a named page, for callers that are not a rail tap (the radial wheel's
+     * sectors). Safe when the menu is already open: it just switches page.
+     */
+    public void showPage(ModMenuPage page) {
+        ModMenuPage target = page == null ? ModMenuPage.GENERAL : page;
+        if (!isShowing) {
+            pendingPage = target;
+            show();
+            return;
+        }
+        selectPage(target);
     }
 
     private void showInternal() {
@@ -491,6 +518,8 @@ public class ModMenuOverlay {
         filterInbuilt = overlayView.findViewById(R.id.filter_inbuilt);
         filterExternal = overlayView.findViewById(R.id.filter_external);
         filterPvp = overlayView.findViewById(R.id.filter_pvp);
+        filterVisuals = overlayView.findViewById(R.id.filter_visuals);
+        filterMisc = overlayView.findViewById(R.id.filter_misc);
         moduleCountText = overlayView.findViewById(R.id.module_count_text);
         statsFps = overlayView.findViewById(R.id.mod_stats_fps);
         statsPing = overlayView.findViewById(R.id.mod_stats_ping);
@@ -501,6 +530,8 @@ public class ModMenuOverlay {
         packsContainer = overlayView.findViewById(R.id.packs_container);
         voiceContainer = overlayView.findViewById(R.id.voice_container);
         replayContainer = overlayView.findViewById(R.id.replay_container);
+        controllerContainer = overlayView.findViewById(R.id.controller_container);
+        keyboardContainer = overlayView.findViewById(R.id.keyboard_container);
         emptyState = overlayView.findViewById(R.id.empty_state);
         emptyStateText = overlayView.findViewById(R.id.empty_state_text);
         notificationsSwitch = overlayView.findViewById(R.id.switch_notifications);
@@ -542,7 +573,7 @@ public class ModMenuOverlay {
         // from ModMenuRail's own click handling.
         for (View v : new View[]{
                 filterAll, filterFavorites, filterEnabled, filterInbuilt, filterExternal, filterPvp,
-                closeBtn, clearSearchBtn}) {
+                filterVisuals, filterMisc, closeBtn, clearSearchBtn}) {
             if (v != null) DynamicAnim.applyPressScale(v);
         }
 
@@ -764,7 +795,11 @@ public class ModMenuOverlay {
         modsRecycler.setAdapter(adapter);
         applyCompactModeLayout(compactMode);
 
-        showModulesSection();
+        // A caller that asked for a specific page (the radial wheel) opened the menu for us, so
+        // honour it here — after the views exist. Otherwise the module list is the default.
+        ModMenuPage initial = pendingPage;
+        pendingPage = null;
+        selectPage(initial == null ? ModMenuPage.GENERAL : initial);
     }
 
     private void showModulesSection() {
@@ -779,6 +814,7 @@ public class ModMenuOverlay {
         hidePacks();
         hideVoice();
         hideReplay();
+        hideSupporterPages();
 
         if (overlayView != null) {
             View modConfigContainer = overlayView.findViewById(R.id.mod_config_container);
@@ -799,6 +835,7 @@ public class ModMenuOverlay {
         hidePacks();
         hideVoice();
         hideReplay();
+        hideSupporterPages();
         if (settingsContainer.getVisibility() != View.VISIBLE) {
             settingsContainer.setVisibility(View.VISIBLE);
             crossfade(settingsContainer);
@@ -1157,6 +1194,7 @@ public class ModMenuOverlay {
         hidePacks();
         hideVoice();
         hideReplay();
+        hideSupporterPages();
         if (cosmeticsContainer != null) {
             if (cosmeticsPanel == null) {
                 cosmeticsPanel = new CosmeticsPanel(activity, compactMode);
@@ -1224,6 +1262,7 @@ public class ModMenuOverlay {
         hidePacks();
         hideVoice();
         hideReplay();
+        hideSupporterPages();
         if (packsContainer != null) {
             packsContainer.removeAllViews();
             packChangerPanel = new PackChangerPanel(activity, compactMode);
@@ -1264,6 +1303,7 @@ public class ModMenuOverlay {
         hidePacks();
         hideVoice();
         hideReplay();
+        hideSupporterPages();
         if (voiceContainer != null) {
             voiceContainer.removeAllViews();
             voicePanel = new VoicePanel(activity, compactMode);
@@ -1310,8 +1350,8 @@ public class ModMenuOverlay {
      * Replay: the recorder controls and the clip library.
      *
      * <p>Built lazily and kept alive once built, because the panel owns a background executor and
-     * the live recorder listener. It is the same {@link ReplayPanel} the VIP menu hosts, so the
-     * touch menu and the in-game bind show one feature rather than two implementations.
+     * the live recorder listener. It is the same {@link ReplayPanel} the launcher's Replay screen
+     * hosts, so both surfaces show one feature rather than two implementations.
      */
     private void showReplaySection() {
         updateNavigationItems(false, false, false, false, false, false, true);
@@ -1321,6 +1361,7 @@ public class ModMenuOverlay {
         hideCosmetics();
         hidePacks();
         hideVoice();
+        hideSupporterPages();
         if (replayContainer != null) {
             if (replayPanel == null) {
                 replayPanel = new ReplayPanel(activity, compactMode);
@@ -1391,6 +1432,7 @@ public class ModMenuOverlay {
         hideCosmetics();
         hidePacks();
         hideReplay();
+        hideSupporterPages();
 
         if (overlayView != null) {
             View modConfigContainer = overlayView.findViewById(R.id.mod_config_container);
@@ -1606,6 +1648,8 @@ public class ModMenuOverlay {
         popup.getMenu().add(0, 103, 3, R.string.mod_menu_filter_inbuilt);
         popup.getMenu().add(0, 104, 4, R.string.mod_menu_filter_external);
         popup.getMenu().add(0, 105, 5, R.string.mod_menu_filter_pvp);
+        popup.getMenu().add(0, 106, 6, R.string.vip_category_visuals);
+        popup.getMenu().add(0, 107, 7, R.string.vip_category_misc);
         popup.setOnMenuItemClickListener(item -> {
             switch (item.getItemId()) {
                 case 101:
@@ -1622,6 +1666,12 @@ public class ModMenuOverlay {
                     break;
                 case 105:
                     setModuleFilter(ModuleFilter.PVP);
+                    break;
+                case 106:
+                    setModuleFilter(ModuleFilter.VISUALS);
+                    break;
+                case 107:
+                    setModuleFilter(ModuleFilter.MISC);
                     break;
                 case 100:
                 default:
@@ -1727,6 +1777,10 @@ public class ModMenuOverlay {
                 return R.string.mod_menu_filter_external;
             case PVP:
                 return R.string.mod_menu_filter_pvp;
+            case VISUALS:
+                return R.string.vip_category_visuals;
+            case MISC:
+                return R.string.vip_category_misc;
             case ALL:
             default:
                 return R.string.filter_all;
@@ -1755,6 +1809,12 @@ public class ModMenuOverlay {
         }
         if (filterPvp != null) {
             filterPvp.setOnClickListener(v -> setModuleFilter(ModuleFilter.PVP));
+        }
+        if (filterVisuals != null) {
+            filterVisuals.setOnClickListener(v -> setModuleFilter(ModuleFilter.VISUALS));
+        }
+        if (filterMisc != null) {
+            filterMisc.setOnClickListener(v -> setModuleFilter(ModuleFilter.MISC));
         }
         updateFilterButtons();
     }
@@ -1806,6 +1866,10 @@ public class ModMenuOverlay {
                 return mod.getSource() == UnifiedMod.Source.EXTERNAL;
             case PVP:
                 return ModIds.isPvpModule(mod.getId());
+            case VISUALS:
+                return ModCategory.matches(ModCategory.Tab.VISUALS, mod, null);
+            case MISC:
+                return ModCategory.matches(ModCategory.Tab.MISC, mod, null);
             case ALL:
             default:
                 return true;
@@ -1840,6 +1904,8 @@ public class ModMenuOverlay {
         updateFilterButton(filterInbuilt, activeFilter == ModuleFilter.INBUILT);
         updateFilterButton(filterExternal, activeFilter == ModuleFilter.EXTERNAL);
         updateFilterButton(filterPvp, activeFilter == ModuleFilter.PVP);
+        updateFilterButton(filterVisuals, activeFilter == ModuleFilter.VISUALS);
+        updateFilterButton(filterMisc, activeFilter == ModuleFilter.MISC);
         updateCompactFilterSelector();
     }
 
@@ -1939,6 +2005,12 @@ public class ModMenuOverlay {
     /** Dispatches a rail selection to the matching section. The single source of tab routing. */
     private void selectPage(ModMenuPage page) {
         if (page == null) return;
+        // The active page is recorded here, not only in updateNavigationItems: a page that passes
+        // all-false booleans (Controller, Keyboard) still has to be the active one, or the
+        // shoulder cycle and the controller-input routing would not know where they are.
+        activePage = page;
+        if (rail != null) rail.setSelected(page);
+        updateTopBarTitle(page);
         switch (page) {
             case GENERAL:
                 showModulesSection();
@@ -1961,9 +2033,84 @@ public class ModMenuOverlay {
             case SETTINGS:
                 showSettingsSection();
                 break;
+            case CONTROLLER:
+                showControllerSection();
+                break;
+            case KEYBOARD:
+                showKeyboardSection();
+                break;
             default:
                 break;
         }
+    }
+
+    /**
+     * The Controller page (Supporter): profiles, dead zone, sensitivity and rumble, plus the
+     * shared full editor. It was the VIP window's own tab; with one menu it is an ordinary page.
+     */
+    private void showControllerSection() {
+        updateNavigationItems(false, false, false, false, false, false, false);
+        hideAllContentExcept(controllerContainer);
+        if (controllerContainer == null) return;
+        if (controllerSection == null) {
+            controllerSection = new ModMenuControllerSection(activity, controllerContainer,
+                    getAccentColor());
+            controllerSection.build();
+            controllerSection.setOnSectionChanged(this::refreshMods);
+        }
+        controllerContainer.setVisibility(View.VISIBLE);
+        controllerSection.refresh();
+        crossfade(controllerContainer);
+    }
+
+    /** The Keyboard page (Supporter): the drawn board, the rebindable actions, pointer settings. */
+    private void showKeyboardSection() {
+        updateNavigationItems(false, false, false, false, false, false, false);
+        hideAllContentExcept(keyboardContainer);
+        if (keyboardContainer == null) return;
+        if (keyboardSection == null) {
+            keyboardSection = new ModMenuKeyboardSection(activity, keyboardContainer,
+                    getAccentColor());
+            keyboardSection.build();
+        }
+        keyboardContainer.setVisibility(View.VISIBLE);
+        keyboardSection.refresh();
+        crossfade(keyboardContainer);
+    }
+
+    /**
+     * Hides every content host except {@code keep}.
+     *
+     * <p>The page routing used to hand-hide each host at each call site, so adding a page meant
+     * remembering every one of them. One helper means a new host is added in exactly one place.
+     */
+    private void hideAllContentExcept(View keep) {
+        // Hiding a host is not always enough: a Cosmetics spinner's list is a separate window and a
+        // Replay panel owns a live recorder listener, so both need their own onHidden() when their
+        // host goes away. Running it here means every page switch is correct by construction.
+        if (keep != cosmeticsContainer) hideCosmetics();
+        if (keep != replayContainer) hideReplay();
+        if (keep != voiceContainer) hideVoice();
+        if (keep != packsContainer && packsContainer != null) {
+            packsContainer.setVisibility(View.GONE);
+        }
+        for (View host : new View[]{modulesContainer, settingsContainer, cosmeticsContainer,
+                packsContainer, voiceContainer, replayContainer, controllerContainer,
+                keyboardContainer}) {
+            if (host != null && host != keep) host.setVisibility(View.GONE);
+        }
+        if (overlayView != null) {
+            View modConfigContainer = overlayView.findViewById(R.id.mod_config_container);
+            if (modConfigContainer != null && modConfigContainer != keep) {
+                modConfigContainer.setVisibility(View.GONE);
+            }
+        }
+    }
+
+    /** Hides the two Supporter pages' hosts, for the pages that hide their siblings by hand. */
+    private void hideSupporterPages() {
+        if (controllerContainer != null) controllerContainer.setVisibility(View.GONE);
+        if (keyboardContainer != null) keyboardContainer.setVisibility(View.GONE);
     }
 
     /** Enters HUD-editor mode from the rail (the top bar no longer carries that destination). */
@@ -2135,11 +2282,35 @@ public class ModMenuOverlay {
      */
     public boolean handleControllerKey(int keyCode, boolean down) {
         if (!isShowing || !down) return false;
+        // The Controller page owns the raw press while it is showing: the illustration highlights
+        // the physically pressed button, and a modifier capture in the full editor takes the next
+        // press. This is why the page must be offered the key before any navigation handling.
+        if (activePage == ModMenuPage.CONTROLLER && controllerSection != null) {
+            if (controllerSection.isCapturingModifier()
+                    && controllerSection.handleCaptureKey(keyCode)) {
+                return true;
+            }
+            controllerSection.handleHardwareKey(keyCode);
+        }
         // The Replay section owns input while it is on screen: its buttons (record, cards) are
         // touch-driven and controller input cycles the selection and acts on it.
         if (replayPanel != null && replayContainer != null
                 && replayContainer.getVisibility() == View.VISIBLE) {
             return handleReplayKey(keyCode);
+        }
+        switch (keyCode) {
+            case android.view.KeyEvent.KEYCODE_BUTTON_L1:
+            case android.view.KeyEvent.KEYCODE_BUTTON_L2:
+                selectPage(ModMenuPage.previous(activePage == null
+                        ? ModMenuPage.GENERAL : activePage));
+                return true;
+            case android.view.KeyEvent.KEYCODE_BUTTON_R1:
+            case android.view.KeyEvent.KEYCODE_BUTTON_R2:
+                selectPage(ModMenuPage.next(activePage == null
+                        ? ModMenuPage.GENERAL : activePage));
+                return true;
+            default:
+                break;
         }
         if (adapter == null) return false;
         switch (keyCode) {
@@ -2212,7 +2383,12 @@ public class ModMenuOverlay {
      * @return true when the movement was used by the menu and must be swallowed
      */
     public boolean handleControllerMotion(android.view.MotionEvent event) {
-        if (!isShowing || adapter == null) return false;
+        if (!isShowing) return false;
+        if (activePage == ModMenuPage.CONTROLLER && controllerSection != null) {
+            controllerSection.handleHardwareMotion(event);
+            return false;
+        }
+        if (adapter == null) return false;
         float axisX = event.getAxisValue(android.view.MotionEvent.AXIS_X);
         float axisY = event.getAxisValue(android.view.MotionEvent.AXIS_Y);
         if (Math.abs(axisX) < NAV_AXIS_THRESHOLD && Math.abs(axisY) < NAV_AXIS_THRESHOLD) return false;

@@ -126,7 +126,7 @@
             </LinearLayout>
 
             <!-- Icon rail + content. The rail is populated in code from
-                 ModMenuPage.sharedPages(), so the touch menu and the VIP menu cannot drift. It
+                 ModMenuPage.pages(), the one registry, so the rail cannot drift from the menu. It
                  scrolls so it survives the landscape height limit; the content keeps the tall
                  edge. -->
             <LinearLayout
@@ -431,6 +431,38 @@
                                 android:textSize="12sp" />
 
                             <TextView
+                                android:id="@+id/filter_visuals"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:minHeight="30dp"
+                                android:layout_marginEnd="8dp"
+                                android:background="@drawable/bg_search_field"
+                                android:defaultFocusHighlightEnabled="false"
+                                android:gravity="center"
+                                android:minWidth="72dp"
+                                android:paddingStart="14dp"
+                                android:paddingEnd="14dp"
+                                android:text="@string/vip_category_visuals"
+                                android:textColor="@color/ui_text_secondary"
+                                android:textSize="12sp" />
+
+                            <TextView
+                                android:id="@+id/filter_misc"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:minHeight="30dp"
+                                android:layout_marginEnd="8dp"
+                                android:background="@drawable/bg_search_field"
+                                android:defaultFocusHighlightEnabled="false"
+                                android:gravity="center"
+                                android:minWidth="58dp"
+                                android:paddingStart="14dp"
+                                android:paddingEnd="14dp"
+                                android:text="@string/vip_category_misc"
+                                android:textColor="@color/ui_text_secondary"
+                                android:textSize="12sp" />
+
+                            <TextView
                                 android:id="@+id/module_count_text"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
@@ -556,6 +588,24 @@
 
                     <FrameLayout
                         android:id="@+id/voice_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"
+                        android:visibility="gone" />
+
+                    <!-- Controller (Supporter): profiles, sticks, rumble, and the shared full
+                         editor. A page of this one menu, not a separate window (U4). -->
+                    <FrameLayout
+                        android:id="@+id/controller_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"
+                        android:visibility="gone" />
+
+                    <!-- Keyboard (Supporter): the drawn board, the rebindable actions and the
+                         pointer settings. -->
+                    <FrameLayout
+                        android:id="@+id/keyboard_container"
                         android:layout_width="match_parent"
                         android:layout_height="0dp"
                         android:layout_weight="1"

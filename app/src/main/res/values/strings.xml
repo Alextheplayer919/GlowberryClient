@@ -902,11 +902,9 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="settings_controller_open">Open controller settings</string>
     <string name="mod_menu_packs">Packs</string>
 
-    <!-- VIP Mod Menu (Screen B). A separate premium screen opened by the in-game bind, distinct
-         from the touch Mod Menu opened by the launcher nav bar. -->
-    <string name="vip_menu_title">VIP Mod Menu</string>
-    <string name="vip_menu_subtitle">Premium in-game control</string>
-    <!-- The touch Mod Menu's top-bar subtitle, matching the VIP shell's lockup. -->
+    <!-- The one Mod Menu's top-bar lockup. There used to be two menus (a touch one and a premium
+         VIP one); they are one screen now, and the pages that were premium-only carry the
+         Supporter badge instead of living in a second window. -->
     <string name="mod_menu_subtitle">In-game control</string>
     <!-- Account skin lookup (Cosmetics panel). On after a Microsoft sign-in: it resolves the
          signed-in player's real Bedrock skin from their XUID via a third-party service. -->
@@ -925,12 +923,7 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="vip_mode_keyboard">Keyboard &amp; mouse</string>
     <string name="vip_close">Close</string>
     <string name="vip_search_hint">Search modules…</string>
-    <string name="vip_empty_title">Nothing here yet</string>
-    <string name="vip_empty_no_mods">No modules are available for this instance.</string>
-    <string name="vip_empty_no_matches">No module matches that search.</string>
     <string name="vip_empty_no_controller">No controller detected. Connect a gamepad to configure it.</string>
-    <string name="vip_module_count">%1$d modules</string>
-    <string name="vip_active_count">%1$d active</string>
     <string name="vip_status_active">ACTIVE</string>
     <string name="vip_status_off">OFF</string>
     <string name="vip_status_unavailable">UNAVAILABLE</string>
@@ -1020,8 +1013,6 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="third_person_hint">Switch to third person to see cosmetics — in first person the game does not render your player model.</string>
     <string name="cosmetics_diagnostics_live_overlay">Show live render debug overlay</string>
     <string name="vip_controller_step_failed">Controller settings step failed — see diagnostics</string>
-    <string name="vip_hud_editor_hint">Drag your HUD overlays to reposition them, then save or reset from the launcher\u2019s HUD editor. Tap the modules tab to return.</string>
-    <string name="vip_settings_hint">Mod menu settings (notifications, pause-menu-only, keybinds) live in the launcher\u2019s Settings tab.</string>
     <string name="mod_menu_version">v1.0</string>
     <string name="mod_menu_enabled">Mod Menu enabled</string>
     <string name="mod_menu_disabled">Mod Menu disabled</string>

@@ -1252,14 +1252,7 @@ public class InbuiltOverlayManager {
             return wheel.handleControllerKey(rawKeyCode,
                     action == android.view.KeyEvent.ACTION_DOWN);
         }
-        // The VIP Mod Menu (Screen B) owns controller input while it is open; Screen A (the touch
-        // menu) only sees keys when it is the one showing. The two are never open at once.
-        org.chimeramc.client.core.mods.inbuilt.vip.VipModMenuOverlay vip =
-                modMenuButton.getVipMenuOverlay();
-        if (vip != null && vip.isShowing()) {
-            return vip.handleControllerKey(rawKeyCode,
-                    action == android.view.KeyEvent.ACTION_DOWN);
-        }
+        // There is one Mod Menu now (U4); it owns controller input while it is open.
         ModMenuOverlay menu = modMenuButton.getMenuOverlay();
         if (menu == null || !menu.isShowing()) return false;
         return menu.handleControllerKey(rawKeyCode,
@@ -1273,11 +1266,6 @@ public class InbuiltOverlayManager {
         org.chimeramc.client.core.mods.inbuilt.overlay.RadialMenuOverlay wheel =
                 modMenuButton.getRadialMenuOverlay();
         if (wheel != null && wheel.isShowing() && wheel.handleControllerMotion(event)) {
-            return true;
-        }
-        org.chimeramc.client.core.mods.inbuilt.vip.VipModMenuOverlay vip =
-                modMenuButton.getVipMenuOverlay();
-        if (vip != null && vip.isShowing() && vip.handleControllerMotion(event)) {
             return true;
         }
         ModMenuOverlay menu = modMenuButton.getMenuOverlay();

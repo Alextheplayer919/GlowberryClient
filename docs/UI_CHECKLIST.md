@@ -35,11 +35,17 @@ should say a screen "works in game" until this list passes.
 - [ ] Toggling a module updates the toggle and the row tint; a settings gear opens the side sheet.
 - [ ] No violet/magenta anywhere; the accent is blue.
 
-## 3. VIP Mod Menu (Screen B)
+## 3. Mod Menu (one screen)
 
-- [ ] Opens from the in-game bind (not the nav bar) and looks like the **same app** as Screen A
-  (same window, same rows, same toggle).
-- [ ] L1/R1 cycle the tabs; the controller and keyboard sub-modes render.
+- [ ] The in-game bind opens the radial wheel; its sectors open the same Mod Menu the launcher's
+  Mods screen opens, on the page the sector names.
+- [ ] The rail lists every page (General, Voice, Packs, Cosmetics, HUD editor, Replay, Settings,
+  Controller, Keyboard). The Controller and Keyboard tiles carry a small accent dot — the
+  Supporter badge — and are otherwise ordinary pages.
+- [ ] L1/R1 cycle every page in both directions and wrap.
+- [ ] The Controller page draws the connected pad and lights the pressed button; a modifier
+  capture in the full editor takes the next press.
+- [ ] The Keyboard page draws the board, flashes a captured key and rebinds the action.
 
 ## 4. Closet (cosmetics)
 
