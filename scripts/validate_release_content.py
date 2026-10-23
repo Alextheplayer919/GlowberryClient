@@ -29,6 +29,12 @@ def validate_changelog(path):
         fail(f"{path}: schemaVersion must be 1")
     text(data.get("headline"), f"{path}: headline")
     text(data.get("summary"), f"{path}: summary")
+    # C2: every release carries its date and the end of its support window, so "which versions do
+    # you still fix?" has a published answer instead of an implied one.
+    released = parse_date(data.get("releasedAt"), f"{path}: releasedAt")
+    support_until = parse_date(data.get("supportUntil"), f"{path}: supportUntil")
+    if support_until <= released:
+        fail(f"{path}: supportUntil must be after releasedAt")
     sections = data.get("sections")
     if not isinstance(sections, list) or not sections:
         fail(f"{path}: sections must be a non-empty array")

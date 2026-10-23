@@ -150,6 +150,7 @@ jobs:
           python3 tools/tests/gen_rules_test.py
           python3 tools/tests/verify_binary_test.py
           python3 scripts/tests/compute_checksums_test.py
+          python3 scripts/tests/release_notes_test.py
 
       - name: Inject API Keys
         env:

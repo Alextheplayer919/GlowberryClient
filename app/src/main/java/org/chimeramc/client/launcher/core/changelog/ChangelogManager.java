@@ -56,6 +56,13 @@ public final class ChangelogManager {
         LinearLayout sections = content.findViewById(R.id.changelog_sections);
 
         version.setText(activity.getString(R.string.changelog_version, BuildConfig.VERSION_NAME));
+        TextView date = content.findViewById(R.id.changelog_date);
+        if (date != null) {
+            ReleaseInfo info = new ReleaseInfo(changelog.releasedAt, changelog.supportUntil);
+            String line = info.summaryLine();
+            date.setText(line);
+            date.setVisibility(TextUtils.isEmpty(line) ? View.GONE : View.VISIBLE);
+        }
         headline.setText(changelog.headline);
         headline.setVisibility(TextUtils.isEmpty(changelog.headline) ? View.GONE : View.VISIBLE);
         summary.setText(changelog.summary);
@@ -269,6 +276,8 @@ public final class ChangelogManager {
 
     private static final class Changelog {
         int schemaVersion;
+        String releasedAt;
+        String supportUntil;
         String headline;
         String summary;
         List<Section> sections = new ArrayList<>();

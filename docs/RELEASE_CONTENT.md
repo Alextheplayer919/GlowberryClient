@@ -4,7 +4,7 @@ GlowberryClient uses two small JSON files as the source of truth. Both files are
 
 ## Prepare a launcher release
 
-1. Replace the text in `resources/launcher/changelog.json` with everything that changed in the release. Each item requires `text` and may include a clickable `url`. Keep the existing keys and add as many sections or items as needed.
+1. Replace the text in `resources/launcher/changelog.json` with everything that changed in the release. Each item requires `text` and may include a clickable `url`. Keep the existing keys and add as many sections or items as needed. Update `releasedAt` and `supportUntil` (both UTC ISO-8601, ending in `Z`) to date the release and publish its support window.
 2. Run `python3 scripts/validate_release_content.py`.
 3. Commit the release content, create the version tag, and push both the commit and tag:
 
@@ -19,6 +19,8 @@ git push origin v1.5.16
 ```
 
 The version is written only in the Git tag. `app/build.gradle` turns the most recent `v...` tag into `BuildConfig.VERSION_NAME`, so the version is not duplicated in the changelog file. The Android release workflow also converts the same changelog JSON into the GitHub Release description.
+
+Every release is dated and carries a support window. `releasedAt` and `supportUntil` are required (UTC, ending in `Z`) and `supportUntil` must be after `releasedAt`; `scripts/render_release_notes.py` prints "Released <date> · supported until <date>" at the top of the release notes, and the in-app What's new dialog shows the same line. That is the published answer to "which versions do you still fix?" — a release without the two fields fails validation rather than shipping undated.
 
 The What’s new dialog is skipped on a clean installation. It appears once when Android reports that an existing installation was updated, and later updates are tracked with the APK version code.
 
