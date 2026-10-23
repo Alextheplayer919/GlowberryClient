@@ -455,22 +455,33 @@ class GamePackageManager private constructor(
         }
 
         try {
+            // G3: extract every `.so` the package ships for this ABI, not only the ones the
+            // launcher names. A Bedrock package can carry extra multi-.so deps (codecs, fmod
+            // variants, a packaged libc++_shared.so) that a DT_NEEDED lookup will demand from
+            // the same directory; the named list gates what must be present, extraction covers
+            // everything, so a runtime dlopen never misses a transitive dependency.
             ZipFile(apkPath).use { zip ->
-                val abiPath = "lib/$abi"
-                extractableLibs.forEach { lib ->
-                    val entry = zip.getEntry("$abiPath/$lib")
-                    if (entry == null) {
-                        return@forEach
-                    }
-                    val output = File(outputDir, lib)
+                val abiPath = "lib/$abi/"
+                val entries = zip.entries()
+                val extracted = mutableListOf<String>()
+                while (entries.hasMoreElements()) {
+                    val entry = entries.nextElement()
+                    if (entry.isDirectory || entry.name.isEmpty()) continue
+                    if (!entry.name.startsWith(abiPath) || !entry.name.endsWith(".so")) continue
+                    val libName = entry.name.removePrefix(abiPath)
+                    val output = File(outputDir, libName)
                     zip.getInputStream(entry).use { input ->
                         copyStreamToReadOnlyFile(input, output)
                     }
-                    report("Extracted $lib from ${apkFile.name} for $abi")
+                    extracted += libName
+                    report("Extracted $libName from ${apkFile.name} for $abi")
                     if (!processNativeImage(output, true)) {
                         output.delete()
                         throw IOException("Failed to prepare native library: ${output.name}")
                     }
+                }
+                if (extracted.isEmpty()) {
+                    mirrorLogcat('W', "No .so files found under $abiPath in $apkPath")
                 }
             }
         } catch (e: Exception) {
