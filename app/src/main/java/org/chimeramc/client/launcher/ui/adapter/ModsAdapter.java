@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.ItemTouchHelper;
 import org.chimeramc.client.R;
 import org.chimeramc.client.core.mods.Mod;
 import org.chimeramc.client.core.mods.ModLoadDiagnostics;
+import org.chimeramc.client.core.mods.ModRowPresentation;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -112,6 +113,18 @@ public class ModsAdapter extends RecyclerView.Adapter<ModsAdapter.ModViewHolder>
                 R.string.mod_version_chip,
                 fallbackText(mod.getVersion(), holder.itemView.getContext().getString(R.string.mod_unknown_version))));
 
+        // The runtime kind comes from the entry point, not the archive name (U17): an .AntEgg can
+        // hold either runtime, so only the entry path is authoritative.
+        if (holder.kindBadge != null) {
+            ModRowPresentation.Kind kind = ModRowPresentation.kindOf(mod);
+            if (kind == ModRowPresentation.Kind.UNKNOWN) {
+                holder.kindBadge.setVisibility(View.GONE);
+            } else {
+                holder.kindBadge.setText(kind.label);
+                holder.kindBadge.setVisibility(View.VISIBLE);
+            }
+        }
+
         if (holder.orderText != null) {
             holder.orderText.setText(holder.itemView.getContext().getString(R.string.mod_load_order, position + 1));
             holder.orderText.setVisibility(View.VISIBLE);
@@ -131,12 +144,17 @@ public class ModsAdapter extends RecyclerView.Adapter<ModsAdapter.ModViewHolder>
             }
         }
 
+        // The row's state and its one-line reason are derived by ModRowPresentation so the Mods
+        // tab and any other listing agree (U17). The badge text is the localized category and the
+        // failure line carries the recorded detail.
         if (holder.failureBadge != null) {
             ModLoadDiagnostics.Record failure = loadFailures.get(mod.getId());
-            if (failure == null) {
+            ModRowPresentation.State state = ModRowPresentation.stateOf(mod, failure);
+            if (state != ModRowPresentation.State.FAILED) {
                 holder.failureBadge.setVisibility(View.GONE);
             } else {
                 holder.failureBadge.setText(reasonResForKind(failure.kind));
+                holder.failureBadge.setContentDescription(ModRowPresentation.failureLine(failure));
                 holder.failureBadge.setVisibility(View.VISIBLE);
             }
         }
@@ -240,6 +258,7 @@ public class ModsAdapter extends RecyclerView.Adapter<ModsAdapter.ModViewHolder>
         TextView configBadge;
         TextView verifiedBadge;
         TextView failureBadge;
+        TextView kindBadge;
         TextView authorText;
         TextView versionText;
         Switch switchBtn;
@@ -252,6 +271,7 @@ public class ModsAdapter extends RecyclerView.Adapter<ModsAdapter.ModViewHolder>
             configBadge = itemView.findViewById(R.id.mod_config_badge);
             verifiedBadge = itemView.findViewById(R.id.mod_verified_badge);
             failureBadge = itemView.findViewById(R.id.mod_failure_badge);
+            kindBadge = itemView.findViewById(R.id.mod_kind);
             authorText = itemView.findViewById(R.id.mod_author);
             versionText = itemView.findViewById(R.id.mod_version);
             switchBtn = itemView.findViewById(R.id.mod_switch);

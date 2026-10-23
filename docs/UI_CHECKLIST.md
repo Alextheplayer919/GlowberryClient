@@ -55,6 +55,26 @@ should say a screen "works in game" until this list passes.
 - [ ] The active rail row's corners animate between the chip and card stops as the selection moves,
   and its label is heavier than the inactive rows'.
 
+## 3b. First run, failure states, Play dock and mod rows (U13-U17)
+
+- [ ] Fresh install with no instance: the splash opens the **first-run wizard**, not the dashboard.
+- [ ] The wizard shows Import game -> Pick version -> Sign in -> Ready, and the progress rail has
+  as many dots as the active steps (three when launcher-managed sign-in is off, four when on).
+- [ ] Backing out and returning resumes on the first incomplete step, not at the start.
+- [ ] Skip marks the wizard done and opens the launcher; it never appears again.
+- [ ] With an instance already installed, an upgrade into this build does **not** show the wizard.
+- [ ] Launch with no version selected: the dialog says "No Version Selected".
+- [ ] Import a version whose APK ships 32-bit libs only: the dialog says "Unsupported build" and
+  names the ABI, not a generic launch failure.
+- [ ] Settings -> Diagnostics -> Launch readiness shows the state key and whether it blocks.
+- [ ] The same state is what the Play button reports, so the two cannot disagree.
+- [ ] Stale native libs (bump the extractor version) launch anyway after a silent re-extract.
+- [ ] The dock is one row: profile on the left, version as a chip on the right, then the full-width
+  Play button. The chip opens the instance picker.
+- [ ] A mod row shows its runtime kind (native/script) and, when it failed, a red badge whose
+  content description is the recorded `kind: reason`.
+- [ ] A mod that failed to load can still be switched off from its row.
+
 ## 4. Closet (cosmetics)
 
 - [ ] Left rail: Capes, Hats, Pets, Back, Offhand, Effects.

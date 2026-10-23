@@ -40,6 +40,10 @@ import androidx.lifecycle.ViewModelProvider;
 
 import org.chimeramc.client.R;
 import org.chimeramc.client.core.minecraft.MinecraftImportIntents;
+import org.chimeramc.client.core.minecraft.GamePackageManager;
+import org.chimeramc.client.launcher.core.minecraft.LaunchFailurePresenter;
+import org.chimeramc.client.launcher.core.minecraft.LaunchReadiness;
+import org.chimeramc.client.preloader.PreloaderSignatureRulesManager;
 import org.chimeramc.client.core.minecraft.LaunchTrace;
 import org.chimeramc.client.core.minecraft.MinecraftLauncher;
 import org.chimeramc.client.core.minecraft.PlaytimeManager;
@@ -2076,41 +2080,55 @@ import okhttp3.OkHttpClient;
 
         GameVersion version = versionManager != null ? versionManager.getSelectedVersion() : null;
 
-        if (version == null) {
-            trace.warning("Launch cancelled", "No version selected");
-            resetLaunchButton();
-            new CustomAlertDialog(this)
-                    .setTitleText(getString(R.string.dialog_title_no_version))
-                    .setMessage(getString(R.string.dialog_message_no_version))
-                    .setPositiveButton(getString(R.string.dialog_positive_ok), null)
-                    .show();
-            return;
-        }
-
-        if (FeatureSettings.getInstance().isLauncherManagedMcLoginEnabled()) {
-            trace.mark("Checking launcher-managed login");
-            MsftAccountStore.MsftAccount active = getActiveAccount();
-            boolean loggedIn = active != null && active.minecraftUsername != null && !active.minecraftUsername.isEmpty();
-            if (!loggedIn) {
-                trace.warning("Launch cancelled", "Minecraft account is missing");
-                resetLaunchButton();
-                new CustomAlertDialog(this)
-                        .setTitleText(getString(R.string.dialog_title_login_required))
-                        .setMessage(getString(R.string.dialog_message_login_required))
-                        .setPositiveButton(getString(R.string.go_to_accounts), v -> {
-                            startActivity(new Intent(this, AccountsActivity.class));
-                        })
-                        .setNegativeButton(getString(R.string.disable_launcher_login_and_continue), null)
-                        .show();
-                return;
+        // One named state decides what the user is told (U14). The facts are gathered here; the
+        // precedence between them lives in LaunchReadiness so this method cannot drift from the
+        // diagnostics screen or the wizard, which read the same states.
+        LaunchReadiness.Facts facts = new LaunchReadiness.Facts()
+                .versionSelected(version != null)
+                .minecraftInstalled(PlayStoreValidator.isMinecraftInstalled(this))
+                .signInRequired(FeatureSettings.getInstance().isLauncherManagedMcLoginEnabled())
+                .signedIn(getActiveAccount() != null);
+        if (version != null) {
+            // The instance's package is the base.apk.chimera the import pipeline writes; its
+            // absence is what "game files missing" means, not a version that was never selected.
+            facts.gameFilesPresent(version.versionDir != null
+                    && new java.io.File(version.versionDir, "base.apk.chimera").exists());
+            try {
+                facts.abiIncompatible(!GamePackageManager
+                        .getInstance(this, version, trace, null)
+                        .requireLauncherSupportsVersion(version));
+            } catch (Throwable ignored) {
+                // An unreadable package is reported as missing game files by the check above,
+                // not as an ABI problem; leaving the flag false keeps the message honest.
+            }
+            try {
+                facts.extractionStale(!GamePackageManager.isExtractionCacheCurrent(this, version));
+            } catch (Throwable ignored) {
+            }
+            try {
+                facts.signatureRulesCoverBuild(version.versionCode == null
+                        || version.versionCode.isEmpty()
+                        || PreloaderSignatureRulesManager
+                                .describeCoverageFailure(this, version.versionCode) == null);
+            } catch (Throwable ignored) {
             }
         }
 
-        if (!PlayStoreValidator.isMinecraftInstalled(this)) {
-            trace.warning("Launch cancelled", "Minecraft package is not installed");
+        LaunchReadiness.State readiness = LaunchReadiness.evaluate(facts);
+        if (LaunchReadiness.blocksLaunch(readiness)) {
+            trace.warning("Launch cancelled", LaunchReadiness.key(readiness));
             resetLaunchButton();
-            PlayStoreValidationDialog.showNotInstalledDialog(this);
+            showLaunchFailure(readiness);
             return;
+        }
+        if (readiness == LaunchReadiness.State.STALE_NATIVE_LIBS) {
+            // Repairable and non-fatal: re-extract silently and launch. Telling the user to run
+            // Repair for something the launcher can fix itself is the friction this removes.
+            trace.mark("Re-extracting stale native libraries");
+            try {
+                GamePackageManager.invalidateExtractionCache(this, version);
+            } catch (Throwable ignored) {
+            }
         }
 
         trace.mark("Launch validation completed", version.directoryName + " " + version.versionCode);
@@ -2142,6 +2160,38 @@ import okhttp3.OkHttpClient;
                     .setPositiveButton(getString(R.string.dialog_positive_ok), null)
                     .show();
         }
+    }
+
+    /**
+     * Shows the dialog for a named failure state (U14).
+     *
+     * <p>The title and message come from {@link LaunchFailurePresenter}, so every state has copy and
+     * the model's warning/blocking decision is the one the UI uses.
+     */
+    private void showLaunchFailure(LaunchReadiness.State state) {
+        int title = LaunchFailurePresenter.titleRes(state);
+        int message = LaunchFailurePresenter.messageRes(state);
+        if (title == 0 || message == 0) return;
+
+        if (state == LaunchReadiness.State.SIGN_IN_REQUIRED) {
+            new CustomAlertDialog(this)
+                    .setTitleText(getString(title))
+                    .setMessage(getString(message))
+                    .setPositiveButton(getString(R.string.go_to_accounts),
+                            v -> startActivity(new Intent(this, AccountsActivity.class)))
+                    .setNegativeButton(getString(R.string.disable_launcher_login_and_continue), null)
+                    .show();
+            return;
+        }
+        if (state == LaunchReadiness.State.GAME_NOT_INSTALLED) {
+            PlayStoreValidationDialog.showNotInstalledDialog(this);
+            return;
+        }
+        new CustomAlertDialog(this)
+                .setTitleText(getString(title))
+                .setMessage(getString(message))
+                .setPositiveButton(getString(R.string.dialog_positive_ok), null)
+                .show();
     }
 
     private Intent createMinecraftLaunchIntent() {

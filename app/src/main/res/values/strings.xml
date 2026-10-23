@@ -1434,6 +1434,11 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="diagnostics_field_abi">ABI</string>
     <string name="diagnostics_field_launcher_abi">Launch ABI</string>
     <string name="diagnostics_field_selected_version">Selected version</string>
+    <string name="diagnostics_section_readiness">Launch readiness</string>
+    <string name="diagnostics_field_launch_state">State</string>
+    <string name="diagnostics_field_launch_blocks">Effect</string>
+    <string name="diagnostics_launch_blocked">Launch blocked</string>
+    <string name="diagnostics_launch_proceeds">Launch proceeds</string>
     <string name="diagnostics_field_extraction_version">Extraction version</string>
     <string name="diagnostics_field_signature_rules_source">Signature rules source</string>
     <string name="diagnostics_field_signature_rules_revision">Signature rules revision</string>
@@ -2278,4 +2283,30 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="cosmetics_equipped_toast">Cosmetic equipped</string>
     <string name="closet_offhand_note">Off-hand items are set from the inventory in game.</string>
     <string name="closet_effects_note">Toggle the particle aura for the equipped set.</string>
+
+    <!-- First-run wizard (U13). -->
+    <string name="setup_step_import_title">Welcome to GlowberryClient</string>
+    <string name="setup_step_import_body">Import your Minecraft game files to get started. Pick the APK you want to play.</string>
+    <string name="setup_step_import_action">Import game</string>
+    <string name="setup_step_version_title">Pick your version</string>
+    <string name="setup_step_version_body">Choose which Minecraft version to play. You can add more later from the Library.</string>
+    <string name="setup_step_version_action">Choose version</string>
+    <string name="setup_step_signin_title">Sign in</string>
+    <string name="setup_step_signin_body">Sign in with your Microsoft account to play online and keep your progress.</string>
+    <string name="setup_step_signin_action">Sign in</string>
+    <string name="setup_skip">Skip for now</string>
+    <string name="setup_import_failed">Import failed: %1$s</string>
+
+    <!-- Named launch failure states (U14). Each cause gets its own copy so a report can name it. -->
+    <string name="launch_failure_title_game_files_missing">Game files missing</string>
+    <string name="launch_failure_message_game_files_missing">This instance\'s game files are missing or incomplete. Re-import the version from the Library, or run Repair installation in Settings \u2192 Diagnostics.</string>
+    <string name="launch_failure_title_abi">Unsupported build</string>
+    <string name="launch_failure_message_abi">This Minecraft version ships 32-bit native libraries only, and GlowberryClient runs as a 64-bit app. Import a 64-bit build of this version instead.</string>
+    <string name="launch_failure_title_stale_libs">Repairing native libraries</string>
+    <string name="launch_failure_message_stale_libs">The extracted native libraries are from an older version of the launcher. They will be re-extracted automatically on the next launch. If the game still fails to start, run Repair installation in Settings \u2192 Diagnostics.</string>
+    <string name="launch_failure_title_rules">Limited compatibility</string>
+    <string name="launch_failure_message_rules">There are no hook definitions for this Minecraft build yet, so in-game overlays and cosmetics are disabled. The game itself will run normally.</string>
+    <string name="launch_failure_title_not_installed">Minecraft not found</string>
+    <string name="launch_failure_message_not_installed">Minecraft does not appear to be installed on this device. Install it from the Play Store, or import your own game files from the Library.</string>
+
 </resources>

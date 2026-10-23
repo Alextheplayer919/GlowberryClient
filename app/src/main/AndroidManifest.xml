@@ -72,6 +72,17 @@
             </intent-filter>
         </activity>
 
+        <!--
+            The first-run wizard (U13). Not exported and not a launcher entry: the splash opens it
+            only when the launcher has no installed instance, so an existing user never sees it.
+        -->
+        <activity
+            android:name="org.chimeramc.client.ui.activities.SetupWizardActivity"
+            android:exported="false"
+            android:label="@string/setup_step_import_title"
+            android:screenOrientation="sensorLandscape"
+            android:theme="@style/MainActivityTheme" />
+
         <activity
             android:name="org.chimeramc.client.ui.activities.MainActivity"
             android:exported="true"

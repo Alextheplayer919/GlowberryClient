@@ -15,6 +15,8 @@ import android.widget.Toast;
 import org.chimeramc.client.BuildConfig;
 import org.chimeramc.client.R;
 import org.chimeramc.client.core.minecraft.GamePackageManager;
+import org.chimeramc.client.util.PlayStoreValidator;
+import org.chimeramc.client.launcher.core.minecraft.LaunchReadiness;
 import org.chimeramc.client.core.versions.GameVersion;
 import org.chimeramc.client.core.versions.VersionManager;
 import org.chimeramc.client.core.mods.ModLoadDiagnostics;
@@ -84,10 +86,55 @@ public class DiagnosticsActivity extends BaseActivity {
 
     private void refresh() {
         renderAppRows();
+        renderReadinessRows();
         renderLibRows();
         renderRulesRows();
         renderNativeRows();
         renderModRows();
+    }
+
+    /**
+     * The named pre-launch state (U14/U16).
+     *
+     * <p>The same {@link LaunchReadiness} evaluation the Play button uses, so the diagnostics screen
+     * and the launch preflight cannot disagree about why a launch would be refused. The state key is
+     * shown verbatim (not a translated sentence) because it is what a bug report should quote.
+     */
+    private void renderReadinessRows() {
+        LinearLayout rows = findViewById(R.id.diagnostics_readiness_rows);
+        if (rows == null) return;
+        rows.removeAllViews();
+
+        GameVersion version = selectedVersion();
+        LaunchReadiness.Facts facts = new LaunchReadiness.Facts()
+                .versionSelected(version != null)
+                .minecraftInstalled(PlayStoreValidator.isMinecraftInstalled(this));
+        if (version != null) {
+            facts.gameFilesPresent(version.versionDir != null
+                    && new java.io.File(version.versionDir, "base.apk.chimera").exists());
+            try {
+                facts.abiIncompatible(!GamePackageManager
+                        .getInstance(this, version, null, null)
+                        .requireLauncherSupportsVersion(version));
+            } catch (Throwable ignored) {
+            }
+            try {
+                facts.extractionStale(!GamePackageManager.isExtractionCacheCurrent(this, version));
+            } catch (Throwable ignored) {
+            }
+            try {
+                facts.signatureRulesCoverBuild(version.versionCode == null
+                        || version.versionCode.isEmpty()
+                        || PreloaderSignatureRulesManager
+                                .describeCoverageFailure(this, version.versionCode) == null);
+            } catch (Throwable ignored) {
+            }
+        }
+        LaunchReadiness.State state = LaunchReadiness.evaluate(facts);
+        addRow(rows, R.string.diagnostics_field_launch_state, LaunchReadiness.key(state));
+        addRow(rows, R.string.diagnostics_field_launch_blocks,
+                getString(LaunchReadiness.blocksLaunch(state)
+                        ? R.string.diagnostics_launch_blocked : R.string.diagnostics_launch_proceeds));
     }
 
     private GameVersion selectedVersion() {

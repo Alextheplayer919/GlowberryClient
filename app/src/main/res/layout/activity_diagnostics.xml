@@ -106,6 +106,32 @@
                     android:orientation="vertical" />
             </LinearLayout>
 
+            <!-- Launch readiness (U14/U16): the same named state the Play button evaluates. -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                style="@style/Widget.Chimera.Card.Compact"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/diagnostics_section_readiness"
+                    android:fontFamily="@font/misans"
+                    android:textColor="@color/on_surface"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:id="@+id/diagnostics_readiness_rows"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="vertical" />
+            </LinearLayout>
+
             <!-- Native libraries section -->
             <LinearLayout
                 android:layout_width="match_parent"

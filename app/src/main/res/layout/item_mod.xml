@@ -47,6 +47,20 @@
             android:textColor="@color/text_secondary"
             android:visibility="gone"/>
 
+        <!-- Runtime kind (native / script), from the entry point (U17). -->
+        <TextView
+            android:id="@+id/mod_kind"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:background="@drawable/bg_mod_kind_badge"
+            android:fontFamily="@font/misans"
+            android:paddingHorizontal="7dp"
+            android:paddingVertical="2dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="10sp"
+            android:visibility="gone" />
+
         <TextView
             android:id="@+id/mod_failure_badge"
             android:layout_width="wrap_content"
