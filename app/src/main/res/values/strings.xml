@@ -1182,6 +1182,9 @@ Migration must complete before GlowberryClient can continue.</string>
     <!-- Quick Launch Validation -->
     <string name="server_ip_required">Server IP is required</string>
     <string name="server_details_required">Server name and IP are required</string>
+    <string name="server_ping_checking">Checking…</string>
+    <string name="server_ping_offline">Offline or unreachable</string>
+    <string name="server_ping_version_mismatch">Version %1$s may not be compatible</string>
     <string name="server_added">Server added</string>
     <string name="server_exists">That server is already in your list</string>
     <string name="server_add_failed">Could not add the server</string>
