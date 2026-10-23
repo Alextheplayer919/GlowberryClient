@@ -233,6 +233,11 @@ The old games/org.chimeramc directory was not deleted and is no longer used.</st
     <string name="storage_migration_failed_message">Migration could not continue: %1$s
 
 Migration must complete before GlowberryClient can continue.</string>
+    <string name="storage_migration_interrupted_title">Migration Interrupted</string>
+    <string name="storage_migration_interrupted_message">%1$s
+
+GlowberryClient must complete the migration before continuing.</string>
+    <string name="storage_migration_interrupted_hint">A previous migration attempt was interrupted. Files that already finished copying are skipped when it resumes.</string>
     <string name="migration_cleanup_title">Clean Historical Directory</string>
     <string name="migration_cleanup_desc">Only remove the old games/org.chimeramc directory after you have confirmed every instance launches normally and worlds, resource packs, behavior packs, and settings are not missing. Deleted historical data cannot be restored from this directory.</string>
     <string name="migration_cleanup_button">Clean Historical Directory</string>

@@ -40,6 +40,7 @@ public class StorageMigrationService extends Service {
     private static final String KEY_CURRENT_FILE = "storage_migration_current_file";
     private static final String KEY_ESTIMATED_REMAINING_MILLIS = "storage_migration_estimated_remaining_millis";
     private static final String KEY_ESTIMATED_COMPLETION_AT = "storage_migration_estimated_completion_at";
+    private static final String KEY_INTERRUPTED_AT = "storage_migration_interrupted_at";
     private static final long NOTIFICATION_THROTTLE_MS = 1000L;
 
     private static volatile MigrationState latestState = MigrationState.idle();
@@ -58,6 +59,7 @@ public class StorageMigrationService extends Service {
         IDLE,
         SCANNING,
         RUNNING,
+        INTERRUPTED,
         COMPLETED,
         PARTIAL,
         FAILED
@@ -120,7 +122,10 @@ public class StorageMigrationService extends Service {
         }
 
         public boolean isFinished() {
-            return status == Status.COMPLETED || status == Status.PARTIAL || status == Status.FAILED;
+            return status == Status.COMPLETED
+                    || status == Status.PARTIAL
+                    || status == Status.FAILED
+                    || status == Status.INTERRUPTED;
         }
 
         static MigrationState idle() {
@@ -174,6 +179,23 @@ public class StorageMigrationService extends Service {
             String message = error == null ? "" : error.getMessage();
             return new MigrationState(Status.FAILED, 0, 0, 0, 0L, 0L, "", 0, 0, message, -1L, -1L);
         }
+
+        static MigrationState interrupted(int processedFiles, int totalFiles, long totalBytes, String message) {
+            return new MigrationState(
+                    Status.INTERRUPTED,
+                    0,
+                    processedFiles,
+                    totalFiles,
+                    0L,
+                    totalBytes,
+                    "",
+                    0,
+                    0,
+                    message == null ? "" : message,
+                    -1L,
+                    -1L
+            );
+        }
     }
 
     public static boolean isMigrationRunning(Context context) {
@@ -208,6 +230,104 @@ public class StorageMigrationService extends Service {
         return latestState;
     }
 
+    /**
+     * Reads the last status the service persisted. The value survives process death, which is
+     * exactly the signal the interruption flow needs when no service is currently bound.
+     */
+    public static Status readPersistedStatus(Context context) {
+        String name = getSharedPreferencesName();
+        String raw = context.getApplicationContext()
+                .getSharedPreferences(name, Context.MODE_PRIVATE)
+                .getString(KEY_STATUS, Status.IDLE.name());
+        try {
+            return Status.valueOf(raw == null ? Status.IDLE.name() : raw);
+        } catch (IllegalArgumentException ignored) {
+            return Status.IDLE;
+        }
+    }
+
+    /**
+     * Marks a persisted run as interrupted and clears the running flag.
+     *
+     * <p>Called from {@link #onDestroy()} when the service is torn down without ever reporting
+     * completion (force stop, notification cancellation, Doze kills), and from
+     * {@link #reconcileOnProcessStart(Context)} when the previous process died mid-run. Either
+     * way the flag must be cleared, or a later cold start keeps believing a live migration is
+     * running and silently restarts it with no context.
+     */
+    private void markInterrupted(String reason) {
+        String message = interruptedMessage(reason);
+        MigrationState state = MigrationState.interrupted(
+                getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getInt(KEY_PROCESSED_FILES, 0),
+                getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getInt(KEY_TOTAL_FILES, 0),
+                getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getLong(KEY_TOTAL_BYTES, 0L),
+                message
+        );
+        latestState = state;
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                .edit()
+                .putString(KEY_STATUS, Status.INTERRUPTED.name())
+                .putBoolean(KEY_RUNNING, false)
+                .putLong(KEY_INTERRUPTED_AT, System.currentTimeMillis())
+                .apply();
+        for (MigrationListener listener : listeners) {
+            listener.onMigrationStateChanged(state);
+        }
+    }
+
+    private static String interruptedMessageFor(Context context, String reason) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        String message = StorageMigrationRunBook.interruptedMessage(
+                prefs.getInt(KEY_PROCESSED_FILES, 0),
+                prefs.getInt(KEY_TOTAL_FILES, 0),
+                prefs.getLong(KEY_TOTAL_BYTES, 0L)
+        );
+        if (reason != null && !reason.isEmpty()) {
+            message = message + " (" + reason + ")";
+        }
+        return message;
+    }
+
+    /**
+     * Reconciles the persisted run state on a fresh process start.
+     *
+     * <p>A started foreground service with a wake lock keeps its process alive, so by the time a
+     * brand-new process runs {@code Application.onCreate} with {@link #KEY_RUNNING} still set,
+     * the previous run died without persisting its own end. That is an interruption by
+     * definition, and the pure classification lives in {@link StorageMigrationRunBook}. The flag
+     * is cleared here so the next launch walks the normal migration prompt instead of blind
+     * resuming; the copy path is already idempotent (completed files are skipped), so re-running
+     * is safe.
+     */
+    public static void reconcileOnProcessStart(Context context) {
+        Context appContext = context.getApplicationContext();
+        SharedPreferences prefs = appContext.getSharedPreferences(getSharedPreferencesName(), Context.MODE_PRIVATE);
+        boolean running = prefs.getBoolean(KEY_RUNNING, false);
+        if (StorageMigrationRunBook.classifyRun(running, true) != StorageMigrationRunBook.RunProbe.INTERRUPTED) {
+            return;
+        }
+        MigrationState state = MigrationState.interrupted(
+                prefs.getInt(KEY_PROCESSED_FILES, 0),
+                prefs.getInt(KEY_TOTAL_FILES, 0),
+                prefs.getLong(KEY_TOTAL_BYTES, 0L),
+                interruptedMessageFor(appContext, "app process restarted mid-migration")
+        );
+        latestState = state;
+        prefs.edit()
+                .putString(KEY_STATUS, Status.INTERRUPTED.name())
+                .putBoolean(KEY_RUNNING, false)
+                .putLong(KEY_INTERRUPTED_AT, System.currentTimeMillis())
+                .apply();
+    }
+
+    private String interruptedMessage(String reason) {
+        return interruptedMessageFor(this, reason);
+    }
+
+    private static String getSharedPreferencesName() {
+        return PREFS_NAME;
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -230,6 +350,12 @@ public class StorageMigrationService extends Service {
 
     @Override
     public void onDestroy() {
+        // A completed/failed run already cleared the running flag before stopSelf(). A destroy
+        // that still sees it set means the run was torn down mid-flight (force stop, notification
+        // swiped away, Doze) and must be recorded as interrupted so the next launch can say so.
+        if (getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getBoolean(KEY_RUNNING, false)) {
+            markInterrupted("service stopped before completion");
+        }
         releaseWakeLock();
         super.onDestroy();
     }

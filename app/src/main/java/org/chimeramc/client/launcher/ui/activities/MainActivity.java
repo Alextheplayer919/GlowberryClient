@@ -963,12 +963,18 @@ import okhttp3.OkHttpClient;
     private void showStorageMigrationPromptDialog() {
         migrationPromptShown = true;
 
+        String message = getString(
+                R.string.storage_migration_message,
+                LauncherStorage.getTargetAppRootDisplayPath(this)
+        );
+        if (StorageMigrationService.readPersistedStatus(this)
+                == StorageMigrationService.Status.INTERRUPTED) {
+            message = message + "\n\n" + getString(R.string.storage_migration_interrupted_hint);
+        }
+
         CustomAlertDialog dialog = new CustomAlertDialog(this)
                 .setTitleText(getString(R.string.storage_migration_title))
-                .setMessage(getString(
-                        R.string.storage_migration_message,
-                        LauncherStorage.getTargetAppRootDisplayPath(this)
-                ))
+                .setMessage(message)
                 .setPositiveButton(getString(R.string.storage_migration_start), v -> {
                     if (storageMigrationManager.canReadLegacyRoot()) {
                         startStorageMigrationService();
@@ -1151,6 +1157,14 @@ import okhttp3.OkHttpClient;
             showBlockingMigrationRetryDialog(
                     getString(R.string.storage_migration_failed_title),
                     getString(R.string.storage_migration_failed_message, state.errorMessage)
+            );
+        } else if (state.status == StorageMigrationService.Status.INTERRUPTED) {
+            String message = state.errorMessage != null && !state.errorMessage.isEmpty()
+                    ? state.errorMessage
+                    : getString(R.string.storage_migration_interrupted_hint);
+            showBlockingMigrationRetryDialog(
+                    getString(R.string.storage_migration_interrupted_title),
+                    message
             );
         }
     }
