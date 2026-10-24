@@ -295,7 +295,11 @@ jobs:
   # (InputStream.readAllBytes, API 33) was invisible to a build-only pipeline and to the JVM test
   # suite, because a desktop JDK has that method. Only a real API 28 runtime can catch it.
   instrumented-smoke:
-    runs-on: ubuntu-latest
+    # The APK ships arm64-v8a only (see app/build.gradle: the process locks in one bitness and the
+    # prebuilt libgxcore.so has no 32-bit or x86 build). An x86_64 emulator therefore cannot install
+    # it - `connectedDebugAndroidTest` fails with "No compatible devices connected" before any test
+    # runs, which is what this job did. It needs an arm64 host running an arm64 system image.
+    runs-on: ubuntu-24.04-arm
     strategy:
       fail-fast: false
       matrix:
@@ -355,9 +359,12 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api-level }}
-          arch: x86_64
-          # The app is landscape-only and native-heavy; give the emulator room and a longer boot.
+          # Must match the APK's only ABI, or the install is refused before the tests start.
+          arch: arm64-v8a
+          # The app is landscape-only and native-heavy, and an arm64 emulator on an arm64 host
+          # without nested-virtualisation acceleration boots slowly. Give it room.
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-boot-timeout: 1200
           disable-animations: true
           script: ./gradlew :app:connectedDebugAndroidTest --stacktrace
 
