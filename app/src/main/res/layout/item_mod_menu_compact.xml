@@ -8,9 +8,9 @@
     android:layout_marginEnd="4dp"
     android:layout_marginBottom="3dp"
     android:defaultFocusHighlightEnabled="false"
-    app:cardBackgroundColor="@color/ui_bg_surface"
-    app:cardCornerRadius="10dp"
-    app:cardElevation="2dp">
+    app:cardBackgroundColor="@color/mod_menu_bg_surface2"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="0dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -47,15 +47,30 @@
                 android:layout_weight="1"
                 android:orientation="vertical">
 
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:id="@+id/mod_card_status_dot"
+                        android:layout_width="7dp"
+                        android:layout_height="7dp"
+                        android:layout_marginEnd="5dp"
+                        android:background="@drawable/bg_mod_status_dot"
+                        android:visibility="gone" />
+
                 <TextView
                     android:id="@+id/mod_card_name"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:ellipsize="end"
                     android:maxLines="2"
-                    android:textColor="@color/ui_text_primary"
+                    android:textColor="@color/mod_menu_text_primary"
                     android:textSize="12sp"
                     android:textStyle="bold" />
+                </LinearLayout>
 
                 <TextView
                     android:id="@+id/mod_card_group"
@@ -64,8 +79,19 @@
                     android:layout_marginTop="1dp"
                     android:ellipsize="end"
                     android:maxLines="1"
-                    android:textColor="@color/ui_text_secondary"
+                    android:textColor="@color/mod_menu_text_secondary"
                     android:textSize="9sp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/mod_card_reason"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="1dp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="@color/mod_menu_text_secondary"
+                    android:textSize="11sp"
                     android:visibility="gone" />
 
                 <TextView
@@ -79,19 +105,32 @@
                     android:paddingStart="8dp"
                     android:paddingEnd="8dp"
                     android:text="@string/mod_unavailable_message"
-                    android:textColor="@color/ui_danger"
+                    android:textColor="@color/mod_menu_state_error"
                     android:textSize="9sp"
                     android:textStyle="bold"
                     android:visibility="gone" />
 
             </LinearLayout>
 
-            <org.chimeramc.client.ui.components.UiSwitchView
+            <!-- M2: the state control is the same pill switch as the full row, so the compact
+                 list and the grid cannot disagree about how a module is toggled. -->
+            <org.chimeramc.client.core.mods.inbuilt.overlay.ModMenuSwitchView
                 android:id="@+id/mod_card_switch"
-                android:layout_width="36dp"
-                android:layout_height="20dp"
-                android:layout_marginStart="6dp"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_marginStart="4dp"
                 android:contentDescription="@string/mod_status_disabled" />
+
+            <!-- M3: an action row's control. Never shown with the switch. -->
+            <ImageView
+                android:id="@+id/mod_card_chevron"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_marginStart="10dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_chevron_right"
+                android:tint="@color/mod_menu_text_tertiary"
+                android:visibility="gone" />
 
             <ImageButton
                 android:id="@+id/mod_card_config"
@@ -102,7 +141,7 @@
                 android:defaultFocusHighlightEnabled="false"
                 android:padding="5dp"
                 android:src="@drawable/ic_settings"
-                android:tint="@color/ui_text_secondary" />
+                android:tint="@color/mod_menu_text_secondary" />
 
             <ImageButton
                 android:id="@+id/mod_card_favorite"
@@ -112,7 +151,7 @@
                 android:defaultFocusHighlightEnabled="false"
                 android:padding="5dp"
                 android:src="@drawable/ic_star"
-                android:tint="@color/ui_text_secondary" />
+                android:tint="@color/mod_menu_text_secondary" />
 
         </LinearLayout>
 

@@ -68,6 +68,24 @@ should say a screen "works in game" until this list passes.
   capture in the full editor takes the next press.
 - [ ] The Keyboard page draws the board, flashes a captured key and rebinds the action.
 
+### Mod Menu appearance (M1-M10)
+
+- [ ] The panel is the dark navy surface at a 28dp radius — no violet/magenta and no pure black.
+  The accent appears only on switches and focus rings, never on a header or a card border.
+- [ ] **A module row shows a pill switch; an action row shows a chevron, never both.** Tapping a
+  module toggles it and the switch slides; "Reset HUD Position" and "Reload Modules" fire once.
+- [ ] The switch haptics on the state change only, never on press-down.
+- [ ] Every row's touch target is at least 48dp even though the switch's visual is 52x32dp.
+- [ ] A module that cannot run is dimmed, shows a coloured dot and states its reason in one line.
+  Tapping it opens the reason sheet; a crash-disabled module offers "Re-enable".
+- [ ] Long-pressing a module starts a drag; a module may only move within its own section, and the
+  order survives closing and reopening the menu.
+- [ ] Settings > Appearance: the theme, glass, density, toggle-style and motion presets apply
+  immediately, and the radius / blur-refresh / HUD-opacity sliders and the accent swatches do too.
+- [ ] With Android's "Remove animations" ON, the menu still animates but only as a short linear
+  fade; with "Reduce transparency" ON the panel is solid. The OS setting beats the in-menu choice.
+- [ ] Nothing in the menu follows the launcher's accent setting — the menu has its own.
+
 ## 3. Adaptive navigation (U5) and the type/shape scales (U6)
 
 - [ ] On a phone-width window the destinations are a horizontal bar at the top, icon-only, with

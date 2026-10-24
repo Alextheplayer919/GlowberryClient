@@ -77,6 +77,29 @@
     <color name="ui_warning">#FFB020</color>
     <color name="ui_danger">#FF5C5C</color>
 
+    <!--
+        Mod Menu (M1): the menu's own dark-navy token set. Kept separate from the ui_* launcher
+        tokens on purpose: the menu is drawn over the game and its palette must not drift onto the
+        launcher's surfaces. Mirrors ModMenuPalette so a layout never carries an inline hex.
+        Never pure black (#000000) and never pure white (#FFFFFF) - those are what make a dark UI
+        read "OLED harsh" instead of "smooth".
+    -->
+    <color name="mod_menu_bg_base">#070A0F</color>
+    <color name="mod_menu_bg_surface1">#0B1118</color>
+    <color name="mod_menu_bg_surface2">#101823</color>
+    <color name="mod_menu_bg_surface3">#16202D</color>
+    <color name="mod_menu_border_hairline">#1E2A38</color>
+    <color name="mod_menu_text_primary">#E8EEF6</color>
+    <color name="mod_menu_text_secondary">#93A3B8</color>
+    <color name="mod_menu_text_tertiary">#5C6B7E</color>
+    <color name="mod_menu_accent">#3E6FF0</color>
+    <color name="mod_menu_accent_muted">#1A2B4D</color>
+    <color name="mod_menu_state_success">#35DC84</color>
+    <color name="mod_menu_state_warn">#FFC944</color>
+    <color name="mod_menu_state_error">#FF5C5C</color>
+    <!-- The panel's translucent glass fill (M4): the regular tier's 14% white tint over the base. -->
+    <color name="mod_menu_glass_fill">#17E8EEF6</color>
+
     <!-- Section gradient accent palette (all derive from the blueberry accent). -->
     <color name="grad_hero_start">#10254F</color>
     <color name="grad_hero_end">#0F5BE4</color>

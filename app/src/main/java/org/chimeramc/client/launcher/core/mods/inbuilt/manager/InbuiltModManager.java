@@ -26,6 +26,19 @@ public class InbuiltModManager {
     private static final String KEY_MOD_MENU_ACCENT_START = "mod_menu_accent_start";
     private static final String KEY_MOD_MENU_ACCENT_END = "mod_menu_accent_end";
     private static final String KEY_MOD_MENU_COMPACT = "mod_menu_compact";
+    // The Mod Menu's own appearance settings (M6). One pref per field so a new field is a new key
+    // rather than a blob that has to be migrated.
+    private static final String KEY_MENU_THEME = "mod_menu_theme";
+    private static final String KEY_MENU_GLASS = "mod_menu_glass";
+    private static final String KEY_MENU_RADIUS = "mod_menu_radius";
+    private static final String KEY_MENU_DENSITY = "mod_menu_density";
+    private static final String KEY_MENU_TOGGLE_STYLE = "mod_menu_toggle_style";
+    private static final String KEY_MENU_MOTION = "mod_menu_motion";
+    private static final String KEY_MENU_BLUR_FPS = "mod_menu_blur_fps";
+    private static final String KEY_MENU_HUD_OPACITY = "mod_menu_hud_opacity";
+    private static final String KEY_MENU_ACCENT = "mod_menu_accent_index";
+    /** The per-section drag-to-reorder order, as a comma-separated id list (M9). */
+    private static final String KEY_MENU_SECTION_ORDER_PREFIX = "mod_menu_order_";
     private static final String KEY_MOD_MENU_KEYBIND = "mod_menu_keybind";
     private static final String KEY_MOD_MENU_CONTROLLER_BIND = "mod_menu_controller_bind";
     private static final String KEY_RADIAL_WHEEL_HOLD = "radial_wheel_hold_to_open";
@@ -351,6 +364,95 @@ public class InbuiltModManager {
 
     public void setModMenuCompact(boolean compact) {
         prefs.edit().putBoolean(KEY_MOD_MENU_COMPACT, compact).apply();
+    }
+
+    // --- Mod Menu appearance settings (M6) ----------------------------------------------------
+
+    /**
+     * The menu's appearance settings, read as one value.
+     *
+     * <p>Stored as individual prefs rather than a serialized blob: a blob has to be versioned and
+     * migrated, and a field added to the settings class would silently reset every other field for
+     * a user whose blob predates it. Unknown enum names fall back to the default, so a downgrade
+     * cannot leave the menu unopenable.
+     */
+    public org.chimeramc.client.core.mods.inbuilt.overlay.ModMenuSettings getModMenuSettings() {
+        org.chimeramc.client.core.mods.inbuilt.overlay.ModMenuSettings defaults =
+                org.chimeramc.client.core.mods.inbuilt.overlay.ModMenuSettings.defaults();
+        return new org.chimeramc.client.core.mods.inbuilt.overlay.ModMenuSettings(
+                enumOf(org.chimeramc.client.core.mods.inbuilt.overlay.ModMenuSettings.Theme.class,
+                        prefs.getString(KEY_MENU_THEME, null), defaults.theme()),
+                enumOf(org.chimeramc.client.core.mods.inbuilt.overlay.ModMenuSettings.GlassIntensity.class,
+                        prefs.getString(KEY_MENU_GLASS, null), defaults.glassIntensity()),
+                prefs.getInt(KEY_MENU_RADIUS, defaults.cornerRadiusDp()),
+                enumOf(org.chimeramc.client.core.mods.inbuilt.overlay.ModMenuSettings.Density.class,
+                        prefs.getString(KEY_MENU_DENSITY, null), defaults.density()),
+                enumOf(org.chimeramc.client.core.mods.inbuilt.overlay.ModMenuSettings.ToggleStyle.class,
+                        prefs.getString(KEY_MENU_TOGGLE_STYLE, null), defaults.toggleStyle()),
+                enumOf(org.chimeramc.client.core.mods.inbuilt.overlay.ModMenuSettings.Motion.class,
+                        prefs.getString(KEY_MENU_MOTION, null), defaults.motion()),
+                prefs.getInt(KEY_MENU_BLUR_FPS, defaults.blurFps()),
+                prefs.getInt(KEY_MENU_HUD_OPACITY, defaults.hudOpacity()),
+                prefs.getInt(KEY_MENU_ACCENT, defaults.accentIndex()));
+    }
+
+    /** Writes the menu's appearance settings. */
+    public void setModMenuSettings(
+            org.chimeramc.client.core.mods.inbuilt.overlay.ModMenuSettings settings) {
+        if (settings == null) return;
+        prefs.edit()
+                .putString(KEY_MENU_THEME, settings.theme().name())
+                .putString(KEY_MENU_GLASS, settings.glassIntensity().name())
+                .putInt(KEY_MENU_RADIUS, settings.cornerRadiusDp())
+                .putString(KEY_MENU_DENSITY, settings.density().name())
+                .putString(KEY_MENU_TOGGLE_STYLE, settings.toggleStyle().name())
+                .putString(KEY_MENU_MOTION, settings.motion().name())
+                .putInt(KEY_MENU_BLUR_FPS, settings.blurFps())
+                .putInt(KEY_MENU_HUD_OPACITY, settings.hudOpacity())
+                .putInt(KEY_MENU_ACCENT, settings.accentIndex())
+                .apply();
+    }
+
+    /**
+     * The user's saved order for one section, or an empty list for the shipped order (M9).
+     *
+     * <p>An empty result means "never reordered", which the caller distinguishes from "reordered to
+     * an empty list" — the latter cannot happen, and treating the two the same would make a cleared
+     * order silently hide every module.
+     */
+    public java.util.List<String> getModMenuSectionOrder(String sectionId) {
+        String raw = prefs.getString(KEY_MENU_SECTION_ORDER_PREFIX + sectionId, null);
+        java.util.List<String> out = new java.util.ArrayList<>();
+        if (raw == null || raw.trim().isEmpty()) return out;
+        for (String part : raw.split(",")) {
+            String id = part.trim();
+            if (!id.isEmpty()) out.add(id);
+        }
+        return out;
+    }
+
+    /** Saves the user's order for one section. */
+    public void setModMenuSectionOrder(String sectionId, java.util.List<String> order) {
+        if (sectionId == null) return;
+        StringBuilder sb = new StringBuilder();
+        if (order != null) {
+            for (String id : order) {
+                if (id == null || id.trim().isEmpty()) continue;
+                if (sb.length() > 0) sb.append(',');
+                sb.append(id.trim());
+            }
+        }
+        prefs.edit().putString(KEY_MENU_SECTION_ORDER_PREFIX + sectionId, sb.toString()).apply();
+    }
+
+    /** Resolves a stored enum name, falling back when the name is unknown or absent. */
+    private static <E extends Enum<E>> E enumOf(Class<E> type, String name, E fallback) {
+        if (name == null) return fallback;
+        try {
+            return Enum.valueOf(type, name);
+        } catch (IllegalArgumentException e) {
+            return fallback;
+        }
     }
 
     /**

@@ -76,6 +76,8 @@ public class ModMenuOverlay {
     private final Runnable searchRunnable = this::applyFilters;
     private ModMenuAdapter adapter;
     private ModMenuTheme theme;
+    /** The menu's own appearance settings (M6), read on open and re-applied from the Settings tab. */
+    private ModMenuSettings menuSettings;
     /** The destination the rail is currently showing, so a theme rebuild can restore it. */
     private ModMenuPage activePage;
     /** The page to open on, set when showPage() has to open the menu first. */
@@ -742,8 +744,13 @@ public class ModMenuOverlay {
 
         setupKeybindSettings(modManager);
         setupLoadoutSettings(modManager);
+        setupModMenuAppearanceSettings();
 
-        adapter = new ModMenuAdapter(new ModMenuTheme(activity));
+        // M1/M6: the menu's own appearance settings drive the theme, the accent and the motion.
+        // Read once here; a change from the Settings tab re-applies through applyModMenuSettings().
+        menuSettings = InbuiltModManager.getInstance(activity).getModMenuSettings();
+        adapter = new ModMenuAdapter(new ModMenuTheme(activity, menuSettings));
+        adapter.setSettings(menuSettings);
         adapter.setCompactMode(compactMode);
         // Two columns on a wide window, one below the 560dp threshold (the spec's rule). The old
         // four-column grid was too dense; the two-column module list is the blueberry layout.
@@ -791,7 +798,20 @@ public class ModMenuOverlay {
                     applyFilters();
                 }
             }
+            @Override
+            public void onAction(String actionId) {
+                runMenuAction(actionId);
+            }
+            @Override
+            public void onRowReason(String stableKey) {
+                showRowReasonSheet(stableKey);
+            }
+            @Override
+            public void onReorder(String sectionId, java.util.List<String> orderedKeys) {
+                InbuiltModManager.getInstance(activity).setModMenuSectionOrder(sectionId, orderedKeys);
+            }
         });
+        setupReorderTouch();
         modsRecycler.setAdapter(adapter);
         applyCompactModeLayout(compactMode);
 
@@ -827,6 +847,167 @@ public class ModMenuOverlay {
         }
     }
 
+    /**
+     * Runs a one-shot action row (M3).
+     *
+     * <p>Actions are dispatched by id rather than by a captured Runnable, so the list can be
+     * rebuilt without the handler pointing at a stale view.
+     */
+    private void runMenuAction(String actionId) {
+        if (actionId == null) return;
+        switch (actionId) {
+            case ModMenuActionCatalog.ACTION_RESET_HUD:
+                InbuiltOverlayManager.getInstance().resetAllPositionsToCenter();
+                android.widget.Toast.makeText(activity, R.string.mod_menu_action_reset_hud_done,
+                        android.widget.Toast.LENGTH_SHORT).show();
+                break;
+            case ModMenuActionCatalog.ACTION_RELOAD_MODULES:
+                reloadModules();
+                break;
+            default:
+                break;
+        }
+    }
+
+    /**
+     * Re-scans and re-registers every module, then refreshes the list (M3).
+     *
+     * <p>The providers read the registry live on every {@code load}, so re-reading them *is* the
+     * reload: a module added or removed while the menu was open appears without restarting the
+     * session. The list's selection is dropped by {@link #applyFilters()} so a renumbered row
+     * cannot be toggled by a stale controller index.
+     */
+    private void reloadModules() {
+        loadMods();
+    }
+
+    /**
+     * Explains why a row cannot run (M10).
+     *
+     * <p>The dialog names the state and offers the one action that makes sense: a crash-disabled
+     * module can be re-enabled (that is the whole point of the message), while a module with no
+     * hook on this build has nothing to offer but the explanation.
+     */
+    private void showRowReasonSheet(String stableKey) {
+        if (stableKey == null || activity == null) return;
+        UnifiedMod mod = findModByKey(stableKey);
+        if (mod == null) return;
+        ModMenuRowState state = ModMenuRowState.of(true,
+                org.chimeramc.client.core.mods.inbuilt.model.ModAvailability
+                        .isInteractive(mod.getId()), false, mod.isEnabled());
+        String reason = rowReasonText(mod, state);
+        if (reason == null) return;
+
+        boolean reEnableable = state == ModMenuRowState.CRASHED;
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(activity)
+                .setTitle(mod.getName())
+                .setMessage(reason)
+                .setNegativeButton(R.string.mod_menu_row_reason_dismiss, null);
+        if (reEnableable) {
+            builder.setPositiveButton(R.string.mod_menu_row_reason_re_enable, (d, w) -> {
+                mod.applyEnabled(true);
+                loadMods();
+            });
+        }
+        builder.show();
+    }
+
+    /** The explanation text for a row's state, or null when the row is healthy. */
+    private String rowReasonText(UnifiedMod mod, ModMenuRowState state) {
+        switch (state) {
+            case CRASHED:
+                return activity.getString(R.string.mod_menu_row_crashed);
+            case FAILED:
+                return activity.getString(R.string.mod_menu_row_failed);
+            case UNSUPPORTED:
+                if (org.chimeramc.client.core.mods.inbuilt.model.ModAvailability
+                        .isUnavailable(mod.getId())) {
+                    int reason = org.chimeramc.client.core.mods.inbuilt.model.ModAvailability
+                            .REASON_SERVER_DECIDED.equals(
+                            org.chimeramc.client.core.mods.inbuilt.model.ModAvailability
+                                    .unavailableReason(mod.getId()))
+                            ? R.string.mod_unavailable_reason_server
+                            : R.string.mod_unavailable_reason;
+                    return activity.getString(reason);
+                }
+                return activity.getString(R.string.mod_menu_row_unsupported);
+            default:
+                return null;
+        }
+    }
+
+    /** Finds a module by its stable key, or null when it is not in the current list. */
+    private UnifiedMod findModByKey(String stableKey) {
+        for (UnifiedMod mod : allMods) {
+            if (stableKey.equals(mod.getStableKey())) return mod;
+        }
+        return null;
+    }
+
+    /**
+     * Enables drag-to-reorder within the module list (M9).
+     *
+     * <p>Long-press starts the drag so a normal tap still toggles, and the move is committed to the
+     * manager on drop. Only modules move: a group header has no position of its own.
+     */
+    private void setupReorderTouch() {
+        if (modsRecycler == null) return;
+        androidx.recyclerview.widget.ItemTouchHelper helper =
+                new androidx.recyclerview.widget.ItemTouchHelper(
+                        new androidx.recyclerview.widget.ItemTouchHelper.SimpleCallback(
+                                androidx.recyclerview.widget.ItemTouchHelper.UP
+                                        | androidx.recyclerview.widget.ItemTouchHelper.DOWN
+                                        | androidx.recyclerview.widget.ItemTouchHelper.START
+                                        | androidx.recyclerview.widget.ItemTouchHelper.END,
+                                0) {
+                            @Override
+                            public boolean isLongPressDragEnabled() {
+                                return adapter != null;
+                            }
+
+                            @Override
+                            public boolean onMove(RecyclerView recyclerView,
+                                                  RecyclerView.ViewHolder viewHolder,
+                                                  RecyclerView.ViewHolder target) {
+                                if (adapter == null) return false;
+                                int from = viewHolder.getBindingAdapterPosition();
+                                int to = target.getBindingAdapterPosition();
+                                if (from == RecyclerView.NO_POSITION
+                                        || to == RecyclerView.NO_POSITION) {
+                                    return false;
+                                }
+                                return adapter.moveModule(from, to) != null;
+                            }
+
+                            @Override
+                            public boolean canDropOver(RecyclerView recyclerView,
+                                                       RecyclerView.ViewHolder current,
+                                                       RecyclerView.ViewHolder target) {
+                                // A module may only move within its own section: crossing into
+                                // another section would break the one-header-per-run rule and
+                                // the saved order is stored per section.
+                                return adapter != null
+                                        && adapter.canReorderBetween(current, target);
+                            }
+
+                            @Override
+                            public void onSwiped(RecyclerView.ViewHolder viewHolder, int direction) {
+                                // No swipe action: a swipe that deletes a module would be a
+                                // destructive gesture on a list of toggles.
+                            }
+
+                            @Override
+                            public void clearView(RecyclerView recyclerView,
+                                                  RecyclerView.ViewHolder viewHolder) {
+                                super.clearView(recyclerView, viewHolder);
+                                if (adapter != null) {
+                                    adapter.onReorderFinished(activeFilter.name());
+                                }
+                            }
+                        });
+        helper.attachToRecyclerView(modsRecycler);
+    }
+
     private void showSettingsSection() {
         updateNavigationItems(false, false, false, true, false, false, false);
 
@@ -851,6 +1032,211 @@ public class ModMenuOverlay {
             if (filterBar != null) filterBar.setVisibility(View.GONE);
             if (compactFilterBar != null) compactFilterBar.setVisibility(View.GONE);
         }
+    }
+
+    /**
+     * Wires the Settings tab's appearance controls (M6).
+     *
+     * <p>Segmented presets for the enumerated choices and one slider per continuous value, and
+     * nothing free-form: a colour picker or a custom blur radius is the setting that generates
+     * "why does my menu look broken" reports. Every control writes through
+     * {@link InbuiltModManager#setModMenuSettings} and then re-applies, so the change is visible
+     * immediately rather than on the next open.
+     */
+    private void setupModMenuAppearanceSettings() {
+        if (overlayView == null) return;
+        if (menuSettings == null) {
+            menuSettings = InbuiltModManager.getInstance(activity).getModMenuSettings();
+        }
+        final ModMenuSettings current = menuSettings;
+
+        bindSegmentedGroup(R.id.group_mod_setting_theme, new String[]{
+                activity.getString(R.string.mod_menu_theme_navy),
+                activity.getString(R.string.mod_menu_theme_true_black),
+                activity.getString(R.string.mod_menu_theme_system)},
+                current.theme().ordinal(),
+                index -> applyMenuSettings(current.withTheme(
+                        ModMenuSettings.Theme.values()[index])));
+
+        bindSegmentedGroup(R.id.group_mod_setting_glass, new String[]{
+                activity.getString(R.string.mod_menu_glass_off),
+                activity.getString(R.string.mod_menu_glass_subtle),
+                activity.getString(R.string.mod_menu_glass_full)},
+                current.glassIntensity().ordinal(),
+                index -> applyMenuSettings(current.withGlassIntensity(
+                        ModMenuSettings.GlassIntensity.values()[index])));
+
+        bindSegmentedGroup(R.id.group_mod_setting_density, new String[]{
+                activity.getString(R.string.mod_menu_density_compact),
+                activity.getString(R.string.mod_menu_density_comfortable)},
+                current.density().ordinal(),
+                index -> applyMenuSettings(current.withDensity(
+                        ModMenuSettings.Density.values()[index])));
+
+        bindSegmentedGroup(R.id.group_mod_setting_toggle_style, new String[]{
+                activity.getString(R.string.mod_menu_toggle_switch),
+                activity.getString(R.string.mod_menu_toggle_pill_label),
+                activity.getString(R.string.mod_menu_toggle_checkbox)},
+                current.toggleStyle().ordinal(),
+                index -> applyMenuSettings(current.withToggleStyle(
+                        ModMenuSettings.ToggleStyle.values()[index])));
+
+        bindSegmentedGroup(R.id.group_mod_setting_motion, new String[]{
+                activity.getString(R.string.mod_menu_motion_full),
+                activity.getString(R.string.mod_menu_motion_reduced),
+                activity.getString(R.string.mod_menu_motion_system)},
+                current.motion().ordinal(),
+                index -> applyMenuSettings(current.withMotion(
+                        ModMenuSettings.Motion.values()[index])));
+
+        bindAppearanceSlider(R.id.seekbar_mod_setting_radius, R.id.value_mod_setting_radius,
+                ModMenuSettings.MIN_RADIUS_DP, ModMenuSettings.MAX_RADIUS_DP,
+                current.cornerRadiusDp(), R.string.mod_menu_setting_value_dp,
+                value -> applyMenuSettings(current.withCornerRadiusDp(value)));
+
+        bindAppearanceSlider(R.id.seekbar_mod_setting_blur_fps, R.id.value_mod_setting_blur_fps,
+                ModMenuSettings.MIN_BLUR_FPS, ModMenuSettings.MAX_BLUR_FPS,
+                current.blurFps(), R.string.mod_menu_setting_value_fps,
+                value -> applyMenuSettings(current.withBlurFps(value)));
+
+        bindAppearanceSlider(R.id.seekbar_mod_setting_hud_opacity,
+                R.id.value_mod_setting_hud_opacity,
+                ModMenuSettings.MIN_HUD_OPACITY, ModMenuSettings.MAX_HUD_OPACITY,
+                current.hudOpacity(), R.string.mod_menu_setting_value_percent,
+                value -> applyMenuSettings(current.withHudOpacity(value)));
+
+        buildAccentSwatches(current);
+    }
+
+    /**
+     * Builds a segmented row from a label array and reports the chosen index.
+     *
+     * <p>The chips are plain TextViews rather than a Spinner: a Spinner's popup is a second window
+     * that outlives the host view, and the menu already had a stale-popup bug from one.
+     */
+    private void bindSegmentedGroup(int groupId, String[] labels, int selected,
+                                    java.util.function.IntConsumer onSelected) {
+        ViewGroup group = overlayView.findViewById(groupId);
+        if (group == null) return;
+        group.removeAllViews();
+        for (int i = 0; i < labels.length; i++) {
+            TextView chip = new TextView(activity);
+            chip.setText(labels[i]);
+            chip.setTextSize(12);
+            chip.setGravity(android.view.Gravity.CENTER);
+            chip.setPadding((int) (14 * density()), (int) (8 * density()),
+                    (int) (14 * density()), (int) (8 * density()));
+            boolean active = i == selected;
+            chip.setTextColor(active ? ModMenuPalette.TEXT_PRIMARY : ModMenuPalette.TEXT_SECONDARY);
+            android.graphics.drawable.GradientDrawable bg =
+                    new android.graphics.drawable.GradientDrawable();
+            bg.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
+            bg.setCornerRadius(ModMenuMetrics.PANEL_RADIUS_DP / 2f * density());
+            bg.setColor(active
+                    ? ModMenuPalette.ACCENT
+                    : ModMenuPalette.BG_SURFACE_3);
+            chip.setBackground(bg);
+            android.widget.LinearLayout.LayoutParams params =
+                    new android.widget.LinearLayout.LayoutParams(0,
+                            ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            params.setMarginEnd((int) (6 * density()));
+            chip.setLayoutParams(params);
+            final int index = i;
+            chip.setOnClickListener(v -> onSelected.accept(index));
+            DynamicAnim.applyPressScale(chip);
+            group.addView(chip);
+        }
+    }
+
+    /** Binds one appearance slider and its value label. */
+    private void bindAppearanceSlider(int seekBarId, int valueId, int min, int max, int current,
+                                      int valueFormatRes,
+                                      java.util.function.IntConsumer onChanged) {
+        SeekBar bar = overlayView.findViewById(seekBarId);
+        TextView label = overlayView.findViewById(valueId);
+        if (bar == null) return;
+        bar.setMax(max - min);
+        bar.setProgress(Math.max(0, Math.min(max - min, current - min)));
+        if (label != null) {
+            label.setText(activity.getString(valueFormatRes, current));
+        }
+        bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                int value = min + progress;
+                if (label != null) {
+                    label.setText(activity.getString(valueFormatRes, value));
+                }
+                if (fromUser) onChanged.accept(value);
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+            }
+        });
+    }
+
+    /** Builds the six accent swatches (M6). */
+    private void buildAccentSwatches(ModMenuSettings current) {
+        ViewGroup group = overlayView.findViewById(R.id.group_mod_setting_accent);
+        if (group == null) return;
+        group.removeAllViews();
+        int[] swatches = ModMenuSettings.ACCENT_SWATCHES;
+        for (int i = 0; i < swatches.length; i++) {
+            View swatch = new View(activity);
+            int size = (int) (32 * density());
+            android.widget.LinearLayout.LayoutParams params =
+                    new android.widget.LinearLayout.LayoutParams(size, size);
+            params.setMarginEnd((int) (10 * density()));
+            swatch.setLayoutParams(params);
+            android.graphics.drawable.GradientDrawable bg =
+                    new android.graphics.drawable.GradientDrawable();
+            bg.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+            bg.setColor(swatches[i]);
+            if (i == current.accentIndex()) {
+                bg.setStroke((int) Math.max(2f, 2f * density()), ModMenuPalette.TEXT_PRIMARY);
+            }
+            swatch.setBackground(bg);
+            swatch.setContentDescription(activity.getString(R.string.mod_menu_setting_accent)
+                    + " " + (i + 1));
+            final int index = i;
+            swatch.setOnClickListener(v -> applyMenuSettings(current.withAccentIndex(index)));
+            DynamicAnim.applyPressScale(swatch);
+            group.addView(swatch);
+        }
+    }
+
+    /**
+     * Persists and applies a new appearance settings value (M6).
+     *
+     * <p>Re-applying immediately is what makes the settings tab useful: a change is visible on the
+     * menu behind the sheet rather than on the next open.
+     */
+    private void applyMenuSettings(ModMenuSettings settings) {
+        if (settings == null) return;
+        menuSettings = settings;
+        InbuiltModManager.getInstance(activity).setModMenuSettings(settings);
+        if (adapter != null) {
+            adapter.setSettings(settings);
+            adapter.setCompactMode(compactMode);
+        }
+        theme = new ModMenuTheme(activity, settings);
+        if (adapter != null) adapter.setTheme(theme);
+        applyCompactModeLayout(compactMode);
+        applyMenuOpacity();
+        // The controls are rebuilt so the active chip/swatch reflects the new value.
+        setupModMenuAppearanceSettings();
+        if (modsRecycler != null && modsRecycler.getAdapter() != null) {
+            modsRecycler.getAdapter().notifyDataSetChanged();
+        }
+    }
+
+    private float density() {
+        return activity.getResources().getDisplayMetrics().density;
     }
 
     /**
@@ -1845,6 +2231,10 @@ public class ModMenuOverlay {
 
         if (adapter != null) {
             adapter.updateMods(filteredMods, favoriteKeys);
+            // M9: the user's saved order is applied after the shipped order is loaded, so an
+            // update that adds a module does not discard the arrangement the player made.
+            adapter.applySavedOrder(InbuiltModManager.getInstance(activity)
+                    .getModMenuSectionOrder(activeFilter.name()));
             if (!hasStaggeredOnce) {
                 hasStaggeredOnce = true;
                 DynamicAnim.staggerRecyclerChildren(modsRecycler);
@@ -2145,7 +2535,39 @@ public class ModMenuOverlay {
         allMods.addAll(InbuiltModuleProvider.load(activity));
         allMods.addAll(ExternalModuleProvider.load(activity));
 
+        applyRowStates(manager);
         applyFilters();
+    }
+
+    /**
+     * Derives each module's row state and hands it to the adapter (M10).
+     *
+     * <p>This is what makes the menu self-explaining: a module the crash guard disabled says so,
+     * and a module with no hook on this build says that instead of looking like a plain off
+     * toggle. The state is derived from the same sources the rest of the launcher uses, so the
+     * menu cannot claim a module is healthy when the crash guard has disabled it.
+     */
+    private void applyRowStates(InbuiltModManager manager) {
+        if (adapter == null) return;
+        java.util.Map<String, ModMenuRowState> states = new java.util.HashMap<>();
+        for (UnifiedMod mod : allMods) {
+            boolean available = org.chimeramc.client.core.mods.inbuilt.model.ModAvailability
+                    .isInteractive(mod.getId());
+            // A recorded load failure is what "failed to register" means in this build; there is
+            // no separate registration flag on the row model.
+            boolean registered = org.chimeramc.client.core.mods.ModLoadDiagnostics
+                    .getForMod(activity, mod.getId()) == null;
+            boolean autoDisabled = false;
+            try {
+                autoDisabled = org.chimeramc.client.core.mods.ModCrashAttribution
+                        .wasAutoDisabled(activity, mod.getId());
+            } catch (Throwable ignored) {
+                // An unreadable crash record must not hide the module; it reads as not crashed.
+            }
+            states.put(mod.getStableKey(), ModMenuRowState.of(
+                    registered, available, autoDisabled, mod.isEnabled()));
+        }
+        adapter.setRowStates(states);
     }
 
     private void filterMods(String query) {

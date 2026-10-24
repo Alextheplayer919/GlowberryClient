@@ -809,6 +809,55 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="mod_menu_favorite">Add to favorites</string>
     <string name="mod_menu_unfavorite">Remove from favorites</string>
     <string name="mod_menu_hud_editor">HUD Editor</string>
+
+    <!-- Mod Menu row failure surfacing (M10). A module that cannot run says why, in one line, on
+         the row itself. -->
+    <string name="mod_menu_row_failed">Failed to load</string>
+    <string name="mod_menu_row_crashed">Disabled after 2 crashes. Re-enable?</string>
+    <string name="mod_menu_row_unsupported">No hook for this Bedrock build</string>
+    <string name="mod_menu_row_reason_title">Why this module is off</string>
+    <string name="mod_menu_row_reason_re_enable">Re-enable</string>
+    <string name="mod_menu_row_reason_dismiss">Close</string>
+
+    <!-- Mod Menu actions (M3). An action fires once and is drawn with a chevron, never a switch. -->
+    <string name="mod_menu_actions_header">ACTIONS</string>
+    <string name="mod_menu_action_reset_hud">Reset HUD Position</string>
+    <string name="mod_menu_action_reset_hud_desc">Centre every HUD overlay back to its default spot</string>
+    <string name="mod_menu_action_reload_mods">Reload Modules</string>
+    <string name="mod_menu_action_reload_mods_desc">Re-scan and re-register every module</string>
+    <string name="mod_menu_action_reset_hud_done">HUD positions reset</string>
+
+    <!-- Mod Menu settings tab (M6). Presets plus four sliders, and nothing free-form. -->
+    <string name="mod_menu_settings_appearance">Appearance</string>
+    <string name="mod_menu_setting_theme">Theme</string>
+    <string name="mod_menu_setting_glass">Glass intensity</string>
+    <string name="mod_menu_setting_radius">Corner radius</string>
+    <string name="mod_menu_setting_density">Density</string>
+    <string name="mod_menu_setting_toggle_style">Toggle style</string>
+    <string name="mod_menu_setting_motion">Motion</string>
+    <string name="mod_menu_setting_blur_fps">Blur refresh</string>
+    <string name="mod_menu_setting_hud_opacity">HUD opacity</string>
+    <string name="mod_menu_setting_accent">Accent</string>
+    <string name="mod_menu_setting_system_override">System accessibility settings always win</string>
+    <string name="mod_menu_setting_value_dp">%1$d dp</string>
+    <string name="mod_menu_setting_value_fps">%1$d fps</string>
+    <string name="mod_menu_setting_value_percent">%1$d%%</string>
+    <string name="mod_menu_theme_navy">Navy</string>
+    <string name="mod_menu_theme_true_black">True Black</string>
+    <string name="mod_menu_theme_system">Follow System</string>
+    <string name="mod_menu_glass_off">Off</string>
+    <string name="mod_menu_glass_subtle">Subtle</string>
+    <string name="mod_menu_glass_full">Full</string>
+    <string name="mod_menu_density_compact">Compact</string>
+    <string name="mod_menu_density_comfortable">Comfortable</string>
+    <string name="mod_menu_toggle_switch">Switch</string>
+    <string name="mod_menu_toggle_pill_label">Pill + label</string>
+    <string name="mod_menu_toggle_checkbox">Checkbox</string>
+    <string name="mod_menu_motion_full">Full</string>
+    <string name="mod_menu_motion_reduced">Reduced</string>
+    <string name="mod_menu_motion_system">Follow system</string>
+    <string name="mod_menu_reorder_hint">Press and hold a row to reorder it</string>
+    <string name="mod_menu_section_empty">No modules in this section</string>
     <string name="mod_menu_filter_enabled">Enabled</string>
     <string name="mod_menu_filter_inbuilt">Inbuilt</string>
     <string name="mod_menu_filter_external">External</string>
