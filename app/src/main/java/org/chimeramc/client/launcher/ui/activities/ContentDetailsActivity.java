@@ -35,6 +35,7 @@ import org.chimeramc.client.core.versions.VersionManager;
 import org.chimeramc.client.settings.FeatureSettings;
 import org.chimeramc.client.util.LauncherStorage;
 import org.chimeramc.client.ui.animation.DynamicAnim;
+import org.chimeramc.client.launcher.core.minecraft.UserFacingError;
 
 
 
@@ -112,6 +113,8 @@ public class ContentDetailsActivity extends BaseActivity {
         if (summary != null) {
             summary.destroy();
         }
+        // The download executor is Activity-scoped; without this its thread outlives the screen.
+        downloadExecutor.shutdownNow();
         super.onDestroy();
     }
 
@@ -272,7 +275,9 @@ public class ContentDetailsActivity extends BaseActivity {
                                 ContentDetailsActivity.this, ContentDetailsActivity.this::loadAllFiles);
                         return;
                     }
-                    Toast.makeText(ContentDetailsActivity.this, getString(R.string.failed_to_load_files, t.getMessage()), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(ContentDetailsActivity.this,
+                            UserFacingError.reason(ContentDetailsActivity.this, t),
+                            Toast.LENGTH_LONG).show();
                 });
             }
         });
@@ -375,7 +380,8 @@ public class ContentDetailsActivity extends BaseActivity {
                 runOnUiThread(() -> {
                     progressBar.setVisibility(View.GONE);
                     btnInstall.setEnabled(true);
-                    Toast.makeText(this, getString(R.string.curseforge_download_failed) + ": " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, getString(R.string.curseforge_download_failed) + "\n\n"
+                            + UserFacingError.reason(this, e), Toast.LENGTH_LONG).show();
                 });
             }
         });

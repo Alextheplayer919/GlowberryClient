@@ -23,6 +23,8 @@ public final class LaunchFailurePresenter {
                 return 0;
             case NO_VERSION_SELECTED:
                 return R.string.dialog_title_no_version;
+            case PLAY_STORE_PACKAGE:
+                return R.string.launch_failure_title_play_store;
             case GAME_FILES_MISSING:
                 return R.string.launch_failure_title_game_files_missing;
             case ABI_INCOMPATIBLE:
@@ -48,6 +50,8 @@ public final class LaunchFailurePresenter {
                 return 0;
             case NO_VERSION_SELECTED:
                 return R.string.dialog_message_no_version;
+            case PLAY_STORE_PACKAGE:
+                return R.string.launch_failure_message_play_store;
             case GAME_FILES_MISSING:
                 return R.string.launch_failure_message_game_files_missing;
             case ABI_INCOMPATIBLE:

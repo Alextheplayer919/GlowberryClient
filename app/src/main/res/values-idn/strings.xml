@@ -103,15 +103,11 @@
 
     <string name="dialog_title_no_version">Tidak Ada Versi yang Dipilih</string>
     <string name="dialog_message_no_version">Silakan pilih versi game sebelum memulai.</string>
-    <string name="dialog_title_version_isolation">Isolasi Versi Diperlukan</string>
-    <string name="dialog_message_version_isolation">Ini adalah versi impor. Harap aktifkan isolasi versi di pengaturan untuk menjalankan versi ini.</string>
     <string name="dialog_positive_enable">Aktifkan</string>
     <string name="dialog_title_launch_failed">Peluncuran Gagal</string>
     <string name="dialog_message_launch_failed">Gagal meluncurkan Minecraft: %1$s</string>
     <string name="dialog_title_incompatible_mods">Mod Tidak Kompatibel Dilewati</string>
     <string name="dialog_message_incompatible_mods">Beberapa mod yang aktif tidak kompatibel dengan versi Minecraft saat ini %1$s dan dilewati:\n\n%2$s</string>
-    <string name="dialog_title_disable_version_isolation">Nonaktifkan Isolasi Versi</string>
-    <string name="dialog_message_disable_version_isolation">Anda mencoba menjalankan versi yang sudah terpasang dengan isolasi versi diaktifkan. Harap nonaktifkan isolasi versi untuk melanjutkan..</string>
     <string name="dialog_positive_disable">Matikan</string>
     <string name="dialog_positive_ok">OK</string>
 
@@ -336,13 +332,8 @@ Migrasi harus selesai sebelum GlowberryClient dapat melanjutkan.</string>
     <string name="failed_to_create_world">Gagal menciptakan dunia</string>
 
     <!-- Play Store Validation -->
-    <string name="minecraft_playstore_required_title">Versi Play Store Diperlukan</string>
-    <string name="minecraft_playstore_required_message">Peluncur ini hanya berfungsi dengan aplikasi Minecraft resmi dari Google Play Store. Silakan instal versi Play Store untuk melanjutkan.</string>
-    <string name="buy_minecraft">Dapatkan Minecraft Di Play Store</string>
     <string name="minecraft_not_installed_title">Minecraft Belum Terinstal</string>
     <string name="minecraft_not_installed_message">Minecraft belum terpasang di perangkat Anda. Silakan instal dari Google Play Store untuk menggunakan peluncur ini.</string>
-    <string name="install_minecraft">Instal Minecraft</string>
-    <string name="genuine_badge_label">Lisensi tidak ter-verifikasi</string>
     <string name="invalid_license_detected_toast">Minecraft palsu terdeteksi. Pastikan Minecraft Anda berasal dari Google Play Store.</string>
 
     <string name="full_mods_title">Mods </string>

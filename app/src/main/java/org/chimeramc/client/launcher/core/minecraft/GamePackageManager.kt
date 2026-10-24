@@ -18,12 +18,27 @@ import java.io.IOException
 import java.io.InputStream
 import java.util.zip.ZipFile
 
+import org.chimeramc.client.core.minecraft.ExtractionCachePolicy
+import org.chimeramc.client.core.minecraft.NativeLibraryVersionGate
+
 class GamePackageManager private constructor(
     private val context: Context,
     private val version: GameVersion?,
-    private val launchTrace: LaunchTrace?,
-    private val progressListener: MinecraftRuntimePreparer.ProgressListener?
+    launchTrace: LaunchTrace?,
+    progressListener: MinecraftRuntimePreparer.ProgressListener?
 ) {
+
+    /**
+     * Where this instance reports progress.
+     *
+     * <p>Not constructor `val`s: the instance is cached per version and reused by the next launch
+     * of that version, so a sink captured once would keep reporting into the *previous* launch's
+     * {@link LaunchTrace}. The second launch of an instance then had no extraction milestones in
+     * its trace at all, which is exactly the diagnostic that explains a slow launch. {@code
+     * getInstance} re-points both on reuse.
+     */
+    private var launchTrace: LaunchTrace? = launchTrace
+    private var progressListener: MinecraftRuntimePreparer.ProgressListener? = progressListener
 
     private val packageContext: Context
     private val assetManager: AssetManager
@@ -81,11 +96,15 @@ class GamePackageManager private constructor(
         // The entire native-library path (extraction + loading) must derive from the
         // version's own ABI, not the device's primary ABI, so 32-bit-only versions load
         // their 32-bit libraries consistently from the matching architecture folder.
-        launchAbi = getDeviceAbi(collectApkFiles())
+        // Hold it in a local: reading the mutable field back through `!!` would re-assert a
+        // non-null the assignment just guaranteed, and would silently break if the field were
+        // ever cleared between the two statements.
+        val resolvedAbi = getDeviceAbi(collectApkFiles())
+        launchAbi = resolvedAbi
         nativeLibDir = MinecraftLauncher.getRuntimeLibAbiDir(
             context,
             MinecraftLauncher.getStorageProfileId(version),
-            launchAbi!!
+            resolvedAbi
         ).absolutePath
         File(nativeLibDir).mkdirs()
         if (version != null && !version.isInstalled) {
@@ -254,27 +273,30 @@ class GamePackageManager private constructor(
         val nativeExtractionVersion = nativeExtractionVersion()
         val versionFile = File(nativeLibDir, "native_extraction_version")
         val versionMatches = try {
-            versionFile.isFile && versionFile.readText().trim() == nativeExtractionVersion.toString()
+            ExtractionCachePolicy.markerMatches(
+                if (versionFile.isFile) versionFile.readText() else null,
+                nativeExtractionVersion
+            )
         } catch (_: Exception) {
             false
         }
         val cacheRequiredLibs = getCacheRequiredLibs()
 
-        if (markerMatches && !versionMatches) {
+        if (ExtractionCachePolicy.shouldWipeStaleLibraries(markerMatches, versionMatches)) {
             report("Extraction version changed ($nativeExtractionVersion): wiping stale native library cache")
             wipeExtractedLibraries(outputDir, cacheRequiredLibs)
         }
 
-        var allPresent = markerMatches && versionMatches
-        if (allPresent) {
-            for (lib in cacheRequiredLibs) {
-                val file = File(outputDir, lib)
-                if (!file.exists() || file.length() == 0L) {
-                    allPresent = false
-                    break
-                }
+        val allPresent = ExtractionCachePolicy.isCacheUsable(
+            markerMatches,
+            versionMatches,
+            // `asList` (the Kotlin stdlib view over an Array), not `toList`: the latter is textually
+            // the same call as the API-34 Stream.toList the Api28Compat guard forbids, so the guard
+            // cannot tell the two apart and flags a perfectly safe Kotlin call.
+            ExtractionCachePolicy.allLibrariesPresent(cacheRequiredLibs.asList()) { lib ->
+                File(outputDir, lib).let { it.exists() && it.length() > 0L }
             }
-        }
+        )
 
         if (allPresent) {
             report("Minecraft library cache hit: ${outputDir.absolutePath}")
@@ -292,26 +314,30 @@ class GamePackageManager private constructor(
         }
         report("Minecraft library cache miss: extracting libraries")
 
+        val abi: String
         if (version != null && !version.isInstalled) {
             // Resolve once: getDeviceAbi scans every APK, so calling it per file would
             // re-open all of them for each one.
-            val abi = getDeviceAbi(apkFiles)
+            abi = getDeviceAbi(apkFiles)
             apkFiles.forEach { extractFromApk(it.absolutePath, outputDir, abi) }
-            val missingLibs = cacheRequiredLibs.filter { lib -> !File(outputDir, lib).exists() }
-            if (missingLibs.isNotEmpty()) {
-                throw IllegalStateException(
-                    "Required native libraries for ABI $abi are missing from this version's APK/splits."
-                )
-            }
         } else {
             val appInfo = packageContext.applicationInfo
             if (File(appInfo.nativeLibraryDir).exists()) {
                 copyFromNativeDir(appInfo.nativeLibraryDir, outputDir)
             }
-            val abi = getDeviceAbi(apkFiles)
+            abi = getDeviceAbi(apkFiles)
             apkFiles.forEach { extractFromApk(it.absolutePath, outputDir, abi) }
         }
+        // The STL fallback runs before the completeness check, not after. libc++_shared.so is in
+        // the required list, and a package that ships no copy is supplied from the launcher's own
+        // native dir - so checking first would refuse a perfectly launchable version for a library
+        // the launcher was about to provide.
         ensureLibCppSharedFallback(outputDir)
+        // Both extraction paths refuse a missing required library with the same named reason. The
+        // installed-package path used to only *log* it, so an incomplete cache passed this point
+        // and died later at dlopen with "libX.so not found in <dir>" - a message that names the
+        // file but not the cause.
+        requireLibrariesPresent(outputDir, cacheRequiredLibs, abi)
         verifyLibraries(outputDir)
 
         if (cacheRequiredLibs.all { File(outputDir, it).let { f -> f.exists() && f.length() > 0 } }) {
@@ -397,7 +423,7 @@ class GamePackageManager private constructor(
 
     private fun buildExtractionManifest(apkFiles: List<File>): String {
         return buildString {
-            append("extractor=").append(EXTRACTOR_VERSION).append('\n')
+            append("extractor=").append(ExtractionCachePolicy.EXTRACTOR_VERSION).append('\n')
             append("abi=").append(getDeviceAbi(apkFiles)).append('\n')
             append("token=").append(NativeImageGuard.TOKEN).append('\n')
             append("mode=").append(if (version != null && !version.isInstalled) "isolated" else "installed").append('\n')
@@ -421,7 +447,26 @@ class GamePackageManager private constructor(
             return
         }
 
-        extractableLibs.forEach { lib ->
+        // G3: copy every `.so` the installed package ships, not only the names the launcher lists,
+        // for the same reason `extractFromApk` does. The named list gates what *must* be present;
+        // covering everything means a transitive DT_NEEDED dependency the launcher does not know
+        // about is still in the directory when the game's libraries dlopen it. Before this, an
+        // installed-package launch could fail with "library not found" for a dependency that was
+        // sitting right there in the source directory.
+        val shipped = source.listFiles { file -> file.isFile && file.name.endsWith(".so") }
+        // `asList` (the Kotlin stdlib view over an Array), not `toList`: the latter is textually the
+        // same call as the API-34 Stream.toList the Api28Compat guard forbids, so the guard cannot
+        // tell the two apart and flags a perfectly safe Kotlin call.
+        val named = extractableLibs.asList()
+        val toCopy = if (shipped.isNullOrEmpty()) {
+            // A directory that cannot be listed (permissions, an unusual OEM layout) falls back to
+            // the named list rather than copying nothing.
+            named
+        } else {
+            (shipped.map { it.name } + named).distinct()
+        }
+
+        for (lib in toCopy) {
             val srcFile = File(source, lib)
             val dstFile = File(destDir, lib)
             if (srcFile.exists() && srcFile.length() > 0) {
@@ -470,14 +515,22 @@ class GamePackageManager private constructor(
                     if (!entry.name.startsWith(abiPath) || !entry.name.endsWith(".so")) continue
                     val libName = entry.name.removePrefix(abiPath)
                     val output = File(outputDir, libName)
-                    zip.getInputStream(entry).use { input ->
-                        copyStreamToReadOnlyFile(input, output)
-                    }
-                    extracted += libName
-                    report("Extracted $libName from ${apkFile.name} for $abi")
-                    if (!processNativeImage(output, true)) {
-                        output.delete()
-                        throw IOException("Failed to prepare native library: ${output.name}")
+                    // Per-entry containment: one library that cannot be replaced (a previous
+                    // extraction left it read-only) or prepared must not abort the remaining
+                    // entries, or a single bad file would leave the cache half-populated and the
+                    // launch failing with a confusing missing-dependency error.
+                    try {
+                        zip.getInputStream(entry).use { input ->
+                            copyStreamToReadOnlyFile(input, output)
+                        }
+                        if (!processNativeImage(output, true)) {
+                            output.delete()
+                            throw IOException("Failed to prepare native library: ${output.name}")
+                        }
+                        extracted += libName
+                        report("Extracted $libName from ${apkFile.name} for $abi")
+                    } catch (e: Exception) {
+                        mirrorLogcat('W', "Failed to extract ${output.name} from $apkPath: ${e.message}")
                     }
                 }
                 if (extracted.isEmpty()) {
@@ -491,8 +544,14 @@ class GamePackageManager private constructor(
 
     private fun copyStreamToReadOnlyFile(input: InputStream, output: File) {
         ensureParentDirectory(output)
-        if (output.exists() && !output.delete()) {
-            throw IOException("Failed to replace existing file: ${output.absolutePath}")
+        if (output.exists()) {
+            // A previous extraction marks every library read-only, and a read-only file cannot be
+            // deleted. Without making it writable first, re-extraction (Repair, or a version bump)
+            // failed to replace its own cache and the launch kept loading the stale library.
+            output.setWritable(true, true)
+            if (!output.delete()) {
+                throw IOException("Failed to replace existing file: ${output.absolutePath}")
+            }
         }
 
         val tempFile = File(output.absolutePath + ".tmp")
@@ -549,6 +608,28 @@ class GamePackageManager private constructor(
      * not removed here — the launch preflight decides what to do — but every mismatch is logged
      * so the diagnostics report and logcat agree about the failure cause.
      */
+    /**
+     * Fails with the specific cause when a required library is absent from the extracted cache.
+     *
+     * <p>A zero-length file is what an interrupted extraction leaves behind, and it is not loadable,
+     * so it must fail here with the named reason rather than passing the preflight and dying at
+     * {@code dlopen} with an error the user cannot act on.
+     *
+     * <p>Shared by both extraction paths so an imported version and an installed version cannot
+     * report the same condition two different ways.
+     */
+    private fun requireLibrariesPresent(outputDir: File, required: Array<String>, abi: String) {
+        val missingLibs = ExtractionCachePolicy.missingLibraries(required.asList()) { lib ->
+            File(outputDir, lib).let { it.exists() && it.length() > 0L }
+        }
+        if (missingLibs.isNotEmpty()) {
+            throw IllegalStateException(
+                "Required native libraries for ABI $abi are missing from this version's APK/splits: "
+                    + missingLibs.joinToString()
+            )
+        }
+    }
+
     private fun verifyLibraryAbi(dir: File) {
         val processIs64Bit = Build.SUPPORTED_64_BIT_ABIS.isNotEmpty()
         val libs = getCacheRequiredLibs().plus(systemLoadedLibs)
@@ -604,36 +685,18 @@ class GamePackageManager private constructor(
     }
 
     private fun getCacheRequiredLibs(): Array<String> {
-        return if (shouldLoadHttpClient()) {
-            requiredLibs + optionalLibs
-        } else {
-            requiredLibs
-        }
+        // The cache is "complete" only when every library the loader will open is present. The
+        // version-gated libraries are loaded out of this same extracted directory by
+        // loadAllLibraries, so leaving them out of this list let an interrupted extraction look
+        // complete and then fail at load with "libmaesdk.so not found" - the same class of
+        // cache/loader disagreement the HTTP-client gate had. The list itself comes from the shared
+        // rule, so the cache and the loader cannot drift again.
+        val gated = NativeLibraryVersionGate.gatedLibraries(version?.versionCode)
+        return (requiredLibs.asList() + gated).toTypedArray()
     }
 
     private fun shouldLoadHttpClient(): Boolean {
-        val versionCode = version?.versionCode ?: return false
-        val targetVersion = if (versionCode.contains("beta")) "1.21.130.20" else "1.21.130"
-        return isVersionAtLeast(versionCode, targetVersion)
-    }
-
-    private fun isVersionAtLeast(currentVersion: String, targetVersion: String): Boolean {
-        return try {
-            val current = currentVersion.replace(Regex("[^0-9.]"), "").split(".")
-            val target = targetVersion.split(".")
-            val maxLength = maxOf(current.size, target.size)
-
-            for (i in 0 until maxLength) {
-                val currentPart = current.getOrNull(i)?.toIntOrNull() ?: 0
-                val targetPart = target.getOrNull(i)?.toIntOrNull() ?: 0
-
-                if (currentPart > targetPart) return true
-                if (currentPart < targetPart) return false
-            }
-            true
-        } catch (_: Exception) {
-            false
-        }
+        return NativeLibraryVersionGate.shouldLoadHttpClient(version?.versionCode)
     }
 
     private fun mirrorLogcat(level: Char, message: String) {
@@ -656,11 +719,11 @@ class GamePackageManager private constructor(
 
     private fun report(message: String) {
         LaunchLog.append(context, message)
-        if (progressListener != null) {
-            progressListener.onLog(message)
-        } else {
-            launchTrace?.mark(message)
-        }
+        // Both sinks, always. The listener drives the loading screen and the trace drives the
+        // diagnostics report, and they are read by different people at different times; reporting
+        // to only one of them is how the two end up disagreeing about what a launch actually did.
+        progressListener?.onLog(message)
+        launchTrace?.mark(message)
     }
 
     private fun createAssetManager(): AssetManager {
@@ -783,7 +846,11 @@ class GamePackageManager private constructor(
                     elapsedSince(startedAt)
                 )
             } catch (e: UnsatisfiedLinkError) {
-                val detail = e.message ?: e.javaClass.simpleName
+                // Same bitness annotation the file path uses. A launcher-bundled library is
+                // always the process's own ABI, so this is usually a transitive dependency of the
+                // bundled lib that is 32-bit - and "dlopen failed: is 32-bit instead of 64-bit"
+                // does not say which one.
+                val detail = processBitnessMismatchDetail(e) ?: (e.message ?: e.javaClass.simpleName)
                 mirrorLogcat('E', "Failed to load $fileName from $source: $detail")
                 return LibraryLoadResult(normalizedName, fileName, source, false, elapsedSince(startedAt), detail)
             } catch (e: Exception) {
@@ -944,7 +1011,6 @@ class GamePackageManager private constructor(
 
     companion object {
         private const val TAG = "GamePackageManager"
-        private const val EXTRACTOR_VERSION = 4
 
         @Volatile
         private var instance: GamePackageManager? = null
@@ -964,11 +1030,22 @@ class GamePackageManager private constructor(
         ): GamePackageManager {
             return synchronized(this) {
                 val newVersionKey = buildVersionKey(version)
-                if (instance == null || newVersionKey != lastVersionKey) {
-                    instance = GamePackageManager(context.applicationContext, version, launchTrace, progressListener)
+                val current = instance
+                if (current == null || newVersionKey != lastVersionKey) {
+                    val created = GamePackageManager(
+                        context.applicationContext, version, launchTrace, progressListener
+                    )
+                    instance = created
                     lastVersionKey = newVersionKey
+                    created
+                } else {
+                    // Reused: re-point the sinks at this launch. The instance outlives a launch, so
+                    // a stale LaunchTrace would silently drop this launch's extraction milestones
+                    // and a stale listener would log into the previous loading screen.
+                    current.launchTrace = launchTrace
+                    current.progressListener = progressListener
+                    current
                 }
-                instance!!
             }
         }
 
@@ -988,7 +1065,7 @@ class GamePackageManager private constructor(
 
         /** Manual extractor pipeline version; bump when the extraction logic changes. */
         @JvmStatic
-        fun extractorVersion(): Int = EXTRACTOR_VERSION
+        fun extractorVersion(): Int = ExtractionCachePolicy.EXTRACTOR_VERSION
 
         /**
          * The extraction version this launcher build expects, as written to the
@@ -998,13 +1075,15 @@ class GamePackageManager private constructor(
          */
         @JvmStatic
         fun calculateNativeExtractionVersion(): Int {
-            val manual = EXTRACTOR_VERSION
             val appVersion = try {
                 BuildConfig.VERSION_CODE
             } catch (_: Throwable) {
                 0
             }
-            return (manual shl 16) or (appVersion and 0xffff)
+            return ExtractionCachePolicy.extractionVersion(
+                ExtractionCachePolicy.EXTRACTOR_VERSION,
+                appVersion
+            )
         }
 
         /**
@@ -1031,9 +1110,73 @@ class GamePackageManager private constructor(
             }
         }
 
+        /**
+         * Whether a version's APK ships an ABI this process can load, without constructing the
+         * package manager.
+         *
+         * <p>The launch preflight only needs the ABI answer, but the instance's ABI check used to go
+         * through [getInstance], whose `init` block runs the whole native-library extraction and
+         * builds an AssetManager. So merely asking "would this launch be refused?" performed the
+         * expensive preparation work, and the launch then threw that instance away and built another
+         * one - a large part of the reported lag when Launch is pressed. This reads the APK's ABI
+         * table directly, which is the same authority [abiCompatibility] uses, and leaves the
+         * extraction to the launch itself.
+         *
+         * <p>An unreadable ABI is not incompatible: [AbiBitness.isIncompatible] treats an unknown as
+         * "nothing proven" so the real error is the one the user sees.
+         */
+        @JvmStatic
+        fun versionAbiIsIncompatible(context: Context, version: GameVersion?): Boolean {
+            return try {
+                if (version == null) return false
+                val apks = collectVersionApkFiles(context, version)
+                val shipped = if (apks.isEmpty()) null else AbiBitness.abisInApks(apks)
+                val processIs64Bit = try {
+                    android.os.Process.is64Bit()
+                } catch (_: Throwable) {
+                    Build.SUPPORTED_64_BIT_ABIS.isNotEmpty()
+                }
+                AbiBitness.isIncompatible(shipped, processIs64Bit)
+            } catch (_: Throwable) {
+                false
+            }
+        }
+
+        /**
+         * The APK files a version's native libraries come from, without touching the extraction
+         * cache. Mirrors the paths the instance's own `collectApkFiles` uses.
+         */
+        private fun collectVersionApkFiles(context: Context, version: GameVersion): List<File> {
+            val paths = mutableListOf<String>()
+            if (version.isInstalled) {
+                val appInfo = context.packageManager
+                    .getPackageInfo(version.packageName ?: MinecraftLauncher.MC_PACKAGE_NAME, 0)
+                    .applicationInfo
+                appInfo?.sourceDir?.let { paths.add(it) }
+                appInfo?.splitPublicSourceDirs?.let { paths.addAll(it) }
+            } else if (version.versionDir != null) {
+                val base = File(version.versionDir, "base.apk.chimera")
+                if (base.isFile) paths.add(base.absolutePath)
+                val splits = File(version.versionDir, "splits").listFiles()
+                splits?.forEach {
+                    if (it.isFile && it.name.endsWith(".apk.chimera")) paths.add(it.absolutePath)
+                }
+            }
+            return paths.map { File(it) }.filter { it.exists() }
+        }
+
         /** Removes the extraction version marker so the next launch re-extracts native libs. */
         @JvmStatic
         fun invalidateExtractionCache(context: Context, version: GameVersion?) {
+            // Drop the cached manager as well as the on-disk markers. The manager extracts in its
+            // `init`, so a cached instance would never re-extract: the next launch reused it, found
+            // the cache "ready" from the already-populated nativeLibDir, and the repair was a
+            // no-op. Discarding it here is what makes Repair (and the automatic stale-library
+            // repair) actually rebuild the cache.
+            synchronized(this) {
+                instance = null
+                lastVersionKey = null
+            }
             try {
                 if (version == null) return
                 val profileId = MinecraftLauncher.getStorageProfileId(version)

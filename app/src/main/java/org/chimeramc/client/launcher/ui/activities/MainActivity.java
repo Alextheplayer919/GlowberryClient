@@ -43,6 +43,7 @@ import org.chimeramc.client.core.minecraft.MinecraftImportIntents;
 import org.chimeramc.client.core.minecraft.GamePackageManager;
 import org.chimeramc.client.launcher.core.minecraft.LaunchFailurePresenter;
 import org.chimeramc.client.launcher.core.minecraft.AndroidLaunchProbe;
+import org.chimeramc.client.launcher.core.minecraft.LaunchErrorDiagnosis;
 import org.chimeramc.client.launcher.core.minecraft.LaunchProbe;
 import org.chimeramc.client.launcher.core.minecraft.LaunchReadiness;
 import org.chimeramc.client.preloader.PreloaderSignatureRulesManager;
@@ -62,7 +63,7 @@ import org.chimeramc.client.ui.animation.DynamicAnim;
 import org.chimeramc.client.ui.animation.LaunchIntro;
 import org.chimeramc.client.ui.dialogs.CustomAlertDialog;
 import org.chimeramc.client.ui.dialogs.LibsRepairDialog;
-import org.chimeramc.client.ui.dialogs.PlayStoreValidationDialog;
+import org.chimeramc.client.ui.dialogs.MinecraftNotFoundDialog;
 import org.chimeramc.client.ui.views.MainViewModel;
 import org.chimeramc.client.ui.views.MainViewModelFactory;
 import org.chimeramc.client.util.ApkImportManager;
@@ -71,6 +72,7 @@ import org.chimeramc.client.util.LanguageManager;
 import org.chimeramc.client.util.InstanceShortcutManager;
 import org.chimeramc.client.util.LauncherStorage;
 import org.chimeramc.client.util.PermissionsHandler;
+import org.chimeramc.client.launcher.util.IconSizeApplier;
 import org.chimeramc.client.util.PersonalizationManager;
 import org.chimeramc.client.util.PlayStoreValidator;
 import org.chimeramc.client.util.ResourcepackHandler;
@@ -167,6 +169,13 @@ import okhttp3.OkHttpClient;
      */
     private final ExecutorService launchProbeExecutor = Executors.newSingleThreadExecutor();
 
+    /**
+     * Runs a resource-pack intent's launch. It used to be a fresh executor created inside
+     * {@code checkResourcepack()} on every call and never shut down, so each incoming pack intent
+     * leaked a thread; it is one executor for the Activity's lifetime now.
+     */
+    private final ExecutorService resourcepackExecutor = Executors.newSingleThreadExecutor();
+
     private final Handler uiHandler = new Handler(Looper.getMainLooper());
     private Runnable pulseRunnable;
     private boolean pulseRunning;
@@ -210,7 +219,7 @@ import okhttp3.OkHttpClient;
         setupNavBar();
         setupManagersAndHandlers();
         if (!isInstanceShortcutIntent()) {
-            new GithubReleaseUpdater(this, "ChimeraAnt-DEV", "ChimeraLauncher", permissionResultLauncher).checkUpdateOnLaunch();
+            new GithubReleaseUpdater(this, GithubReleaseUpdater.REPO_OWNER, GithubReleaseUpdater.REPO_NAME, permissionResultLauncher).checkUpdateOnLaunch();
         }
         showEulaIfNeeded();
         setupOnBackPressedCallback();
@@ -562,8 +571,15 @@ import okhttp3.OkHttpClient;
                         okhttp3.OkHttpClient.Builder clientBuilder = new okhttp3.OkHttpClient.Builder();
                         org.chimeramc.client.settings.LowLatencyNetworkManager.configure(clientBuilder);
                         okhttp3.OkHttpClient client = clientBuilder.build();
-                        okhttp3.Response imgResp = client.newCall(new okhttp3.Request.Builder().url(url).build()).execute();
-                        final android.graphics.Bitmap bmp = (imgResp.isSuccessful() && imgResp.body() != null) ? android.graphics.BitmapFactory.decodeStream(imgResp.body().byteStream()) : null;
+                        // The response body must be closed even on the failure path, or the
+                        // connection stays checked out of the pool for the life of the process.
+                        final android.graphics.Bitmap bmp;
+                        try (okhttp3.Response imgResp = client.newCall(
+                                new okhttp3.Request.Builder().url(url).build()).execute()) {
+                            bmp = (imgResp.isSuccessful() && imgResp.body() != null)
+                                    ? android.graphics.BitmapFactory.decodeStream(imgResp.body().byteStream())
+                                    : null;
+                        }
                         runOnUiThread(() -> { if (bmp != null) headerAvatar.setImageBitmap(bmp); });
                     } catch (Exception ignored) {}
                 });
@@ -822,10 +838,14 @@ import okhttp3.OkHttpClient;
 
             @Override
             public void onLaunchFailed(Exception e) {
-                runOnUiThread(() -> Toast.makeText(MainActivity.this,
-                        getString(R.string.dialog_message_launch_failed,
-                                e != null ? e.getMessage() : ""),
-                        Toast.LENGTH_LONG).show());
+                runOnUiThread(() -> {
+                    // Same classifier as the dialog path: the cause is named, then the raw text.
+                    LaunchErrorDiagnosis.Cause cause = LaunchErrorDiagnosis.classify(e);
+                    String detail = e != null ? e.getMessage() : null;
+                    String message = getString(LaunchErrorDiagnosis.messageRes(cause))
+                            + (detail != null ? "\n\n" + detail : "");
+                    Toast.makeText(MainActivity.this, message, Toast.LENGTH_LONG).show();
+                });
             }
         });
     }
@@ -902,9 +922,8 @@ import okhttp3.OkHttpClient;
     }
 
     private void checkResourcepack() {
-        ExecutorService executorService = Executors.newSingleThreadExecutor();
         new ResourcepackHandler(
-                this, minecraftLauncher, executorService
+                this, minecraftLauncher, resourcepackExecutor
         ).checkIntentForResourcepack();
     }
 
@@ -1391,8 +1410,10 @@ import okhttp3.OkHttpClient;
     }
     
     private void applyIconSize(int sizePercent) {
-        // Icon size implementation would go here
-        // For now, this is a placeholder for future icon scaling
+        // The preference is a real scale on every fixed-size icon in the tree (see IconSizeApplier
+        // for why the base size is cached rather than read from the live dimension).
+        if (binding == null || binding.getRoot() == null) return;
+        IconSizeApplier.apply(binding.getRoot(), sizePercent);
     }
     
     private void applyBlurIntensity(int intensity) {
@@ -2152,9 +2173,17 @@ import okhttp3.OkHttpClient;
         } catch (Exception e) {
             trace.error("Launch failed before activity start", e.getMessage());
             resetLaunchButton();
+            // Name the cause instead of only appending the raw dlopen text. The raw message is
+            // accurate but does not tell the user what to do; the classifier maps it to the
+            // specific reason (Google Play install, wrong bitness, missing dependency, ...) and the
+            // raw text is kept beneath it for the bug report.
+            LaunchErrorDiagnosis.Cause cause = LaunchErrorDiagnosis.classify(e);
             new CustomAlertDialog(this)
-                    .setTitleText(getString(R.string.dialog_title_launch_failed))
-                    .setMessage(getString(R.string.dialog_message_launch_failed, e.getMessage()))
+                    .setTitleText(getString(LaunchErrorDiagnosis.titleRes(cause)))
+                    .setMessage(getString(LaunchErrorDiagnosis.messageRes(cause))
+                            + "\n\n" + getString(R.string.launch_error_cause_label) + " "
+                            + LaunchErrorDiagnosis.label(cause)
+                            + (e.getMessage() != null ? "\n" + e.getMessage() : ""))
                     .setPositiveButton(getString(R.string.dialog_positive_ok), null)
                     .show();
         }
@@ -2182,7 +2211,19 @@ import okhttp3.OkHttpClient;
             return;
         }
         if (state == LaunchReadiness.State.GAME_NOT_INSTALLED) {
-            PlayStoreValidationDialog.showNotInstalledDialog(this);
+            MinecraftNotFoundDialog.showNotInstalledDialog(this);
+            return;
+        }
+        if (state == LaunchReadiness.State.PLAY_STORE_PACKAGE) {
+            // The files are present; they are just not in a form this launcher can open. Send the
+            // user to the import flow, which is the actual fix, rather than to the Play Store.
+            new CustomAlertDialog(this)
+                    .setTitleText(getString(title))
+                    .setMessage(getString(message))
+                    .setPositiveButton(getString(R.string.import_from_library),
+                            v -> startActivity(new Intent(this, LibraryActivity.class)))
+                    .setNegativeButton(getString(R.string.dialog_positive_ok), null)
+                    .show();
             return;
         }
         new CustomAlertDialog(this)
@@ -2662,6 +2703,9 @@ import okhttp3.OkHttpClient;
         dismissStorageMigrationDialog(null);
         storageMigrationExecutor.shutdownNow();
         launchProbeExecutor.shutdownNow();
+        resourcepackExecutor.shutdownNow();
+        // The account executor was never shut down either, so it outlived the Activity.
+        accountExecutor.shutdownNow();
         super.onDestroy();
     }
 

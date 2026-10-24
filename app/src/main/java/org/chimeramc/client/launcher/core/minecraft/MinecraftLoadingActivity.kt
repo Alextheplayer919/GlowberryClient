@@ -22,6 +22,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import org.chimeramc.client.R
+import org.chimeramc.client.launcher.core.minecraft.LaunchErrorDiagnosis
 import org.chimeramc.client.ui.activities.BaseActivity
 import org.chimeramc.client.ui.dialogs.CustomAlertDialog
 import org.chimeramc.client.util.PersonalizationManager
@@ -230,10 +231,17 @@ class MinecraftLoadingActivity : BaseActivity(), MinecraftRuntimePreparer.Progre
     private fun showFailure(throwable: Throwable) {
         if (isFinishing || isDestroyed) return
         val message = throwable.message ?: throwable.javaClass.simpleName
-        updateProgress(100, getString(R.string.minecraft_loading_failed), null)
+        // Name the cause, then the raw text. This is the screen a launch actually dies on, so it is
+        // where "dlopen failed: library \"libminecraftpe.so\" not found" has to become "this is a
+        // Google Play version or a version missing a file needed to launch the game".
+        val cause = LaunchErrorDiagnosis.classify(throwable)
+        val causeLine = getString(LaunchErrorDiagnosis.messageRes(cause))
+        updateProgress(100, getString(LaunchErrorDiagnosis.titleRes(cause)), null)
         detailView.visibility = View.GONE
         trace.error("Launch failed", message)
         appendLog("Launch failed")
+        appendLog(getString(R.string.launch_error_cause_label) + " " + LaunchErrorDiagnosis.label(cause))
+        appendLog(causeLine)
         appendLog(message)
         returnButton.visibility = View.VISIBLE
     }

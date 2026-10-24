@@ -20,6 +20,8 @@ import org.chimeramc.client.launcher.core.auth.AccountDiagnostics;
 import org.chimeramc.client.core.auth.MsftAccountStore;
 import org.chimeramc.client.core.cosmetics.AccountSkinCache;
 import org.chimeramc.client.core.cosmetics.AccountSkinService;
+import org.chimeramc.client.launcher.core.minecraft.AndroidLaunchProbe;
+import org.chimeramc.client.launcher.core.minecraft.LaunchProbe;
 import org.chimeramc.client.launcher.core.minecraft.LaunchReadiness;
 import org.chimeramc.client.core.versions.GameVersion;
 import org.chimeramc.client.core.versions.VersionManager;
@@ -111,30 +113,13 @@ public class DiagnosticsActivity extends BaseActivity {
         rows.removeAllViews();
 
         GameVersion version = selectedVersion();
-        LaunchReadiness.Facts facts = new LaunchReadiness.Facts()
-                .versionSelected(version != null)
-                .minecraftInstalled(PlayStoreValidator.isMinecraftInstalled(this));
-        if (version != null) {
-            facts.gameFilesPresent(version.versionDir != null
-                    && new java.io.File(version.versionDir, "base.apk.chimera").exists());
-            try {
-                facts.abiIncompatible(!GamePackageManager
-                        .getInstance(this, version, null, null)
-                        .requireLauncherSupportsVersion(version));
-            } catch (Throwable ignored) {
-            }
-            try {
-                facts.extractionStale(!GamePackageManager.isExtractionCacheCurrent(this, version));
-            } catch (Throwable ignored) {
-            }
-            try {
-                facts.signatureRulesCoverBuild(version.versionCode == null
-                        || version.versionCode.isEmpty()
-                        || PreloaderSignatureRulesManager
-                                .describeCoverageFailure(this, version.versionCode) == null);
-            } catch (Throwable ignored) {
-            }
-        }
+        // Use the launch path's own probe rather than re-deriving the facts here. The two copies
+        // had already drifted: this screen judged "game files present" by looking for
+        // base.apk.chimera, which an installed (Play Store) instance never has, so it reported a
+        // launchable install as missing its files. One probe means the diagnostics screen and the
+        // Play button cannot disagree about why a launch would be refused.
+        LaunchReadiness.Facts facts = LaunchProbe.gather(
+                new AndroidLaunchProbe(this, version, null));
         LaunchReadiness.State state = LaunchReadiness.evaluate(facts);
         addRow(rows, R.string.diagnostics_field_launch_state, LaunchReadiness.key(state));
         addRow(rows, R.string.diagnostics_field_launch_blocks,
@@ -162,7 +147,11 @@ public class DiagnosticsActivity extends BaseActivity {
         addRow(rows, R.string.diagnostics_field_android_version, Build.VERSION.RELEASE
                 + " (API " + Build.VERSION.SDK_INT + ")");
         addRow(rows, R.string.diagnostics_field_device, Build.MANUFACTURER + " " + Build.MODEL);
-        addRow(rows, R.string.diagnostics_field_sdk_build, String.valueOf(Build.VERSION_CODES.TIRAMISU <= Build.VERSION.SDK_INT ? "35" : "28"));
+        // The app's real target SDK, read from the installed package. The old value guessed from the
+        // device API (>= 33 ? "35" : "28"), so it was wrong on every device that was not on exactly
+        // API 33+ and did not match the manifest's targetSdkVersion either.
+        addRow(rows, R.string.diagnostics_field_sdk_build,
+                String.valueOf(getApplicationInfo().targetSdkVersion));
         addRow(rows, R.string.diagnostics_field_abi, String.join(", ", Build.SUPPORTED_ABIS));
 
         GameVersion version = selectedVersion();
@@ -421,6 +410,7 @@ public class DiagnosticsActivity extends BaseActivity {
         sb.append("App version: ").append(BuildConfig.VERSION_NAME).append(" (").append(BuildConfig.VERSION_CODE).append(")\n");
         sb.append("Android: ").append(Build.VERSION.RELEASE).append(" (API ").append(Build.VERSION.SDK_INT).append(")\n");
         sb.append("Device: ").append(Build.MANUFACTURER).append(" ").append(Build.MODEL).append("\n");
+        sb.append("Target SDK: ").append(getApplicationInfo().targetSdkVersion).append("\n");
         sb.append("ABIs: ").append(String.join(", ", Build.SUPPORTED_ABIS)).append("\n");
 
         GameVersion version = selectedVersion();

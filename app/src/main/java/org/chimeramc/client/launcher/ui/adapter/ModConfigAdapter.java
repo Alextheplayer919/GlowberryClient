@@ -240,9 +240,17 @@ public class ModConfigAdapter extends RecyclerView.Adapter<ModConfigAdapter.Conf
                     try {
                         setValue(node, JsonParser.parseString(editText.getText().toString()));
                     } catch (RuntimeException e) {
+                        // Gson's parser message carries the line and column, which is the
+                        // actionable part - but it can be null for a parser that threw without
+                        // one, and setMessage(null) shows an empty dialog with no clue at all.
+                        String detail = e.getMessage();
+                        if (detail == null || detail.trim().isEmpty()) {
+                            detail = node.itemView.getContext().getString(
+                                    R.string.mod_config_invalid_json_detail);
+                        }
                         new CustomAlertDialog(node.itemView.getContext())
                                 .setTitleText(node.itemView.getContext().getString(R.string.mod_config_invalid_json))
-                                .setMessage(e.getMessage())
+                                .setMessage(detail)
                                 .setPositiveButton(node.itemView.getContext().getString(R.string.dialog_positive_ok), null)
                                 .show();
                     }

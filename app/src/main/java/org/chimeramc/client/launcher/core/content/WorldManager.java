@@ -23,6 +23,7 @@ import java.util.concurrent.Executors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
+import org.chimeramc.client.launcher.core.minecraft.UserFacingError;
 
 public class WorldManager {
     private static final String TAG = "WorldManager";
@@ -96,44 +97,47 @@ public class WorldManager {
                     return;
                 }
 
-                InputStream inputStream = context.getContentResolver().openInputStream(worldUri);
-                if (inputStream == null) {
-                    callback.onError("Cannot open world file");
-                    return;
-                }
-
                 String tempDirName = "temp_world_" + System.currentTimeMillis();
                 File tempDir = new File(context.getCacheDir(), tempDirName);
                 tempDir.mkdirs();
-                
+
                 File tempZip = new File(context.getCacheDir(), tempDirName + "_zip.mcworld");
 
-                try {
-                    copyStreamToFile(inputStream, tempZip);
-                    extractZip(tempZip, tempDir, callback);
-
-                    File worldDir = findWorldDirectory(tempDir);
-                    if (worldDir == null) {
-                        callback.onError("Invalid world file - no world data found");
+                // The source stream is a resource for the whole staging step, so it is opened in
+                // the try-with-resources rather than closed by hand in a finally. Anything thrown
+                // between the open and the try - a mkdirs the platform refuses - used to leave the
+                // descriptor open.
+                try (InputStream inputStream = context.getContentResolver().openInputStream(worldUri)) {
+                    if (inputStream == null) {
+                        callback.onError("Cannot open world file");
                         return;
                     }
+                    try {
+                        copyStreamToFile(inputStream, tempZip);
+                        extractZip(tempZip, tempDir, callback);
 
-                    String worldName = generateUniqueWorldName(worldDir.getName(), worldsDirectory);
-                    File targetDir = new File(worldsDirectory, worldName);
+                        File worldDir = findWorldDirectory(tempDir);
+                        if (worldDir == null) {
+                            callback.onError("Invalid world file - no world data found");
+                            return;
+                        }
 
-                    copyDirectory(worldDir, targetDir);
-                    
-                    callback.onSuccess("World imported successfully");
-                    
-                } finally {
-                    deleteDirectory(tempDir);
-                    tempZip.delete();
-                    inputStream.close();
+                        String worldName = generateUniqueWorldName(worldDir.getName(), worldsDirectory);
+                        File targetDir = new File(worldsDirectory, worldName);
+
+                        copyDirectory(worldDir, targetDir);
+
+                        callback.onSuccess("World imported successfully");
+
+                    } finally {
+                        deleteDirectory(tempDir);
+                        tempZip.delete();
+                    }
                 }
 
             } catch (Exception e) {
                 Log.e(TAG, "Failed to import world", e);
-                callback.onError("Import failed: " + e.getMessage());
+                callback.onError(UserFacingError.shortReasonForText(context, "Import failed", e.getMessage()));
             }
         });
     }
@@ -160,7 +164,7 @@ public class WorldManager {
 
             } catch (Exception e) {
                 Log.e(TAG, "Failed to export world", e);
-                callback.onError("Export failed: " + e.getMessage());
+                callback.onError(UserFacingError.shortReasonForText(context, "Export failed", e.getMessage()));
             }
         });
     }
@@ -182,7 +186,7 @@ public class WorldManager {
 
             } catch (Exception e) {
                 Log.e(TAG, "Failed to delete world", e);
-                callback.onError("Delete failed: " + e.getMessage());
+                callback.onError(UserFacingError.shortReasonForText(context, "Delete failed", e.getMessage()));
             }
         });
     }
@@ -199,7 +203,7 @@ public class WorldManager {
 
             } catch (Exception e) {
                 Log.e(TAG, "Failed to backup world", e);
-                callback.onError("Backup failed: " + e.getMessage());
+                callback.onError(UserFacingError.shortReasonForText(context, "Backup failed", e.getMessage()));
             }
         });
     }
@@ -411,7 +415,7 @@ public class WorldManager {
 
             } catch (Exception e) {
                 Log.e(TAG, "Failed to transfer world", e);
-                callback.onError("Transfer failed: " + e.getMessage());
+                callback.onError(UserFacingError.shortReasonForText(context, "Transfer failed", e.getMessage()));
             }
         });
     }

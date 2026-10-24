@@ -23,6 +23,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import org.chimeramc.client.launcher.core.minecraft.UserFacingError;
 
 public class ContentImporter {
     private static final String TAG = "ContentImporter";
@@ -57,6 +58,7 @@ public class ContentImporter {
                 StringBuilder errors = new StringBuilder();
 
                 for (Uri uri : uris) {
+                    File tempFile = null;
                     try {
                         String fileName = getFileName(uri);
                         if (fileName == null || fileName.isEmpty()) {
@@ -65,15 +67,18 @@ public class ContentImporter {
                         String lowerName = fileName.toLowerCase();
                         Log.d(TAG, "Importing file: " + fileName);
 
-                        InputStream inputStream = context.getContentResolver().openInputStream(uri);
-                        if (inputStream == null) {
-                            errors.append("Cannot open file: ").append(fileName).append("\n");
-                            continue;
+                        // try-with-resources, and the staged copy is removed in a finally. The
+                        // old code closed the stream and deleted the temp by hand, so a malformed
+                        // archive - which is exactly when the import helpers throw - skipped both
+                        // and left the descriptor open and a full copy of the pack in the cache.
+                        tempFile = new File(context.getCacheDir(), "temp_import_" + System.currentTimeMillis());
+                        try (InputStream inputStream = context.getContentResolver().openInputStream(uri)) {
+                            if (inputStream == null) {
+                                errors.append("Cannot open file: ").append(fileName).append("\n");
+                                continue;
+                            }
+                            copyStreamToFile(inputStream, tempFile);
                         }
-
-                        File tempFile = new File(context.getCacheDir(), "temp_import_" + System.currentTimeMillis());
-                        copyStreamToFile(inputStream, tempFile);
-                        inputStream.close();
 
                         ImportResult result = new ImportResult();
 
@@ -99,11 +104,14 @@ public class ContentImporter {
                         totalResult.skinPacksImported += result.skinPacksImported;
                         totalResult.worldsImported += result.worldsImported;
 
-                        tempFile.delete();
-
                     } catch (Exception e) {
                         Log.e(TAG, "Import failed for uri: " + uri, e);
                         errors.append("Failed for ").append(uri.getLastPathSegment()).append(": ").append(e.getMessage()).append("\n");
+                    } finally {
+                        if (tempFile != null) {
+                            //noinspection ResultOfMethodCallIgnored
+                            tempFile.delete();
+                        }
                     }
                 }
 
@@ -133,7 +141,7 @@ public class ContentImporter {
 
             } catch (Exception e) {
                 Log.e(TAG, "Import failed", e);
-                callback.onError("Import failed: " + e.getMessage());
+                callback.onError(UserFacingError.shortReasonForText(context, "Import failed", e.getMessage()));
             }
         });
     }

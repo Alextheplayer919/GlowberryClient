@@ -18,6 +18,7 @@ import org.chimeramc.client.ui.adapter.ModConfigAdapter;
 import org.chimeramc.client.ui.animation.DynamicAnim;
 import org.chimeramc.client.ui.dialogs.CustomAlertDialog;
 import org.chimeramc.client.util.PersonalizationManager;
+import org.chimeramc.client.launcher.core.minecraft.UserFacingError;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -130,7 +131,12 @@ public class ModConfigActivity extends BaseActivity {
             } catch (Exception e) {
                 runOnUiThread(() -> {
                     loadingProgress.setVisibility(View.GONE);
-                    showEmpty(getString(R.string.mod_config_load_failed, e.getMessage()));
+                    // Name the file as well as the cause. The screen can be showing several config
+                    // files, and a bare getMessage() on a malformed one is usually null or
+                    // "Expected BEGIN_OBJECT but was STRING at line 1 column 1" - which names
+                    // neither the file nor the next step.
+                    showEmpty(getString(R.string.mod_config_load_failed, file.getDisplayName())
+                            + "\n\n" + UserFacingError.describe(ModConfigActivity.this, e));
                 });
             }
         }).start();
@@ -164,7 +170,7 @@ public class ModConfigActivity extends BaseActivity {
                     loadingProgress.setVisibility(View.GONE);
                     new CustomAlertDialog(this)
                             .setTitleText(getString(R.string.mod_config_save_failed))
-                            .setMessage(e.getMessage())
+                            .setMessage(UserFacingError.describe(ModConfigActivity.this, e))
                             .setPositiveButton(getString(R.string.dialog_positive_ok), null)
                             .show();
                 });

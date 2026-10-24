@@ -121,15 +121,11 @@
 
     <string name="dialog_title_no_version">Chưa chọn phiên bản</string>
     <string name="dialog_message_no_version">Vui lòng chọn phiên bản trò chơi trước khi khởi chạy.</string>
-    <string name="dialog_title_version_isolation">Yêu cầu chia phiên bản</string>
-    <string name="dialog_message_version_isolation">Đây là phiên bản được nhập. Vui lòng bật tính năng chia phiên bản trong cài đặt để khởi chạy phiên bản này. </string>
     <string name="dialog_positive_enable">Bật</string>
     <string name="dialog_title_launch_failed">Khởi chạy không thành công</string>
     <string name="dialog_message_launch_failed">Không thể khởi chạy Minecraft: %1$s</string>
     <string name="dialog_title_incompatible_mods">Các bản mod không tương thích đã bị bỏ qua</string>
     <string name="dialog_message_incompatible_mods">Một số bản mod không tương thích với phiên bản Minecraft hiện tại của bạn %1$s và đã bị bỏ qua:\n\n%2$s</string>
-    <string name="dialog_title_disable_version_isolation">Tắt tính năng chia phiên bản</string>
-    <string name="dialog_message_disable_version_isolation">Bạn đang cố gắng khởi chạy một phiên bản đã cài đặt với tính năng chia phiên bản được bật. Vui lòng tắt tính năng này để tiếp tục. </string>
     <string name="dialog_positive_disable">Tắt</string>
     <string name="dialog_positive_ok">OK</string>
 
@@ -390,13 +386,8 @@ Quá trình chuyển đổi phải hoàn tất trước khi GlowberryClient có 
     <string name="failed_to_create_world">Tạo thế giới thất bại</string>
 
     <!-- Play Store Validation -->
-    <string name="minecraft_playstore_required_title">Cần có phiên bản Play Store</string>
-    <string name="minecraft_playstore_required_message">Trình khởi chạy này chỉ hoạt động với ứng dụng Minecraft chính thức từ Google Play Store. Vui lòng cài đặt phiên bản từ Play Store để tiếp tục.</string>
-    <string name="buy_minecraft">Lấy Minecraft</string>
     <string name="minecraft_not_installed_title">Minecraft chưa được cài đặt</string>
     <string name="minecraft_not_installed_message">Minecraft chưa được cài đặt trên thiết bị của bạn. Vui lòng cài đặt trò chơi từ Google Play Store để sử dụng launcher này.</string>
-    <string name="install_minecraft">Cài đặt Minecraft</string>
-    <string name="genuine_badge_label">Giấy phép chưa được xác minh</string>
     <string name="invalid_license_detected_toast">Đã phát hiện Minecraft không phải bản chính hãng. Hãy đảm bảo Minecraft của bạn được tải từ Google Play Store.</string>
 
     <string name="full_mods_title">Mods </string>

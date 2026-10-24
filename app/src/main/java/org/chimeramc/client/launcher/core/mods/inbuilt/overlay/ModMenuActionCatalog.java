@@ -27,14 +27,18 @@ public final class ModMenuActionCatalog {
 
     private static List<ModMenuAction> build() {
         List<ModMenuAction> actions = new ArrayList<>();
+        // The section ids match a module's group id, so the action set follows the same filter the
+        // module set does: "Reset HUD Position" sits in the inbuilt section, "Reload Modules" too.
         actions.add(new ModMenuAction(ACTION_RESET_HUD,
                 R.string.mod_menu_action_reset_hud,
                 R.string.mod_menu_action_reset_hud_desc,
-                "hud"));
+                "inbuilt",
+                R.drawable.ic_hud));
         actions.add(new ModMenuAction(ACTION_RELOAD_MODULES,
                 R.string.mod_menu_action_reload_mods,
                 R.string.mod_menu_action_reload_mods_desc,
-                "general"));
+                "inbuilt",
+                R.drawable.ic_reload));
         return actions;
     }
 

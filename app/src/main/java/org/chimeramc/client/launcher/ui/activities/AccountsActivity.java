@@ -258,4 +258,12 @@ public class AccountsActivity extends BaseActivity {
             }
         });
     }
+
+    @Override
+    protected void onDestroy() {
+        // The account/avatar work runs on an Activity-scoped executor; without this its thread
+        // outlives the screen.
+        executor.shutdownNow();
+        super.onDestroy();
+    }
 }

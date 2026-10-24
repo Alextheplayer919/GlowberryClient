@@ -97,9 +97,21 @@ final class ModMenuTheme {
         return glowEnabled;
     }
 
-    /** The menu's surface colour; the per-group hue is gone (the list reads one palette now). */
-    int groupColor(String groupId) {
-        return ModMenuPalette.BG_SURFACE_2;
+    /**
+     * The section header's text colour.
+     *
+     * <p>The header is drawn directly on the panel, and the colour used to be the panel's own
+     * surface token — so every section title was painted near-black on a near-black backdrop and
+     * read as invisible. The per-group hue is still gone (the list reads one palette), but the
+     * label is a text token now, not a surface.
+     */
+    int groupLabelColor() {
+        return ModMenuPalette.TEXT_TERTIARY;
+    }
+
+    /** The 3dp marker beside a section header. The accent, so the sections stay legible as anchors. */
+    int groupAccent() {
+        return ModMenuPalette.ACCENT;
     }
 
     /** The menu's own settings, for the callers that need the glass/density/motion decisions. */

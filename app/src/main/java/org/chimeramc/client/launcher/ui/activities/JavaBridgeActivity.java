@@ -37,6 +37,7 @@ import org.chimeramc.client.core.javabridge.PortabilityReport;
 import org.chimeramc.client.ui.animation.DynamicAnim;
 import org.chimeramc.client.ui.dialogs.CustomAlertDialog;
 import org.chimeramc.client.util.PersonalizationManager;
+import org.chimeramc.client.launcher.core.minecraft.UserFacingError;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -171,8 +172,8 @@ public class JavaBridgeActivity extends BaseActivity {
                 main.post(() -> {
                     if (isFinishing()) return;
                     showLoading(false);
-                    Toast.makeText(this, getString(R.string.javabridge_port_failed, e.getMessage()),
-                            Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, getString(R.string.javabridge_port_failed,
+                            UserFacingError.reason(this, e)), Toast.LENGTH_LONG).show();
                 });
             }
         });

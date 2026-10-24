@@ -35,10 +35,14 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     private static final int VIEW_TYPE_GROUP = 0;
     private static final int VIEW_TYPE_MOD = 1;
     private static final int VIEW_TYPE_MOD_COMPACT = 2;
+    private static final int VIEW_TYPE_ACTION = 3;
+    private static final int VIEW_TYPE_ACTION_COMPACT = 4;
 
     private final List<MenuItem> items = new ArrayList<>();
     private final Map<String, Boolean> toggleStates = new HashMap<>();
     private final Map<String, Boolean> favoriteStates = new HashMap<>();
+    /** The one-shot actions appended after the module sections (M3), in display order. */
+    private final List<ModMenuAction> actions = new ArrayList<>();
     private OnModActionListener listener;
     private boolean compactMode;
     private ModMenuTheme theme;
@@ -124,20 +128,25 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     /**
      * Moves a module one slot within its section, returning the new order (M9).
      *
-     * <p>Group headers are not movable and a module may not cross into another section: the header
-     * rule (one header per contiguous run) would break, and the saved order is per section. The
-     * move returns the resulting key order so the caller can persist it.
+     * <p>Group headers and one-shot action rows are not movable and a module may not cross into
+     * another section: the header rule (one header per contiguous run) would break, and the saved
+     * order is per section. The move returns the resulting key order so the caller can persist it,
+     * and returns <b>null</b> when it refuses — the refusal has to be visible, because
+     * {@code ItemTouchHelper.onMove} treats a non-null return as "the drag was accepted" and lets a
+     * row that was never actually moved keep floating under the finger.
      */
     public List<String> moveModule(int fromPosition, int toPosition) {
         if (fromPosition < 0 || toPosition < 0
                 || fromPosition >= items.size() || toPosition >= items.size()) {
-            return currentSectionOrder();
+            return null;
         }
         MenuItem from = items.get(fromPosition);
         MenuItem to = items.get(toPosition);
-        if (from.isGroup() || to.isGroup()) return currentSectionOrder();
+        // A group header and a one-shot action row both have no position of their own, and neither
+        // carries a module, so neither can be the source or the target of a move.
+        if (from.mod == null || to.mod == null) return null;
         if (!Objects.equals(from.mod.getGroupId(), to.mod.getGroupId())) {
-            return currentSectionOrder();
+            return null;
         }
         items.remove(fromPosition);
         items.add(toPosition, from);
@@ -159,7 +168,8 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         if (a >= items.size() || b >= items.size()) return false;
         MenuItem first = items.get(a);
         MenuItem second = items.get(b);
-        if (first.isGroup() || second.isGroup()) return false;
+        // A header or an action row has no module to compare, so it is not a valid drop target.
+        if (first.mod == null || second.mod == null) return false;
         return Objects.equals(first.mod.getGroupId(), second.mod.getGroupId());
     }
 
@@ -189,7 +199,21 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         Map<String, List<MenuItem>> byGroup = new LinkedHashMap<>();
         Map<String, String> groupNames = new HashMap<>();
         Map<String, Boolean> groupLabelFlags = new HashMap<>();
+        // The trailing actions block is not reorderable and is not part of any module group; it is
+        // carried through untouched and re-appended, so a saved order cannot drop it.
+        List<MenuItem> actionBlock = new ArrayList<>();
+        boolean inActionBlock = false;
         for (MenuItem item : items) {
+            if (item.isAction() || item.isActionsHeader()) {
+                inActionBlock = true;
+                actionBlock.add(item);
+                continue;
+            }
+            if (inActionBlock) {
+                // The action block is always last; anything after it is unexpected, so keep it.
+                actionBlock.add(item);
+                continue;
+            }
             if (item.isGroup()) {
                 groupNames.put(item.groupId, item.groupName);
                 continue;
@@ -202,7 +226,10 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             groupLabelFlags.putIfAbsent(gid, item.showGroupLabel);
             byGroup.get(gid).add(item);
         }
-        if (byGroup.isEmpty()) return;
+        if (byGroup.isEmpty()) {
+            // Nothing to reorder; the action block (if any) is already in place.
+            return;
+        }
 
         List<MenuItem> reordered = new ArrayList<>();
         for (String gid : groupOrder) {
@@ -234,6 +261,7 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             }
         }
         if (reordered.isEmpty()) return;
+        reordered.addAll(actionBlock);
         items.clear();
         items.addAll(reordered);
         notifyDataSetChanged();
@@ -264,7 +292,15 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         boolean[] flags = new boolean[items.size()];
         for (int i = 0; i < items.size(); i++) {
             MenuItem item = items.get(i);
-            flags[i] = !item.isGroup() && item.mod != null && ModAvailability.isInteractive(item.mod.getId());
+            if (item.isActionsHeader()) {
+                flags[i] = false;
+            } else if (item.isAction()) {
+                // An action row is always interactive: it has no enable state to be unavailable.
+                flags[i] = true;
+            } else {
+                flags[i] = !item.isGroup() && item.mod != null
+                        && ModAvailability.isInteractive(item.mod.getId());
+            }
         }
         return flags;
     }
@@ -273,7 +309,8 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     private boolean[] fullRowFlags() {
         boolean[] flags = new boolean[items.size()];
         for (int i = 0; i < items.size(); i++) {
-            flags[i] = items.get(i).isGroup();
+            MenuItem item = items.get(i);
+            flags[i] = item.isGroup() || item.isActionsHeader();
         }
         return flags;
     }
@@ -312,7 +349,13 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     public boolean handleControllerSelect() {
         if (controllerFocus < 0 || controllerFocus >= items.size()) return false;
         MenuItem item = items.get(controllerFocus);
-        if (item.isGroup() || item.mod == null) return false;
+        if (item.isGroup() || item.isActionsHeader()) return false;
+        if (item.isAction()) {
+            // An action row fires once, exactly as its touch path does. Never a switch.
+            if (listener != null) listener.onAction(item.action.getId());
+            return true;
+        }
+        if (item.mod == null) return false;
         if (!ModAvailability.isInteractive(item.mod.getId())) return true;
         if (listener != null) listener.onToggle(item.mod, !toggleStates.getOrDefault(item.mod.getStableKey(), false));
         return true;
@@ -336,6 +379,18 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     }
 
     public void updateMods(List<UnifiedMod> mods, Set<String> favoriteKeys) {
+        updateMods(mods, favoriteKeys, java.util.Collections.emptyList());
+    }
+
+    /**
+     * Replaces the list with the modules and the one-shot actions for the current section (M3).
+     *
+     * <p>Actions are appended after the modules under their own {@code ACTIONS} header, never mixed
+     * into a module's section: a switch and a chevron must not sit in the same run, because that is
+     * exactly the "is this a toggle or a button?" ambiguity the split removes.
+     */
+    public void updateMods(List<UnifiedMod> mods, Set<String> favoriteKeys,
+                           List<ModMenuAction> sectionActions) {
         List<MenuItem> nextItems = new ArrayList<>();
         Map<String, Boolean> nextToggleStates = new HashMap<>();
         Map<String, Boolean> nextFavoriteStates = new HashMap<>();
@@ -353,6 +408,17 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             nextToggleStates.put(mod.getStableKey(), mod.isEnabled());
             nextFavoriteStates.put(mod.getStableKey(),
                 favoriteKeys != null && favoriteKeys.contains(mod.getStableKey()));
+        }
+
+        List<ModMenuAction> nextActions = new ArrayList<>();
+        if (sectionActions != null) {
+            nextActions.addAll(sectionActions);
+        }
+        if (!nextActions.isEmpty()) {
+            nextItems.add(MenuItem.actionsHeader());
+            for (ModMenuAction action : nextActions) {
+                nextItems.add(MenuItem.action(action));
+            }
         }
 
         List<MenuItem> oldItems = new ArrayList<>(items);
@@ -383,6 +449,11 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                     return oldItem.isGroup() == newItem.isGroup()
                         && Objects.equals(oldItem.groupName, newItem.groupName);
                 }
+                if (oldItem.isAction() || newItem.isAction()) {
+                    // An action row is static; its identity (the stable key) is the whole content.
+                    return oldItem.isAction() == newItem.isAction()
+                        && Objects.equals(oldItem.stableKey(), newItem.stableKey());
+                }
                 String oldKey = oldItem.mod.getStableKey();
                 String newKey = newItem.mod.getStableKey();
                 return Objects.equals(oldItem.mod.getName(), newItem.mod.getName())
@@ -398,6 +469,8 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
 
         items.clear();
         items.addAll(nextItems);
+        actions.clear();
+        actions.addAll(nextActions);
         toggleStates.clear();
         toggleStates.putAll(nextToggleStates);
         favoriteStates.clear();
@@ -452,7 +525,7 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             return new GroupViewHolder(row, bar, title);
         }
 
-        int layout = viewType == VIEW_TYPE_MOD_COMPACT
+        int layout = viewType == VIEW_TYPE_MOD_COMPACT || viewType == VIEW_TYPE_ACTION_COMPACT
             ? R.layout.item_mod_menu_compact
             : R.layout.item_mod_menu_card;
         View v = LayoutInflater.from(parent.getContext()).inflate(layout, parent, false);
@@ -465,18 +538,37 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         if (item.isGroup()) {
             GroupViewHolder group = (GroupViewHolder) holder;
             group.title.setText(item.groupName);
-            int color = theme.groupColor(item.groupId);
-            group.title.setTextColor(color);
+            group.title.setTextColor(theme.groupLabelColor());
             GradientDrawable barBg = new GradientDrawable();
             barBg.setShape(GradientDrawable.RECTANGLE);
             barBg.setCornerRadius(2f * group.bar.getResources().getDisplayMetrics().density);
-            barBg.setColor(color);
+            barBg.setColor(theme.groupAccent());
+            group.bar.setBackground(barBg);
+            return;
+        }
+
+        if (item.isActionsHeader()) {
+            GroupViewHolder group = (GroupViewHolder) holder;
+            group.title.setText(R.string.mod_menu_actions_header);
+            group.title.setTextColor(theme.groupLabelColor());
+            GradientDrawable barBg = new GradientDrawable();
+            barBg.setShape(GradientDrawable.RECTANGLE);
+            barBg.setCornerRadius(2f * group.bar.getResources().getDisplayMetrics().density);
+            barBg.setColor(theme.groupAccent());
             group.bar.setBackground(barBg);
             return;
         }
 
         ModViewHolder modHolder = (ModViewHolder) holder;
+        if (item.isAction()) {
+            bindActionRow(modHolder, item, position);
+            return;
+        }
         UnifiedMod mod = item.mod;
+
+        // A recycled holder may have been an action row, which hides the module controls. Restore
+        // them before binding a module, or the switch stays gone and the module looks untoggleable.
+        restoreModuleRowControls(modHolder);
 
         modHolder.name.setText(mod.getName());
         if (modHolder.groupText != null) {
@@ -520,6 +612,9 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             // control is disabled and shows the error track.
             modHolder.switchView.setInteractive(rowState.isInteractive());
             modHolder.switchView.setFailed(rowState.isBroken());
+            // The switch's label is the module name, so TalkBack reads "FPS Counter, On, Switch"
+            // rather than an unnamed switch beside a separate text view.
+            modHolder.switchView.setLabel(mod.getName());
             modHolder.switchView.setChecked(isEnabled && !rowState.isBroken(), false);
             modHolder.switchView.setReducedMotion(settings != null
                     && settings.effectiveMotion(false, false) == ModMenuSettings.Motion.REDUCED);
@@ -641,8 +736,78 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
 
     @Override
     public int getItemViewType(int position) {
-        if (items.get(position).isGroup()) return VIEW_TYPE_GROUP;
+        MenuItem item = items.get(position);
+        if (item.isGroup() || item.isActionsHeader()) return VIEW_TYPE_GROUP;
+        if (item.isAction()) return compactMode ? VIEW_TYPE_ACTION_COMPACT : VIEW_TYPE_ACTION;
         return compactMode ? VIEW_TYPE_MOD_COMPACT : VIEW_TYPE_MOD;
+    }
+
+    /**
+     * Restores the controls an action row hides, for a holder recycled from an action to a module.
+     *
+     * <p>The favourite star's visibility is the module path's to set (a module without a favourite
+     * action still shows the star), so it is always re-shown here; the config gear and the switch
+     * are shown because a module always has a state to display. A module with no config hides the
+     * gear later in the bind.
+     */
+    private void restoreModuleRowControls(ModViewHolder holder) {
+        if (holder.switchView != null) holder.switchView.setVisibility(View.VISIBLE);
+        if (holder.favoriteBtn != null) holder.favoriteBtn.setVisibility(View.VISIBLE);
+        if (holder.configBtn != null) holder.configBtn.setVisibility(View.VISIBLE);
+        if (holder.chevron != null) holder.chevron.setVisibility(View.GONE);
+    }
+
+    /**
+     * Binds a one-shot action row (M3): icon, title, one-line description and a chevron.
+     *
+     * <p>An action is not a module, so the row hides every module control — the switch, the
+     * favourite star and the settings gear — and shows the chevron instead. Tapping the row fires
+     * the action exactly once; there is no state for the row to show, which is the point.
+     */
+    private void bindActionRow(ModViewHolder holder, MenuItem item, int position) {
+        ModMenuAction action = item.action;
+        holder.name.setText(action.getTitleRes());
+
+        if (holder.groupText != null) {
+            int subtitleRes = action.getSubtitleRes();
+            if (subtitleRes != 0) {
+                holder.groupText.setVisibility(View.VISIBLE);
+                holder.groupText.setText(subtitleRes);
+            } else {
+                holder.groupText.setVisibility(View.GONE);
+            }
+        }
+
+        holder.icon.setImageResource(action.getIconRes());
+        holder.icon.setImageTintList(null);
+        holder.icon.setColorFilter(theme.accent());
+
+        // The action's own controls: a chevron, and none of the module controls.
+        if (holder.chevron != null) holder.chevron.setVisibility(View.VISIBLE);
+        if (holder.switchView != null) holder.switchView.setVisibility(View.GONE);
+        if (holder.favoriteBtn != null) holder.favoriteBtn.setVisibility(View.GONE);
+        if (holder.configBtn != null) holder.configBtn.setVisibility(View.GONE);
+        if (holder.statusDot != null) holder.statusDot.setVisibility(View.GONE);
+        if (holder.reasonText != null) holder.reasonText.setVisibility(View.GONE);
+        if (holder.unavailableText != null) holder.unavailableText.setVisibility(View.GONE);
+
+        // An action has no state, so its accent bar is always the section's accent rather than an
+        // "enabled" wash.
+        if (holder.accentBar != null) {
+            GradientDrawable bar = new GradientDrawable();
+            bar.setShape(GradientDrawable.RECTANGLE);
+            bar.setColor(theme.accent());
+            holder.accentBar.setBackground(bar);
+            holder.accentBar.setVisibility(View.VISIBLE);
+        }
+
+        View.OnClickListener click = v -> {
+            if (listener != null) listener.onAction(action.getId());
+        };
+        holder.itemView.setOnClickListener(click);
+        if (holder.icon != null) holder.icon.setOnClickListener(click);
+        DynamicAnim.applyPressScale(holder.itemView);
+        applyControllerFocus(holder, position);
     }
 
     private void updateFavoriteView(ModViewHolder holder, boolean favorite) {
@@ -797,31 +962,61 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     }
 
     private static class MenuItem {
+        /** A sentinel id for the synthetic {@code ACTIONS} header, which has no group. */
+        static final String ACTIONS_HEADER_ID = "__actions__";
         final String groupId;
         final String groupName;
         final UnifiedMod mod;
         final boolean showGroupLabel;
+        /** The action this row fires, or null for a module/header row (M3). */
+        final ModMenuAction action;
 
-        private MenuItem(String groupId, String groupName, UnifiedMod mod, boolean showGroupLabel) {
+        private MenuItem(String groupId, String groupName, UnifiedMod mod, boolean showGroupLabel,
+                         ModMenuAction action) {
             this.groupId = groupId;
             this.groupName = groupName;
             this.mod = mod;
             this.showGroupLabel = showGroupLabel;
+            this.action = action;
         }
 
         static MenuItem group(String groupId, String groupName) {
-            return new MenuItem(groupId, groupName, null, false);
+            return new MenuItem(groupId, groupName, null, false, null);
         }
 
         static MenuItem mod(UnifiedMod mod, boolean showGroupLabel) {
-            return new MenuItem(null, null, mod, showGroupLabel);
+            return new MenuItem(null, null, mod, showGroupLabel, null);
+        }
+
+        /** The synthetic section header above the action rows (M3). */
+        static MenuItem actionsHeader() {
+            return new MenuItem(ACTIONS_HEADER_ID, null, null, false, null);
+        }
+
+        static MenuItem action(ModMenuAction action) {
+            return new MenuItem(null, null, null, false, action);
         }
 
         boolean isGroup() {
-            return mod == null;
+            // A section header (or the ACTIONS header) is a group; an action row is not.
+            return mod == null && action == null;
+        }
+
+        boolean isActionsHeader() {
+            return mod == null && action == null && ACTIONS_HEADER_ID.equals(groupId);
+        }
+
+        boolean isAction() {
+            return action != null;
         }
 
         String stableKey() {
+            if (isAction()) {
+                return action.getStableKey();
+            }
+            if (isActionsHeader()) {
+                return "header:" + ACTIONS_HEADER_ID;
+            }
             return isGroup() ? "group:" + groupId : "mod:" + mod.getStableKey();
         }
     }

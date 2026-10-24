@@ -6,9 +6,11 @@ import android.os.Handler
 import android.os.Looper
 import android.widget.Button
 import android.widget.TextView
+import android.widget.Toast
 import androidx.core.content.FileProvider
 import org.chimeramc.client.R
 import org.chimeramc.client.core.crash.CrashReporter
+import org.chimeramc.client.launcher.core.minecraft.LaunchErrorDiagnosis
 import org.chimeramc.client.ui.animation.DynamicAnim
 import java.io.File
 import java.util.concurrent.Executors
@@ -27,7 +29,7 @@ class CrashActivity : BaseActivity() {
         val summary = intent.getStringExtra("SUMMARY")
             ?: intent.getStringExtra("EMERGENCY")
         val crashType = intent.getStringExtra("CRASH_TYPE")
-        CrashReporter.sendUnsentReports()
+        CrashReporter.sendUnsentReports(this)
 
         val tvTitle = findViewById<TextView>(R.id.crash_title)
         val tvDetails = findViewById<TextView>(R.id.crash_details)
@@ -38,7 +40,16 @@ class CrashActivity : BaseActivity() {
 
         tvTitle.text = getString(R.string.crash_title)
 
+        // Name the cause from the crash's own text, so a native dlopen tombstone reads as
+        // "Game library not readable / Google Play version" rather than only a raw stack. The raw
+        // text stays underneath for the report.
+        val cause = LaunchErrorDiagnosis.classifyText(summary)
+        val causeLine = getString(R.string.launch_error_cause_label) + " " +
+                LaunchErrorDiagnosis.label(cause) + "\n" +
+                getString(LaunchErrorDiagnosis.messageRes(cause)) + "\n\n"
+
         tvDetails.text = buildString {
+            append(causeLine)
             appendHeader(crashType, summary)
             if (!logPath.isNullOrBlank()) {
                 append(getString(R.string.crash_log_file_label)).append("\n")
@@ -59,7 +70,7 @@ class CrashActivity : BaseActivity() {
             loadCrashDetails(tvDetails, crashType, summary)
         }, 100)
         Handler(Looper.getMainLooper()).postDelayed({
-            CrashReporter.sendUnsentReports()
+            CrashReporter.sendUnsentReports(this)
         }, 2000)
     }
 
@@ -69,7 +80,12 @@ class CrashActivity : BaseActivity() {
         if (isFinishing || isDestroyed) return
 
         executor.execute {
+            val cause = LaunchErrorDiagnosis.classifyText(summary)
+            val causeLine = getString(R.string.launch_error_cause_label) + " " +
+                    LaunchErrorDiagnosis.label(cause) + "\n" +
+                    getString(LaunchErrorDiagnosis.messageRes(cause)) + "\n\n"
             val detailsText = buildString {
+                append(causeLine)
                 appendHeader(crashType, summary)
 
                 if (!logPath.isNullOrEmpty()) {
@@ -91,7 +107,10 @@ class CrashActivity : BaseActivity() {
                             append(getString(R.string.crash_log_file_missing)).append("\n")
                         }
                     } catch (e: Exception) {
-                        append(getString(R.string.crash_read_failed, e.message)).append("\n")
+                        // Name the cause, not the raw exception text: a report that cannot be read
+                        // is usually a permission or a deleted file, and "Permission denied" alone
+                        // does not tell the user which of the two it is.
+                        append(getString(R.string.crash_read_failed, describeReadFailure(e))).append("\n")
                     }
                 }
                 if (isEmpty()) {
@@ -135,25 +154,48 @@ class CrashActivity : BaseActivity() {
     }
 
     private fun shareLogFile() {
-        val path = logPath ?: return
+        val path = logPath
+        if (path.isNullOrBlank()) {
+            // The button used to do nothing at all when the intent carried no log path, which
+            // reads as a broken button rather than as a missing report.
+            Toast.makeText(this, R.string.crash_share_no_log, Toast.LENGTH_SHORT).show()
+            return
+        }
         try {
             val logFile = File(path)
-            if (logFile.exists()) {
-                val shareFile = copyLogToShareCache(logFile)
-                val logFileUri = FileProvider.getUriForFile(
-                    this,
-                    packageName + ".fileprovider",
-                    shareFile
-                )
-                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_STREAM, logFileUri)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-                startActivity(Intent.createChooser(shareIntent, shareFile.name))
+            if (!logFile.exists() || !logFile.isFile) {
+                Toast.makeText(this, R.string.crash_log_file_missing, Toast.LENGTH_SHORT).show()
+                return
             }
+            val shareFile = copyLogToShareCache(logFile)
+            val logFileUri = FileProvider.getUriForFile(
+                this,
+                packageName + ".fileprovider",
+                shareFile
+            )
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_STREAM, logFileUri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(shareIntent, shareFile.name))
         } catch (e: Exception) {
+            // Swallowing this left a share that silently did nothing - the user tapped, nothing
+            // appeared, and there was no way to tell whether the report existed.
+            Toast.makeText(
+                this,
+                getString(R.string.crash_share_failed, describeReadFailure(e)),
+                Toast.LENGTH_LONG
+            ).show()
         }
+    }
+
+    /** A short, cause-specific sentence for a report that could not be read or shared. */
+    private fun describeReadFailure(error: Throwable): String = when (error) {
+        is java.io.FileNotFoundException -> getString(R.string.crash_reason_file_missing)
+        is SecurityException -> getString(R.string.crash_reason_no_permission)
+        is java.io.IOException -> getString(R.string.crash_reason_io)
+        else -> error.javaClass.simpleName
     }
 
     private fun copyLogToShareCache(logFile: File): File {

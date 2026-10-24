@@ -24,6 +24,7 @@ import org.chimeramc.client.core.versions.VersionManager;
 import org.chimeramc.client.settings.FeatureSettings;
 import org.chimeramc.client.util.LauncherStorage;
 import org.chimeramc.client.ui.adapter.ModrinthVersionAdapter;
+import org.chimeramc.client.launcher.core.minecraft.UserFacingError;
 
 import java.io.File;
 import java.io.IOException;
@@ -154,8 +155,7 @@ public class ModrinthDetailActivity extends BaseActivity {
         handler.post(() -> {
             progress.setVisibility(View.GONE);
             empty.setVisibility(View.VISIBLE);
-            Toast.makeText(this, getString(R.string.error_message_format, t.getMessage()),
-                    Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, UserFacingError.reason(this, t), Toast.LENGTH_LONG).show();
         });
     }
 
@@ -191,8 +191,8 @@ public class ModrinthDetailActivity extends BaseActivity {
             } catch (final IOException e) {
                 handler.post(() -> {
                     progress.setVisibility(View.GONE);
-                    Toast.makeText(this, getString(R.string.curseforge_download_failed)
-                            + ": " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, getString(R.string.curseforge_download_failed) + "\n\n"
+                            + UserFacingError.reason(ModrinthDetailActivity.this, e), Toast.LENGTH_LONG).show();
                 });
             }
         }).start();

@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import org.chimeramc.client.launcher.core.minecraft.UserFacingError;
 
 public class VersionManager {
     private static final String PREFS_NAME = "version_manager";
@@ -891,7 +892,7 @@ public class VersionManager {
                         }
                         new CustomAlertDialog(activity)
                                 .setTitleText(activity.getString(R.string.repair_error))
-                                .setMessage(String.format(activity.getString(R.string.repair_libs_error_message), e.getMessage()))
+                                .setMessage(repairFailureMessage(activity, e))
                                 .setPositiveButton(activity.getString(R.string.confirm), null)
                                 .show();
                     };
@@ -930,6 +931,22 @@ public class VersionManager {
             });
         });
         confirmDialog.show();
+    }
+
+    /**
+     * The repair failure sentence, with the cause named.
+     *
+     * <p>{@code String.format("...%s", e.getMessage())} printed the literal word "null" whenever an
+     * exception carried no message, which is common for the file-system failures repair hits. The
+     * classifier names the cause (out of space, permission denied, damaged files) so the dialog
+     * says what to do, and falls back to the exception's type when it has no text at all.
+     */
+    private static String repairFailureMessage(android.content.Context context, Exception error) {
+        if (error == null) return context.getString(R.string.error_reason_unknown);
+        String reason = context.getString(
+                org.chimeramc.client.launcher.core.minecraft.UserFacingError.messageRes(
+                        org.chimeramc.client.launcher.core.minecraft.UserFacingError.classify(error)));
+        return org.chimeramc.client.launcher.core.minecraft.UserFacingError.describe(error, reason);
     }
 
     public void renameVersion(GameVersion version, String newDisplayName, OnRenameVersionCallback callback) {
@@ -1079,7 +1096,7 @@ public class VersionManager {
                 }
             } catch (Exception e) {
                 e.printStackTrace();
-                callback.onError("Import failed: " + e.getMessage());
+                callback.onError(UserFacingError.shortReasonForText(context, "Import failed", e.getMessage()));
             }
         }).start();
     }

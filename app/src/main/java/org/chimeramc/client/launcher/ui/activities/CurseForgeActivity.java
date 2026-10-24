@@ -39,6 +39,7 @@ import org.chimeramc.client.ui.animation.DynamicAnim;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.chimeramc.client.launcher.core.minecraft.UserFacingError;
 
 public class CurseForgeActivity extends BaseActivity {
 
@@ -279,7 +280,12 @@ public class CurseForgeActivity extends BaseActivity {
                         CurseForgeKeyDialog.show(CurseForgeActivity.this, CurseForgeActivity.this::loadContent);
                         return;
                     }
-                    Toast.makeText(CurseForgeActivity.this, getString(R.string.error_message_format, t.getMessage()), Toast.LENGTH_SHORT).show();
+                    // The cause sentence, not the raw exception text. A CurseForge failure is
+                    // usually a rejected API key or a network drop, and "java.io.IOException:
+                    // Unable to resolve host" does not say which.
+                    Toast.makeText(CurseForgeActivity.this,
+                            UserFacingError.reason(CurseForgeActivity.this, t),
+                            Toast.LENGTH_LONG).show();
                 });
             }
         });

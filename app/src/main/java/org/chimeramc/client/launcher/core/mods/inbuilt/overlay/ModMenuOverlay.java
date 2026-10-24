@@ -174,6 +174,13 @@ public class ModMenuOverlay {
     private List<UnifiedMod> filteredMods = new ArrayList<>();
     private final Set<String> favoriteKeys = new HashSet<>();
     private ModuleFilter activeFilter = ModuleFilter.ALL;
+    /**
+     * How many one-shot action rows the current section shows (M3).
+     *
+     * <p>The empty state needs it: the actions live in the adapter, and an empty module list with an
+     * action row on screen is not an empty screen.
+     */
+    private int visibleActionCount = 0;
 
     private ModMenuCallback callback;
     private ModNotificationManager notificationManager;
@@ -2231,7 +2238,9 @@ public class ModMenuOverlay {
         }
 
         if (adapter != null) {
-            adapter.updateMods(filteredMods, favoriteKeys);
+            List<ModMenuAction> sectionActions = actionsForActiveSection(query);
+            visibleActionCount = sectionActions.size();
+            adapter.updateMods(filteredMods, favoriteKeys, sectionActions);
             // M9: the user's saved order is applied after the shipped order is loaded, so an
             // update that adds a module does not discard the arrangement the player made.
             adapter.applySavedOrder(InbuiltModManager.getInstance(activity)
@@ -2240,9 +2249,40 @@ public class ModMenuOverlay {
                 hasStaggeredOnce = true;
                 DynamicAnim.staggerRecyclerChildren(modsRecycler);
             }
+        } else {
+            visibleActionCount = actionsForActiveSection(query).size();
         }
         updateEmptyState();
         updateModuleCount();
+    }
+
+    /**
+     * The one-shot actions for the section the current filter shows (M3).
+     *
+     * <p>The section rule lives in {@link ModMenuActionVisibility}, so the action set cannot drift
+     * from the module set it sits under. A search query narrows the actions the same way it narrows
+     * the modules, matched against the action's own title and description.
+     */
+    private List<ModMenuAction> actionsForActiveSection(String query) {
+        List<ModMenuAction> out = new ArrayList<>();
+        for (ModMenuAction action : ModMenuActionCatalog.all()) {
+            if (!ModMenuActionVisibility.isVisibleIn(activeFilter.name(), action.getGroupId())) {
+                continue;
+            }
+            if (!query.isEmpty() && !matchesActionQuery(action, query)) {
+                continue;
+            }
+            out.add(action);
+        }
+        return out;
+    }
+
+    /** True when the query matches the action's title or description text. */
+    private boolean matchesActionQuery(ModMenuAction action, String query) {
+        String title = activity.getString(action.getTitleRes());
+        String subtitle = action.getSubtitleRes() != 0
+                ? activity.getString(action.getSubtitleRes()) : "";
+        return (title + " " + subtitle).toLowerCase(Locale.ROOT).contains(query);
     }
 
     private boolean matchesActiveFilter(UnifiedMod mod) {
@@ -2576,8 +2616,11 @@ public class ModMenuOverlay {
     }
 
     private void updateEmptyState() {
+        // The action rows count as content: an empty module list with "Reset HUD Position" still on
+        // screen is not an empty screen, and the "no mods" notice over it reads as a bug.
+        boolean hasContent = !filteredMods.isEmpty() || visibleActionCount > 0;
         if (emptyState != null) {
-            emptyState.setVisibility(filteredMods.isEmpty() ? View.VISIBLE : View.GONE);
+            emptyState.setVisibility(hasContent ? View.GONE : View.VISIBLE);
         }
         if (emptyStateText != null) {
             String query = searchInput != null ? searchInput.getText().toString().trim() : "";

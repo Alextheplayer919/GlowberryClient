@@ -410,6 +410,11 @@ public class PersonalizationManager {
         }
 
         applyFontFamilyToActivity(activity, rootView);
+
+        // The Icon Size preference is a real scale on every fixed-size icon. Applied here rather
+        // than per-screen so the nav bar (injected into the same content view) and every screen
+        // honour it from one place.
+        org.chimeramc.client.launcher.util.IconSizeApplier.apply(rootView, getIconSize());
     }
 
     /**

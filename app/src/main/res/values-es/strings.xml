@@ -121,15 +121,11 @@
 
     <string name="dialog_title_no_version">Ninguna versión seleccionada</string>
     <string name="dialog_message_no_version">Por favor selecciona una versión del juego antes de iniciar.</string>
-    <string name="dialog_title_version_isolation">Aislamiento de versión requerido</string>
-    <string name="dialog_message_version_isolation">Esta es una versión importada. Habilita el aislamiento de versión en los ajustes para iniciar esta versión.</string>
     <string name="dialog_positive_enable">Habilitar</string>
     <string name="dialog_title_launch_failed">Fallo al iniciar</string>
     <string name="dialog_message_launch_failed">Fallo al iniciar Minecraft: %1$s</string>
     <string name="dialog_title_incompatible_mods">Mods incompatibles omitidos</string>
     <string name="dialog_message_incompatible_mods">Algunos mods habilitados son incompatibles con tu versión actual de Minecraft %1$s y se omitieron:\n\n%2$s</string>
-    <string name="dialog_title_disable_version_isolation">Deshabilitar Aislamiento</string>
-    <string name="dialog_message_disable_version_isolation">Intentas iniciar una versión instalada con el aislamiento habilitado. Deshabilita el aislamiento de versión para continuar.</string>
     <string name="dialog_positive_disable">Deshabilitar</string>
     <string name="dialog_positive_ok">Aceptar</string>
 
@@ -378,14 +374,8 @@ La migración debe completarse antes de continuar con GlowberryClient.</string>
     <string name="add_at_least_one_layer">Añade al menos una capa</string>
     <string name="world_created_successfully">Mundo creado con éxito</string>
     <string name="failed_to_create_world">Fallo al crear mundo</string>
-
-    <string name="minecraft_playstore_required_title">Se requiere versión de Play Store</string>
-    <string name="minecraft_playstore_required_message">Este launcher solo funciona con la app oficial de Minecraft desde Google Play Store. Por favor instálala para continuar.</string>
-    <string name="buy_minecraft">Obtener Minecraft</string>
     <string name="minecraft_not_installed_title">Minecraft no instalado</string>
     <string name="minecraft_not_installed_message">Minecraft no está instalado en tu dispositivo. Por favor instálalo desde Google Play Store para usar este launcher.</string>
-    <string name="install_minecraft">Instalar Minecraft</string>
-    <string name="genuine_badge_label">Licencia no verificada</string>
     <string name="invalid_license_detected_toast">Minecraft no original detectado. Asegúrate de tener Minecraft de Google Play Store</string>
 
     <string name="full_mods_title">Mods </string>

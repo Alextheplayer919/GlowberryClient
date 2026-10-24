@@ -100,4 +100,25 @@ public class ModMenuSwitchTest {
         assertTrue(ModMenuMetrics.needsInvisiblePadding(ModMenuMetrics.SWITCH_HEIGHT_DP));
         assertFalse(ModMenuMetrics.needsInvisiblePadding(ModMenuMetrics.MIN_TOUCH_TARGET_DP));
     }
+
+    @Test
+    public void theAnnouncementNamesTheModuleBeforeTheState() {
+        // The spec asks for "Module name, On, Switch"; the node supplies "Switch" as the role, so
+        // this carries the name and the state. A bare "On" loses which module it belongs to.
+        assertEquals("FPS Counter, On", ModMenuSwitch.accessibilityLabel("FPS Counter", true));
+        assertEquals("FPS Counter, Off", ModMenuSwitch.accessibilityLabel("FPS Counter", false));
+    }
+
+    @Test
+    public void aMissingLabelDegradesToTheStateAlone() {
+        // A recycled switch whose row has not set a name yet must not announce ", On".
+        assertEquals("On", ModMenuSwitch.accessibilityLabel(null, true));
+        assertEquals("Off", ModMenuSwitch.accessibilityLabel("", false));
+        assertEquals("Off", ModMenuSwitch.accessibilityLabel("   ", false));
+    }
+
+    @Test
+    public void theLabelIsTrimmedSoTheAnnouncementHasNoDoubledSpace() {
+        assertEquals("Keystrokes, On", ModMenuSwitch.accessibilityLabel("  Keystrokes  ", true));
+    }
 }

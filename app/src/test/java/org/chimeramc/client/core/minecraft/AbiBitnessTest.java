@@ -236,4 +236,31 @@ public class AbiBitnessTest {
         assertTrue(AbiBitness.INSTANCE.abisInApks(
                 java.util.Collections.singletonList(notAnApk)).isEmpty());
     }
+
+    @Test
+    public void anUnknownAbiNeverReadsAsIncompatible() {
+        // The launch preflight must not refuse a launch on an unreadable package: that would
+        // replace the real error (broken or Play Store install) with a wrong one about bitness.
+        assertFalse(AbiBitness.INSTANCE.isIncompatible(null, true));
+        assertFalse(AbiBitness.INSTANCE.isIncompatible(
+                java.util.Collections.emptyList(), true));
+        assertFalse(AbiBitness.INSTANCE.isIncompatible(
+                java.util.Collections.emptyList(), false));
+    }
+
+    @Test
+    public void aKnownUnloadableAbiIsIncompatible() {
+        assertTrue(AbiBitness.INSTANCE.isIncompatible(
+                java.util.Collections.singletonList("armeabi-v7a"), true));
+        assertTrue(AbiBitness.INSTANCE.isIncompatible(
+                java.util.Collections.singletonList("arm64-v8a"), false));
+    }
+
+    @Test
+    public void aDualAbiVersionIsNotIncompatibleWithEitherProcess() {
+        java.util.List<String> shipped =
+                java.util.Arrays.asList("arm64-v8a", "armeabi-v7a");
+        assertFalse(AbiBitness.INSTANCE.isIncompatible(shipped, true));
+        assertFalse(AbiBitness.INSTANCE.isIncompatible(shipped, false));
+    }
 }

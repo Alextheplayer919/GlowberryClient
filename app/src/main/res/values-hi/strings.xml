@@ -121,15 +121,11 @@
 
     <string name="dialog_title_no_version">कोई संस्करण नहीं चुना गया</string>
     <string name="dialog_message_no_version">लॉन्च करने से पहले कृपया एक गेम संस्करण चुनें।</string>
-    <string name="dialog_title_version_isolation">संस्करण आइसोलेशन आवश्यक है</string>
-    <string name="dialog_message_version_isolation">यह एक आयातित संस्करण है। कृपया इस संस्करण को लॉन्च करने के लिए सेटिंग्स में संस्करण आइसोलेशन सक्षम करें।</string>
     <string name="dialog_positive_enable">सक्षम करें</string>
     <string name="dialog_title_launch_failed">लॉन्च विफल</string>
     <string name="dialog_message_launch_failed">Minecraft लॉन्च करने में विफल: %1$s</string>
     <string name="dialog_title_incompatible_mods">असंगत मॉड छोड़े गए</string>
     <string name="dialog_message_incompatible_mods">कुछ सक्षम मॉड आपके मौजूदा Minecraft संस्करण %1$s के साथ संगत नहीं हैं और उन्हें छोड़ दिया गया:\n\n%2$s</string>
-    <string name="dialog_title_disable_version_isolation">संस्करण आइसोलेशन अक्षम करें</string>
-    <string name="dialog_message_disable_version_isolation">आप संस्करण आइसोलेशन सक्षम के साथ एक इंस्टॉल किया गया संस्करण लॉन्च करने का प्रयास कर रहे हैं। कृपया आगे बढ़ने के लिए संस्करण आइसोलेशन अक्षम करें।</string>
     <string name="dialog_positive_disable">अक्षम करें</string>
     <string name="dialog_positive_ok">ठीक है</string>
 
@@ -388,13 +384,8 @@ GlowberryClient जारी रखने से पहले माइग्र
     <string name="failed_to_create_world">वर्ल्ड बनाने में विफल</string>
 
     <!-- Play Store Validation -->
-    <string name="minecraft_playstore_required_title">Play Store संस्करण आवश्यक है</string>
-    <string name="minecraft_playstore_required_message">यह लॉन्चर केवल Google Play Store से आधिकारिक Minecraft ऐप के साथ काम करता है। कृपया जारी रखने के लिए Play Store संस्करण इंस्टॉल करें।</string>
-    <string name="buy_minecraft">Minecraft प्राप्त करें</string>
     <string name="minecraft_not_installed_title">Minecraft इंस्टॉल नहीं है</string>
     <string name="minecraft_not_installed_message">आपके डिवाइस पर Minecraft इंस्टॉल नहीं है। कृपया इस लॉन्चर का उपयोग करने के लिए इसे Google Play Store से इंस्टॉल करें।</string>
-    <string name="install_minecraft">Minecraft इंस्टॉल करें</string>
-    <string name="genuine_badge_label">लाइसेंस सत्यापित नहीं है</string>
     <string name="invalid_license_detected_toast">गैर-वास्तविक Minecraft का पता चला। सुनिश्चित करें कि Minecraft Google Play Store से है</string>
 
     <string name="full_mods_title">मॉड्स </string>

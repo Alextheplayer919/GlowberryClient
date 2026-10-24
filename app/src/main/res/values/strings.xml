@@ -164,15 +164,11 @@
 
     <string name="dialog_title_no_version">No Version Selected</string>
     <string name="dialog_message_no_version">Please select a game version before launching.</string>
-    <string name="dialog_title_version_isolation">Version Isolation Required</string>
-    <string name="dialog_message_version_isolation">This is an imported version. Please enable version isolation in settings to launch this version.</string>
     <string name="dialog_positive_enable">Enable</string>
     <string name="dialog_title_launch_failed">Launch Failed</string>
     <string name="dialog_message_launch_failed">Failed to launch Minecraft: %1$s</string>
     <string name="dialog_title_incompatible_mods">Incompatible Mods Skipped</string>
     <string name="dialog_message_incompatible_mods">Some enabled mods are incompatible with your current Minecraft version %1$s and were skipped:\n\n%2$s</string>
-    <string name="dialog_title_disable_version_isolation">Disable Version Isolation</string>
-    <string name="dialog_message_disable_version_isolation">You are trying to launch an installed version with version isolation enabled. Please disable version isolation to proceed.</string>
     <string name="dialog_positive_disable">Disable</string>
     <string name="dialog_positive_ok">OK</string>
     <string name="delete_account_title">Delete Account</string>
@@ -489,14 +485,9 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="failed_to_create_world">Failed to create world</string>
 
     <!-- Play Store Validation -->
-    <string name="minecraft_playstore_required_title">Play Store Version Required</string>
-    <string name="minecraft_playstore_required_message">This launcher works only with the official Minecraft app from the Google Play Store. Please install the Play Store version to continue.</string>
-    <string name="buy_minecraft">Get Minecraft</string>
     <string name="minecraft_not_installed_title">Minecraft Not Installed</string>
-    <string name="minecraft_not_installed_message">Minecraft isn’t installed on your device. Install Minecraft from any official source (Google Play Store, Amazon Appstore, or a sideloaded APK) to use this launcher.</string>
-    <string name="install_minecraft">Install Minecraft</string>
-    <string name="genuine_badge_label">License not verified</string>
-    <string name="invalid_license_detected_toast">Non-genuine Minecraft detected. Ensure Minecraft is from Google Play Store</string>
+    <string name="minecraft_not_installed_message">Minecraft isn’t installed on your device. Import a Minecraft APK from the Library to play — a Google Play install cannot be launched by this launcher, because the game keeps its native library inside the installed app where the launcher cannot reach it.</string>
+    <string name="invalid_license_detected_toast">Non-genuine Minecraft detected. Import an authentic Bedrock Edition APK from the Library to continue.</string>
 
     <string name="full_mods_title">Mods </string>
     <string name="total_mods">Total Mods:</string>
@@ -538,6 +529,7 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="mod_config_restart_hint">The config file was saved and a .backup file was kept. Restart or reload the game for changes to take effect.</string>
     <string name="mod_config_validation_failed">Config validation failed</string>
     <string name="mod_config_invalid_json">Invalid JSON</string>
+    <string name="mod_config_invalid_json_detail">The text is not valid JSON. Check for a missing comma, an unquoted key, or a trailing comma before the closing brace.</string>
     <string name="mod_config_expand">Expand</string>
     <string name="mod_config_collapse">Collapse</string>
     <string name="mod_config_raw_json">Edit Raw JSON</string>
@@ -672,11 +664,18 @@ GlowberryClient must complete the migration before continuing.</string>
 
     <string name="crash_title">Application crashed</string>
     <string name="crash_upload">Crash report upload</string>
+    <string name="crash_upload_unavailable">Unavailable in this build: no crash collector is configured, so there is nowhere to send a report. Your crash logs are still saved on this device and can be copied from Settings \u2192 Diagnostics.</string>
+    <string name="crash_upload_sending">Sending saved crash reports…</string>
     <string name="crash_details_title">Crash details</string>
     <string name="crash_back_to_main">Back to Home</string>
     <string name="crash_share_log">Share Log</string>
     <string name="crash_log_file_label">Log file:</string>
     <string name="crash_log_file_missing">Log file not found or unreadable.</string>
+    <string name="crash_share_no_log">No crash log to share - this crash did not produce a report file.</string>
+    <string name="crash_share_failed">Could not share the crash log: %1$s</string>
+    <string name="crash_reason_file_missing">the report file is missing</string>
+    <string name="crash_reason_no_permission">the app has no permission to read the report file</string>
+    <string name="crash_reason_io">the report file could not be read from storage</string>
     <string name="crash_read_failed">Failed to read log: %1$s</string>
     <string name="crash_loading_details">Loading crash details...</string>
     <string name="crash_type_label">Crash type:</string>
@@ -2381,6 +2380,9 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="setup_import_failed">Import failed: %1$s</string>
 
     <!-- Named launch failure states (U14). Each cause gets its own copy so a report can name it. -->
+    <string name="launch_failure_title_play_store">Can\'t open this Minecraft install</string>
+    <string name="launch_failure_message_play_store">This is either a Google Play version of Minecraft or a version missing a specific file needed to launch the game.\n\nThe launcher has to load the game\'s native library directly, and the Play Store build keeps it inside the installed app where this launcher cannot reach it.\n\nTo play, import a Minecraft APK from the Library instead. A Play Store install can stay on your device — you do not have to remove it.</string>
+    <string name="import_from_library">Import from Library</string>
     <string name="launch_failure_title_game_files_missing">Game files missing</string>
     <string name="launch_failure_message_game_files_missing">This instance\'s game files are missing or incomplete. Re-import the version from the Library, or run Repair installation in Settings \u2192 Diagnostics.</string>
     <string name="launch_failure_title_abi">Unsupported build</string>
@@ -2390,6 +2392,54 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="launch_failure_title_rules">Limited compatibility</string>
     <string name="launch_failure_message_rules">There are no hook definitions for this Minecraft build yet, so in-game overlays and cosmetics are disabled. The game itself will run normally.</string>
     <string name="launch_failure_title_not_installed">Minecraft not found</string>
-    <string name="launch_failure_message_not_installed">Minecraft does not appear to be installed on this device. Install it from the Play Store, or import your own game files from the Library.</string>
+    <string name="launch_failure_message_not_installed">Minecraft does not appear to be installed on this device. Import a Minecraft APK from the Library — a Google Play install cannot be launched by this launcher, because the game keeps its native library inside the installed app where the launcher cannot reach it.</string>
+
+    <!-- Post-preflight launch failures (G). The crash and the launch dialog share this copy. -->
+    <string name="launch_error_title_missing_game_library">Game library not readable</string>
+    <string name="launch_error_message_missing_game_library">This is either a Google Play version of Minecraft or a version missing a specific file needed to launch the game.\n\nThe launcher loads the game\'s native library directly, and it could not open libminecraftpe.so from this install.\n\nTo play, import a Minecraft APK from the Library instead. A Play Store install can stay on your device.</string>
+    <string name="launch_error_title_missing_dependency">A required file is missing</string>
+    <string name="launch_error_message_missing_dependency">A library this Minecraft version needs is missing from the launcher\'s extracted files. Open Settings \u2192 Diagnostics and run Repair installation to re-extract them, then launch again.</string>
+    <string name="launch_error_title_stale_libs">Native files need repair</string>
+    <string name="launch_error_message_stale_libs">The extracted native libraries do not match this Minecraft build: a library loaded, but a symbol it needs is missing. That is what a stale or half-replaced extraction looks like.\n\nOpen Settings \u2192 Diagnostics and run Repair installation to re-extract them, then launch again.</string>
+    <string name="launch_error_title_mod_failed">A mod stopped the launch</string>
+    <string name="launch_error_message_mod_failed">A mod\'s native library failed to load, so the game could not start. Open the Mods tab, disable the most recently added mod, and launch again. Settings \u2192 Diagnostics names the mod that failed.</string>
+    <string name="launch_error_title_out_of_memory">Not enough memory</string>
+    <string name="launch_error_message_out_of_memory">The launcher ran out of memory while preparing Minecraft. Close other apps, disable a few mods, and try again. A device with 3 GB of RAM or more is recommended.</string>
+    <string name="launch_error_title_unknown">Couldn\'t start Minecraft</string>
+    <string name="launch_error_message_unknown">The launch failed for a reason the launcher could not identify. The exact error is below — it is what a bug report needs.</string>
+    <string name="launch_error_cause_label">Cause:</string>
+
+    <!-- Cause-specific reasons for downloads, imports and file operations (UserFacingError).
+         Each names what happened and what to do; a reason without an action is the same dead end
+         as "Unknown error" with more words. -->
+    <string name="error_reason_no_connection">Your device has no working connection to the internet right now. Check Wi-Fi or mobile data, then try again.</string>
+    <string name="error_reason_connection_refused">The download server refused the connection. It may be down or blocking this network. Try again in a few minutes, or use a different network.</string>
+    <string name="error_reason_host_not_found">The download server\'s address could not be found. This usually means there is no internet connection. Check Wi-Fi or mobile data, then try again.</string>
+    <string name="error_reason_timeout">The download server took too long to answer. This is usually a slow or unstable connection. Move closer to your router or switch networks, then try again.</string>
+    <string name="error_reason_secure_connection">A secure connection to the download server could not be established. This happens on a captive-portal Wi-Fi (the kind that opens a sign-in page), if the device clock is wrong, or behind a proxy. Sign in to the network or correct the date and time, then try again.</string>
+    <string name="error_reason_server_refused">The download source refused the request. It sometimes asks for a browser check before it will serve a file; complete the check in the browser panel, then try again.</string>
+    <string name="error_reason_server_error">The download server reported an internal error. This is a problem on the server, not on your device. Try again in a few minutes.</string>
+    <string name="error_reason_bad_response">The download source answered, but the launcher could not read a usable download link from it. The source may have changed its page layout. Try Refresh, and report it if it keeps happening.</string>
+    <string name="error_reason_out_of_space">There is not enough free storage to finish this. Free some space — the launcher needs room for the downloaded package and for the files it extracts from it — then try again.</string>
+    <string name="error_reason_permission_denied">The launcher is not allowed to read or write that location. Grant storage access to GlowberryClient in Android Settings, then try again.</string>
+    <string name="error_reason_corrupt_package">The downloaded file is damaged or is not a valid Minecraft package. Delete it and download it again; if it fails the same way, the source is serving a broken file.</string>
+    <string name="error_reason_interrupted">The download was interrupted before it finished. Keep the launcher open and the screen on while a package downloads, then try again.</string>
+    <string name="error_reason_unknown">The operation failed for a reason the launcher could not identify. The exact error is below — it is what a bug report needs.</string>
+
+    <!-- Short cause phrases for a toast, where the full sentence above would be clipped. Each one
+         names the cause beside the operation ("Import failed: no internet connection"). -->
+    <string name="error_short_no_connection">no internet connection</string>
+    <string name="error_short_connection_refused">the server refused the connection</string>
+    <string name="error_short_host_not_found">the server address was not found — check your connection</string>
+    <string name="error_short_timeout">the server took too long to answer</string>
+    <string name="error_short_secure_connection">a secure connection could not be established</string>
+    <string name="error_short_server_refused">the source refused the request</string>
+    <string name="error_short_server_error">the server reported an internal error</string>
+    <string name="error_short_bad_response">the source returned something unreadable</string>
+    <string name="error_short_out_of_space">not enough free storage</string>
+    <string name="error_short_permission_denied">storage permission denied</string>
+    <string name="error_short_corrupt_package">the file is damaged or not a valid package</string>
+    <string name="error_short_interrupted">the transfer was interrupted</string>
+    <string name="error_short_unknown">see the log for the exact error</string>
 
 </resources>

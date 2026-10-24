@@ -18,6 +18,7 @@ import org.chimeramc.client.core.content.OptionsEditor.OptionProperty;
 import org.chimeramc.client.databinding.ActivityOptionsEditorBinding;
 import org.chimeramc.client.ui.adapter.OptionsPropertiesAdapter;
 import org.chimeramc.client.ui.animation.DynamicAnim;
+import org.chimeramc.client.launcher.core.minecraft.UserFacingError;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -138,7 +139,8 @@ public class OptionsEditorActivity extends BaseActivity {
                 runOnUiThread(() -> {
                     binding.loadingProgress.setVisibility(View.GONE);
                     binding.emptyText.setVisibility(View.VISIBLE);
-                    binding.emptyText.setText(getString(R.string.error_loading_options) + ": " + e.getMessage());
+                    binding.emptyText.setText(getString(R.string.error_loading_options) + "\n\n"
+                            + UserFacingError.describe(OptionsEditorActivity.this, e));
                 });
             }
         });
@@ -195,8 +197,8 @@ public class OptionsEditorActivity extends BaseActivity {
                 runOnUiThread(() -> {
                     binding.loadingProgress.setVisibility(View.GONE);
                     binding.saveButton.setEnabled(true);
-                    Toast.makeText(this, getString(R.string.save_failed) + ": " + e.getMessage(),
-                            Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, getString(R.string.save_failed) + "\n\n"
+                            + UserFacingError.reason(this, e), Toast.LENGTH_LONG).show();
                 });
             }
         });

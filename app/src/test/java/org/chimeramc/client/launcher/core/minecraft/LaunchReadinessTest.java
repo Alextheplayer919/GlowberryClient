@@ -78,6 +78,7 @@ public class LaunchReadinessTest {
         assertFalse(LaunchReadiness.blocksLaunch(LaunchReadiness.State.SIGNATURE_RULES_MISSING));
 
         assertTrue(LaunchReadiness.blocksLaunch(LaunchReadiness.State.NO_VERSION_SELECTED));
+        assertTrue(LaunchReadiness.blocksLaunch(LaunchReadiness.State.PLAY_STORE_PACKAGE));
         assertTrue(LaunchReadiness.blocksLaunch(LaunchReadiness.State.GAME_FILES_MISSING));
         assertTrue(LaunchReadiness.blocksLaunch(LaunchReadiness.State.ABI_INCOMPATIBLE));
         assertTrue(LaunchReadiness.blocksLaunch(LaunchReadiness.State.GAME_NOT_INSTALLED));

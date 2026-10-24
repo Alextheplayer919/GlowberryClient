@@ -16,6 +16,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import org.chimeramc.client.launcher.core.minecraft.UserFacingError;
 
 public class StructureExtractor {
     private static final String TAG = "StructureExtractor";
@@ -132,7 +133,10 @@ public class StructureExtractor {
                 }
 
                 if (errorRef.get() != null) {
-                    callback.onError(errorRef.get());
+                    // The LevelDB layer reports a raw message; classify it here so the toast names
+                    // the cause instead of echoing an exception's text.
+                    callback.onError(UserFacingError.shortReasonForText(
+                            context, "Failed to load structures", errorRef.get()));
                     finalDbManager.shutdown();
                     return;
                 }
@@ -158,7 +162,7 @@ public class StructureExtractor {
 
             } catch (Exception e) {
                 Log.e(TAG, "Failed to load structures", e);
-                callback.onError("Failed to load structures: " + e.getMessage());
+                callback.onError(UserFacingError.shortReasonForText(context, "Failed to load structures", e.getMessage()));
                 if (dbManager != null) {
                     dbManager.shutdown();
                 }
@@ -168,8 +172,10 @@ public class StructureExtractor {
 
     public void exportSingleStructure(StructureInfo structure, Uri outputUri, ExtractionCallback callback) {
         executor.execute(() -> {
-            try {
-                OutputStream outputStream = context.getContentResolver().openOutputStream(outputUri);
+            // try-with-resources: the old code closed the stream by hand inside each branch, so a
+            // write that failed partway (a full or unwritable destination) leaked the descriptor
+            // and left a half-written file behind.
+            try (OutputStream outputStream = context.getContentResolver().openOutputStream(outputUri)) {
                 if (outputStream == null) {
                     callback.onError("Cannot create output file");
                     return;
@@ -179,16 +185,14 @@ public class StructureExtractor {
                 if (data != null && data.length > 0) {
                     outputStream.write(data);
                     outputStream.flush();
-                    outputStream.close();
                     callback.onComplete(1, outputUri.toString());
                 } else {
-                    outputStream.close();
                     callback.onError("Structure has no data");
                 }
 
             } catch (Exception e) {
                 Log.e(TAG, "Failed to export structure", e);
-                callback.onError("Export failed: " + e.getMessage());
+                callback.onError(UserFacingError.shortReasonForText(context, "Export failed", e.getMessage()));
             }
         });
     }

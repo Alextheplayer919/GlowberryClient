@@ -14,6 +14,7 @@ import org.chimeramc.client.core.content.WorldEditor.WorldProperty;
 import org.chimeramc.client.databinding.ActivityWorldEditorBinding;
 import org.chimeramc.client.ui.adapter.WorldPropertiesAdapter;
 import org.chimeramc.client.ui.animation.DynamicAnim;
+import org.chimeramc.client.launcher.core.minecraft.UserFacingError;
 
 import android.graphics.Color;
 
@@ -145,7 +146,8 @@ public class WorldEditorActivity extends BaseActivity {
                 runOnUiThread(() -> {
                     binding.loadingProgress.setVisibility(View.GONE);
                     binding.emptyText.setVisibility(View.VISIBLE);
-                    binding.emptyText.setText(getString(R.string.error_loading_world) + ": " + e.getMessage());
+                    binding.emptyText.setText(getString(R.string.error_loading_world) + "\n\n"
+                            + UserFacingError.describe(WorldEditorActivity.this, e));
                 });
             }
         });
@@ -206,8 +208,8 @@ public class WorldEditorActivity extends BaseActivity {
                 runOnUiThread(() -> {
                     binding.loadingProgress.setVisibility(View.GONE);
                     binding.saveButton.setEnabled(true);
-                    Toast.makeText(this, getString(R.string.save_failed) + ": " + e.getMessage(),
-                            Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, getString(R.string.save_failed) + "\n\n"
+                            + UserFacingError.reason(this, e), Toast.LENGTH_LONG).show();
                 });
             }
         });

@@ -32,11 +32,12 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 
 import org.chimeramc.client.R;
-import org.chimeramc.client.core.crash.CrashReporter;
+import org.chimeramc.client.core.crash.CrashReportUploader;
 import org.chimeramc.client.preloader.PreloaderSignatureRulesManager;
 import org.chimeramc.client.settings.FeatureSettings;
 import org.chimeramc.client.settings.LowLatencyNetworkManager;
 import org.chimeramc.client.settings.PerformancePresetManager;
+import org.chimeramc.client.launcher.core.minecraft.UserFacingError;
 import org.chimeramc.client.launcher.ui.activities.DiagnosticsActivity;
 import org.chimeramc.client.ui.animation.DynamicAnim;
 import org.chimeramc.client.ui.dialogs.LogcatOverlayManager;
@@ -416,10 +417,24 @@ public class SettingsActivity extends BaseActivity {
 
         SwitchMaterial switchCrashUpload = findViewById(R.id.switch_crash_upload);
         switchCrashUpload.setChecked(fs.isCrashUploadEnabled());
+        // The switch used to persist a flag nothing read: it flipped, the value was stored, and no
+        // upload ever happened. It is now wired to the uploader, and disabled with a stated reason
+        // when this build has no collector configured — a switch that cannot do anything must say
+        // so rather than pretend.
+        boolean crashUploadConfigured = CrashReportUploader.isConfigured();
+        switchCrashUpload.setEnabled(crashUploadConfigured);
         switchCrashUpload.setOnCheckedChangeListener((btn, checked) -> {
             fs.setCrashUploadEnabled(checked);
-            CrashReporter.refreshCrashlyticsCollection(this);
+            if (checked && crashUploadConfigured) {
+                Toast.makeText(this, R.string.crash_upload_sending, Toast.LENGTH_SHORT).show();
+                new Thread(() -> CrashReportUploader.uploadPending(getApplicationContext()),
+                        "crash-report-upload").start();
+            }
         });
+        View crashUploadUnavailable = findViewById(R.id.crash_upload_unavailable);
+        if (crashUploadUnavailable != null) {
+            crashUploadUnavailable.setVisibility(crashUploadConfigured ? View.GONE : View.VISIBLE);
+        }
 
         SwitchMaterial switchManagedLogin = findViewById(R.id.switch_managed_login);
         switchManagedLogin.setChecked(fs.isLauncherManagedMcLoginEnabled());
@@ -1102,9 +1117,13 @@ public class SettingsActivity extends BaseActivity {
             if (result.success) {
                 Toast.makeText(this, R.string.preloader_sigs_update_success, Toast.LENGTH_SHORT).show();
             } else {
-                String detail = result.message.isEmpty()
-                        ? getString(R.string.unknown_error)
-                        : result.message;
+                // The manager's message is the raw exception text ("Unable to resolve host ...").
+                // Naming the cause turns it into something the user can act on; the raw text stays
+                // for the report.
+                String detail = result.message == null || result.message.trim().isEmpty()
+                        ? getString(R.string.error_reason_unknown)
+                        : getString(UserFacingError.messageRes(
+                                UserFacingError.classifyText(result.message)));
                 Toast.makeText(this, getString(R.string.preloader_sigs_update_failed, detail), Toast.LENGTH_LONG).show();
             }
         });
@@ -1447,7 +1466,7 @@ public class SettingsActivity extends BaseActivity {
             updateButtonTapCount = 0;
             triggerEasterEgg();
         } else {
-            new GithubReleaseUpdater(this, "ChimeraAnt-DEV", "ChimeraLauncher", permissionResultLauncher).checkUpdate();
+            new GithubReleaseUpdater(this, GithubReleaseUpdater.REPO_OWNER, GithubReleaseUpdater.REPO_NAME, permissionResultLauncher).checkUpdate();
         }
     }
 

@@ -10,6 +10,7 @@ import android.widget.Toast;
 
 import org.chimeramc.client.R;
 import org.chimeramc.client.core.versions.GameVersion;
+import org.chimeramc.client.launcher.core.minecraft.LaunchErrorDiagnosis;
 import org.chimeramc.client.util.LauncherStorage;
 import android.util.Log;
 
@@ -192,8 +193,14 @@ public class MinecraftLauncher {
 
     private void showLaunchErrorOnUi(String message) {
         Activity activity = (Activity) context;
+        // Name the cause, then keep the raw text. This path reported the raw dlopen string alone,
+        // which is accurate but leaves the user with nothing to act on; the classifier turns it into
+        // the specific reason (Google Play install, wrong bitness, missing dependency, ...).
+        LaunchErrorDiagnosis.Cause cause = LaunchErrorDiagnosis.classifyText(message);
+        String text = activity.getString(LaunchErrorDiagnosis.messageRes(cause))
+                + (message != null && !message.isEmpty() ? "\n\n" + message : "");
         activity.runOnUiThread(() -> Toast.makeText(
-                activity, activity.getString(R.string.dialog_message_launch_failed, message), Toast.LENGTH_LONG).show()
+                activity, text, Toast.LENGTH_LONG).show()
         );
     }
 

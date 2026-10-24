@@ -15,6 +15,7 @@ import androidx.core.content.FileProvider;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.chimeramc.client.R;
+import org.chimeramc.client.launcher.core.minecraft.UserFacingError;
 import org.chimeramc.client.settings.LowLatencyNetworkManager;
 import org.chimeramc.client.ui.dialogs.CustomAlertDialog;
 
@@ -33,6 +34,17 @@ public class GithubReleaseUpdater {
     private static final String TAG = "GithubReleaseUpdater";
     private static final String GITHUB_LATEST_API = "https://api.github.com/repos/%s/%s/releases/latest";
     private static final String APK_ASSET_KEYWORD = ".apk";
+
+    /**
+     * The canonical repository this client publishes to.
+     *
+     * <p>Single-sourced so the update check cannot point at a stale slug. It previously named
+     * {@code ChimeraLauncher} while every other link (About, Settings, the signature-rules source)
+     * named {@code GlowberryClient}; the old slug only survives as a redirect, and a redirect is not
+     * something a release check should depend on.
+     */
+    public static final String REPO_OWNER = "ChimeraAnt-DEV";
+    public static final String REPO_NAME = "GlowberryClient";
     private static final String PREF_IGNORED_VERSION = "update_ignored_version";
     private final Activity activity;
     private final String owner;
@@ -57,18 +69,7 @@ public class GithubReleaseUpdater {
     }
 
     public static int compareVersion(String a, String b) {
-        a = a.startsWith("v") ? a.substring(1) : a;
-        b = b.startsWith("v") ? b.substring(1) : b;
-        String[] x = a.split("\\.");
-        String[] y = b.split("\\.");
-        int len = Math.max(x.length, y.length);
-        for (int i = 0; i < len; i++) {
-            int vi = i < x.length ? Integer.parseInt(x[i]) : 0;
-            int vj = i < y.length ? Integer.parseInt(y[i]) : 0;
-            if (vi > vj) return 1;
-            if (vi < vj) return -1;
-        }
-        return 0;
+        return org.chimeramc.client.launcher.util.UpdateVersion.compare(a, b);
     }
 
     public void checkUpdate() {
@@ -193,6 +194,18 @@ public class GithubReleaseUpdater {
         });
     }
 
+    /**
+     * The cause-specific reason an update download or install failed.
+     *
+     * <p>Before this the toast carried the raw exception text, which for a failed update is usually
+     * "Unable to resolve host api.github.com" — accurate, but it does not say that the device has
+     * no connection, which is the only thing the user can fix.
+     */
+    private static String reasonFor(android.content.Context context, Throwable error) {
+        if (error == null) return context.getString(R.string.error_reason_unknown);
+        return context.getString(UserFacingError.messageRes(UserFacingError.classify(error)));
+    }
+
     private void ignoreThisVersion(String version) {
         SharedPreferences prefs = activity.getSharedPreferences("no_update_version", Context.MODE_PRIVATE);
         prefs.edit().putString(PREF_IGNORED_VERSION, version).apply();
@@ -205,8 +218,9 @@ public class GithubReleaseUpdater {
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
-                activity.runOnUiThread(() ->
-                        Toast.makeText(activity, activity.getString(R.string.update_failed, e.getMessage()), Toast.LENGTH_LONG).show());
+                activity.runOnUiThread(() -> Toast.makeText(activity,
+                        activity.getString(R.string.update_failed, reasonFor(activity, e)),
+                        Toast.LENGTH_LONG).show());
             }
 
             @Override
@@ -238,8 +252,9 @@ public class GithubReleaseUpdater {
                     fos.flush();
                     installApk(apkFile);
                 } catch (Exception e) {
-                    activity.runOnUiThread(() ->
-                            Toast.makeText(activity, activity.getString(R.string.update_failed, e.getMessage()), Toast.LENGTH_LONG).show());
+                    activity.runOnUiThread(() -> Toast.makeText(activity,
+                            activity.getString(R.string.update_failed, reasonFor(activity, e)),
+                            Toast.LENGTH_LONG).show());
                 } finally {
                     try {
                         if (is != null) is.close();
@@ -279,7 +294,7 @@ public class GithubReleaseUpdater {
                                 intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
                                 activity.startActivity(intent);
                             } catch (Exception e) {
-                                Toast.makeText(activity, activity.getString(R.string.install_failed, e.getMessage()), Toast.LENGTH_LONG).show();
+                                Toast.makeText(activity, activity.getString(R.string.install_failed, reasonFor(activity, e)), Toast.LENGTH_LONG).show();
                             }
                         });
                     }

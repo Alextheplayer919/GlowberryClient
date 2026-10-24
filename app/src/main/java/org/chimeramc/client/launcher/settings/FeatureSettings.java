@@ -5,7 +5,6 @@ import android.content.Context;
 public class FeatureSettings {
     private static volatile FeatureSettings INSTANCE;
     private static Context appContext;
-    private boolean versionIsolationEnabled = false;
     private boolean launcherManagedMcLoginEnabled = false;
     private boolean logcatOverlayEnabled = false;
     private boolean lowInputDelayEnabled = false;
@@ -79,9 +78,6 @@ public class FeatureSettings {
             }
         }
     }
-
-    public boolean isVersionIsolationEnabled() { return versionIsolationEnabled; }
-    public void setVersionIsolationEnabled(boolean enabled) { this.versionIsolationEnabled = enabled; autoSave(); }
 
     public boolean isLauncherManagedMcLoginEnabled() { return launcherManagedMcLoginEnabled; }
     public void setLauncherManagedMcLoginEnabled(boolean enabled) { this.launcherManagedMcLoginEnabled = enabled; autoSave(); }

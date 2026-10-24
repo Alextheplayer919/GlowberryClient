@@ -11,6 +11,7 @@ import org.chimeramc.client.core.mods.ModManager
 import org.chimeramc.client.core.mods.ModNativeLoader
 import org.chimeramc.client.core.mods.ModSafeMode
 import org.chimeramc.client.core.minecraft.MinecraftLauncher
+import org.chimeramc.client.core.minecraft.NativeLibraryVersionGate
 import org.chimeramc.client.core.auth.InstanceAccountBinding
 import org.chimeramc.client.core.auth.MsftAccountStore
 import org.chimeramc.client.core.auth.storage.XalExporter
@@ -75,7 +76,11 @@ object MinecraftRuntimePreparer {
         trace.mark("Minecraft version resolved", "${version.directoryName} ${version.versionCode}")
 
         fileListener.onProgress(12,"Preparing game files")
-        val gameManager = GamePackageManager.getInstance(context.applicationContext, version, trace, null)
+        // Hand the loading screen's listener to the package manager so the extraction - by far the
+        // longest part of a cold launch - reports into the UI instead of only into the trace. It
+        // used to pass null, so the progress bar sat on "Preparing game files" for the whole
+        // extraction with no log lines, which reads as a hang.
+        val gameManager = GamePackageManager.getInstance(context.applicationContext, version, trace, fileListener)
         trace.mark("GamePackageManager ready")
 
         if (!gameManager.requireLauncherSupportsVersion(version)) {
@@ -157,12 +162,27 @@ object MinecraftRuntimePreparer {
         fileListener.onProgress(78,"Loading enabled mods")
         fileListener.onLog("Loading native mods")
 
+        // Non-essential native extras (the inbuilt-mod library and the gyro pre-resolve). A device
+        // that cannot load one of these must still reach its world, so the failure is logged by
+        // cause rather than silently swallowed: "the launch continued but gyro never worked" was
+        // previously indistinguishable from "gyro is broken", and nothing reached the log.
         try {
             org.levimc.launcher.core.mods.inbuilt.nativemod.InbuiltModsNative.loadLibrary()
             org.levimc.launcher.core.mods.inbuilt.nativemod.GyroMod.nativePreResolve()
-        } catch (_: Throwable) {}
+            trace.mark("Inbuilt native extras loaded")
+        } catch (error: Throwable) {
+            val reason = if (error is UnsatisfiedLinkError) {
+                "native library missing (ABI mismatch or a stale extraction)"
+            } else {
+                error.message ?: error.javaClass.simpleName
+            }
+            fileListener.onLog(
+                "Inbuilt native extras unavailable; the launch continues: $reason"
+            )
+            trace.warning("Inbuilt native extras unavailable", reason)
+        }
 
-val modsDir = modManager.currentVersion?.modsDir?.absolutePath
+        val modsDir = modManager.currentVersion?.modsDir?.absolutePath
         if (modsDir.isNullOrEmpty()) {
             fileListener.onLog("Skipped gxcore native runtime setup: no mods directory")
         } else if (!org.levimc.launcher.core.minecraft.MinecraftRuntimePreparer.runNativeSetup(modsDir)) {
@@ -174,19 +194,41 @@ val modsDir = modManager.currentVersion?.modsDir?.absolutePath
             val profileId = MinecraftLauncher.getStorageProfileId(version)
             val internalGameData = LauncherStorage.getStorageGameDataDir(context, profileId, version.versionIsolation, false)
             val externalGameData = LauncherStorage.getStorageGameDataDir(context, profileId, version.versionIsolation, true)
-            val bundledPackCount = BundledResourcePackInstaller.sync(
+            val packResult = BundledResourcePackInstaller.sync(
                 modManager.mods,
                 nativeModResult.loadedModIds,
                 internalGameData,
                 externalGameData
             )
-            if (bundledPackCount > 0) {
-                fileListener.onLog("Prepared $bundledPackCount bundled native-mod pack(s)")
+            if (packResult.packCount > 0) {
+                fileListener.onLog("Prepared ${packResult.packCount} bundled native-mod pack(s)")
             }
-            trace.mark("Bundled native-mod packs synchronized", bundledPackCount.toString())
-        } catch (error: Exception) {
-            trace.error("Bundled native-mod pack synchronization failed", error.message ?: error.javaClass.simpleName)
-            throw RuntimeException("Failed to prepare bundled native-mod packs", error)
+            if (!packResult.isComplete) {
+                // A cosmetic side effect, not a launch gate: the game reads exactly one game-data
+                // root, so a failure writing a candidate it will not read must not stop the session.
+                // Report it by cause so the Diagnostics screen and logcat agree, then continue.
+                val detail = packResult.firstError?.message ?: packResult.firstError?.javaClass?.simpleName
+                fileListener.onLog(
+                    "Bundled native-mod packs could not be written to " +
+                        "${packResult.failedRoots.size} of " +
+                        "${packResult.failedRoots.size + packResult.succeededRoots.size} game-data " +
+                        "root(s); the launch continues. ${detail ?: ""}".trim()
+                )
+                trace.warning(
+                    "Bundled native-mod pack synchronization incomplete",
+                    packResult.firstError?.javaClass?.simpleName
+                )
+            } else {
+                trace.mark("Bundled native-mod packs synchronized", packResult.packCount.toString())
+            }
+        } catch (error: Throwable) {
+            // Even an unexpected failure outside the per-root handling must not block a launch: the
+            // packs are a cosmetic convenience, and a session that cannot start is far worse than a
+            // mod's bundled resource pack not being applied.
+            trace.warning(
+                "Bundled native-mod pack synchronization failed",
+                error.message ?: error.javaClass.simpleName
+            )
         }
 
         // F2: an instance can be bound to a specific Microsoft account. Export that account's XAL
@@ -590,43 +632,18 @@ val modsDir = modManager.currentVersion?.modsDir?.absolutePath
     }
 
     private fun shouldLoadMaesdk(version: GameVersion): Boolean {
-        val versionCode = version.versionCode
-        val targetVersion = if (versionCode.contains("beta")) "1.21.110.22" else "1.21.110"
-        return isVersionAtLeast(versionCode, targetVersion)
+        return NativeLibraryVersionGate.shouldLoadMaesdk(version.versionCode)
     }
 
     private fun shouldLoadHttpClient(version: GameVersion): Boolean {
-        val versionCode = version.versionCode
-        val targetVersion = if (versionCode.contains("beta")) "1.21.130.20" else "1.21.130"
-        return isVersionAtLeast(versionCode, targetVersion)
+        return NativeLibraryVersionGate.shouldLoadHttpClient(version.versionCode)
     }
 
     private fun shouldLoadPlayFab(version: GameVersion): Boolean {
-        val versionCode = version.versionCode
-        val targetVersion = if (versionCode.contains("beta")) "1.21.130.20" else "1.21.130"
-        return isVersionAtLeast(versionCode, targetVersion)
+        return NativeLibraryVersionGate.shouldLoadPlayFab(version.versionCode)
     }
 
     private fun toLibraryFileName(name: String): String {
         return if (name.startsWith("lib") && name.endsWith(".so")) name else "lib${name.removePrefix("lib").removeSuffix(".so")}.so"
-    }
-
-    private fun isVersionAtLeast(currentVersion: String, targetVersion: String): Boolean {
-        return try {
-            val current = currentVersion.replace(Regex("[^0-9.]"), "").split(".")
-            val target = targetVersion.split(".")
-            val maxLength = maxOf(current.size, target.size)
-
-            for (i in 0 until maxLength) {
-                val currentPart = current.getOrNull(i)?.toIntOrNull() ?: 0
-                val targetPart = target.getOrNull(i)?.toIntOrNull() ?: 0
-
-                if (currentPart > targetPart) return true
-                if (currentPart < targetPart) return false
-            }
-            true
-        } catch (_: Exception) {
-            false
-        }
     }
 }

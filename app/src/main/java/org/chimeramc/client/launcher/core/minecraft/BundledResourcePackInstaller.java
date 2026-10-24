@@ -33,20 +33,59 @@ final class BundledResourcePackInstaller {
 
     private BundledResourcePackInstaller() {}
 
-    static int sync(List<Mod> mods, Set<String> loadedModIds, File... gameDataDirs) throws IOException {
+    /**
+     * The outcome of one sync, so the caller can report a partial failure without a launch abort.
+     *
+     * <p>The caller writes to several candidate game-data roots because the game picks its storage
+     * from the instance's isolation setting and internal/external preference, so only one root is
+     * actually read. A write to the wrong guess failing is therefore normal, and aborting the launch
+     * over it stopped a session that would have run correctly off the other root.
+     */
+    static final class Result {
+        final int packCount;
+        final List<File> succeededRoots;
+        final List<File> failedRoots;
+        final Exception firstError;
+
+        Result(int packCount, List<File> succeededRoots, List<File> failedRoots, Exception firstError) {
+            this.packCount = packCount;
+            this.succeededRoots = succeededRoots;
+            this.failedRoots = failedRoots;
+            this.firstError = firstError;
+        }
+
+        /** True when every candidate root accepted the packs (the normal case). */
+        boolean isComplete() {
+            return failedRoots.isEmpty();
+        }
+    }
+
+    /**
+     * Writes the enabled native mods' bundled packs into every candidate game-data root.
+     *
+     * <p>Never throws: a failure is returned so the caller can log it and keep launching. Aborting
+     * the launch over a bundled pack made the whole instance unlaunchable because one of several
+     * candidate roots was not writable, which is a cosmetic problem, not a launch problem.
+     */
+    static Result sync(List<Mod> mods, Set<String> loadedModIds, File... gameDataDirs) {
         List<Pack> packs = discover(mods, loadedModIds);
-        IOException failure = null;
+        List<File> succeeded = new ArrayList<>();
+        List<File> failed = new ArrayList<>();
+        Exception firstError = null;
         for (File gameDataDir : gameDataDirs) {
             if (gameDataDir == null) continue;
             try {
                 syncRoot(gameDataDir, packs);
-            } catch (IOException error) {
-                if (failure == null) failure = error;
-                else failure.addSuppressed(error);
+                succeeded.add(gameDataDir);
+            } catch (Exception error) {
+                // Exception, not IOException: a JSON serialisation failure or an unexpected runtime
+                // error must not be the one thing that stops a launch either.
+                failed.add(gameDataDir);
+                if (firstError == null) firstError = error;
+                else firstError.addSuppressed(error);
             }
         }
-        if (failure != null) throw failure;
-        return packs.size();
+        return new Result(packs.size(), succeeded, failed, firstError);
     }
 
     private static List<Pack> discover(List<Mod> mods, Set<String> loadedModIds) {

@@ -27,6 +27,17 @@ public final class LaunchReadiness {
         READY,
         /** No instance is selected yet. */
         NO_VERSION_SELECTED,
+        /**
+         * The instance is the device-installed Minecraft package and the launcher cannot read the
+         * game's native library out of it.
+         *
+         * <p>This is the Play Store build: its package is present and valid, but the library the
+         * launcher has to load is not reachable the way an imported APK's is. It is a distinct
+         * state from {@link #GAME_FILES_MISSING} because the user's fix is different — the files
+         * are not missing, they are in a form this launcher cannot open — and because reporting it
+         * as "missing" sent people looking for a file that was never supposed to exist.
+         */
+        PLAY_STORE_PACKAGE,
         /** The selected instance's game files are missing or its folder was removed. */
         GAME_FILES_MISSING,
         /** The APK ships only a 32-bit ABI and this is a 64-bit process. */
@@ -45,6 +56,11 @@ public final class LaunchReadiness {
     public static final class Facts {
         public boolean versionSelected;
         public boolean gameFilesPresent = true;
+        /**
+         * The instance is the installed Minecraft package and its game library could not be read
+         * out of it. See {@link State#PLAY_STORE_PACKAGE}.
+         */
+        public boolean installedPackageUnreadable;
         public boolean abiIncompatible;
         public boolean extractionStale;
         public boolean signatureRulesCoverBuild = true;
@@ -54,6 +70,7 @@ public final class LaunchReadiness {
 
         public Facts versionSelected(boolean v) { versionSelected = v; return this; }
         public Facts gameFilesPresent(boolean v) { gameFilesPresent = v; return this; }
+        public Facts installedPackageUnreadable(boolean v) { installedPackageUnreadable = v; return this; }
         public Facts abiIncompatible(boolean v) { abiIncompatible = v; return this; }
         public Facts extractionStale(boolean v) { extractionStale = v; return this; }
         public Facts signatureRulesCoverBuild(boolean v) { signatureRulesCoverBuild = v; return this; }
@@ -62,10 +79,18 @@ public final class LaunchReadiness {
         public Facts signedIn(boolean v) { signedIn = v; return this; }
     }
 
-    /** The first condition that blocks a launch, or {@link State#READY}. */
+    /**
+     * The first condition that blocks a launch, or {@link State#READY}.
+     *
+     * <p>{@link State#PLAY_STORE_PACKAGE} is checked before {@code gameFilesPresent} on purpose.
+     * An installed package has no {@code base.apk.chimera} to find, so the "files present" probe is
+     * necessarily false for it; testing that first would report the installed build as missing its
+     * files and never reach the accurate message.
+     */
     public static State evaluate(Facts facts) {
         if (facts == null) return State.NO_VERSION_SELECTED;
         if (!facts.versionSelected) return State.NO_VERSION_SELECTED;
+        if (facts.installedPackageUnreadable) return State.PLAY_STORE_PACKAGE;
         if (!facts.gameFilesPresent) return State.GAME_FILES_MISSING;
         if (facts.abiIncompatible) return State.ABI_INCOMPATIBLE;
         if (facts.extractionStale) return State.STALE_NATIVE_LIBS;
