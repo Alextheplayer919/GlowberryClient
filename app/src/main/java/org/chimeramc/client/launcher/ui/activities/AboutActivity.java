@@ -83,26 +83,34 @@ public class AboutActivity extends BaseActivity {
         com.microsoft.xbox.idp.toolkit.CircleImageView maintainerAvatar = findViewById(R.id.maintainer_avatar);
 
         executor.execute(() -> {
+            // try-with-resources on Response, not a bare execute(): an OkHttp response holds a
+            // connection until its body is closed, and a swallowed exception left it checked out of
+            // the pool. The avatar is decorative, so a failure is not surfaced - but the body must
+            // still be released or the pool leaks one connection per visit.
             try {
                 if (avatar != null) {
-                    Response resp = client.newCall(new Request.Builder().url(AVATAR_URL).build()).execute();
-                    if (resp.isSuccessful() && resp.body() != null) {
-                        Bitmap bmp = BitmapFactory.decodeStream(resp.body().byteStream());
-                        runOnUiThread(() -> {
-                            if (bmp != null) avatar.setImageBitmap(bmp);
-                        });
+                    try (Response resp = client.newCall(
+                            new Request.Builder().url(AVATAR_URL).build()).execute()) {
+                        if (resp.isSuccessful() && resp.body() != null) {
+                            Bitmap bmp = BitmapFactory.decodeStream(resp.body().byteStream());
+                            runOnUiThread(() -> {
+                                if (bmp != null) avatar.setImageBitmap(bmp);
+                            });
+                        }
                     }
                 }
             } catch (Exception ignored) {}
 
             try {
                 if (maintainerAvatar != null) {
-                    Response resp = client.newCall(new Request.Builder().url(MAINTAINER_AVATAR_URL).build()).execute();
-                    if (resp.isSuccessful() && resp.body() != null) {
-                        Bitmap bmp = BitmapFactory.decodeStream(resp.body().byteStream());
-                        runOnUiThread(() -> {
-                            if (bmp != null) maintainerAvatar.setImageBitmap(bmp);
-                        });
+                    try (Response resp = client.newCall(
+                            new Request.Builder().url(MAINTAINER_AVATAR_URL).build()).execute()) {
+                        if (resp.isSuccessful() && resp.body() != null) {
+                            Bitmap bmp = BitmapFactory.decodeStream(resp.body().byteStream());
+                            runOnUiThread(() -> {
+                                if (bmp != null) maintainerAvatar.setImageBitmap(bmp);
+                            });
+                        }
                     }
                 }
             } catch (Exception ignored) {}

@@ -564,8 +564,15 @@ import okhttp3.OkHttpClient;
                         okhttp3.OkHttpClient.Builder clientBuilder = new okhttp3.OkHttpClient.Builder();
                         org.chimeramc.client.settings.LowLatencyNetworkManager.configure(clientBuilder);
                         okhttp3.OkHttpClient client = clientBuilder.build();
-                        okhttp3.Response imgResp = client.newCall(new okhttp3.Request.Builder().url(url).build()).execute();
-                        final android.graphics.Bitmap bmp = (imgResp.isSuccessful() && imgResp.body() != null) ? android.graphics.BitmapFactory.decodeStream(imgResp.body().byteStream()) : null;
+                        // The response body must be closed even on the failure path, or the
+                        // connection stays checked out of the pool for the life of the process.
+                        final android.graphics.Bitmap bmp;
+                        try (okhttp3.Response imgResp = client.newCall(
+                                new okhttp3.Request.Builder().url(url).build()).execute()) {
+                            bmp = (imgResp.isSuccessful() && imgResp.body() != null)
+                                    ? android.graphics.BitmapFactory.decodeStream(imgResp.body().byteStream())
+                                    : null;
+                        }
                         runOnUiThread(() -> { if (bmp != null) headerAvatar.setImageBitmap(bmp); });
                     } catch (Exception ignored) {}
                 });
