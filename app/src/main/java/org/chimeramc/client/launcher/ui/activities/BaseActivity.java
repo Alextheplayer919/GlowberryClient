@@ -22,6 +22,8 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.core.widget.TextViewCompat;
 import android.widget.Toast;
 
@@ -36,6 +38,7 @@ import org.chimeramc.client.launcher.controller.ControllerConnectionMonitor;
 import org.chimeramc.client.launcher.controller.ControllerToastView;
 import org.chimeramc.client.launcher.controller.ControllerType;
 import org.chimeramc.client.ui.animation.DynamicAnim;
+import org.chimeramc.client.ui.navigation.EdgeToEdgeInsets;
 import org.chimeramc.client.ui.navigation.LauncherTab;
 import org.chimeramc.client.ui.navigation.NavLayoutMode;
 import org.chimeramc.client.ui.components.UiShape;
@@ -175,6 +178,13 @@ public class BaseActivity extends AppCompatActivity {
         contentView.setLayoutParams(contentParams);
         wrapper.addView(contentView);
 
+        // The launcher targets SDK 35, so on Android 15 the window is drawn edge-to-edge whether it
+        // asks to be or not: statusBarColor/navigationBarColor are ignored and the layout runs behind
+        // both bars. Without consuming the insets the nav shape is drawn under the status bar (clipped
+        // by a cutout) and the content under the gesture bar. Applied to the live views rather than a
+        // wrapper so the padding is the only thing that changes.
+        applyEdgeToEdgeInsets(navBar, contentView, rail);
+
         contentView.setAlpha(0f);
         // A vertical enter offset is the "drop in" for a top bar; a rail arrives from the side,
         // which is the axis the content actually gains room on when the rail is used.
@@ -195,6 +205,48 @@ public class BaseActivity extends AppCompatActivity {
                 DynamicAnim.springTranslationYTo(contentView, 0f).start();
             }
         });
+    }
+
+    /**
+     * Pads the navigation shape and the content for the system bars.
+     *
+     * <p>Only the padding is set, never a background, so the navigation surface keeps whatever the
+     * layout and the theme give it. The decision lives in {@link EdgeToEdgeInsets} so it is tested
+     * without a window.
+     */
+    private void applyEdgeToEdgeInsets(View navBar, View contentView, boolean rail) {
+        if (navBar == null || contentView == null) {
+            return;
+        }
+        // The layout's own padding is the base and the insets are added to it: overwriting would
+        // drop a declared padding, and the nav layouts do set one.
+        final int navBaseLeft = navBar.getPaddingLeft();
+        final int navBaseTop = navBar.getPaddingTop();
+        final int navBaseRight = navBar.getPaddingRight();
+        final int navBaseBottom = navBar.getPaddingBottom();
+        final int contentBaseLeft = contentView.getPaddingLeft();
+        final int contentBaseTop = contentView.getPaddingTop();
+        final int contentBaseRight = contentView.getPaddingRight();
+        final int contentBaseBottom = contentView.getPaddingBottom();
+
+        ViewCompat.setOnApplyWindowInsetsListener(navBar, (view, windowInsets) -> {
+            WindowInsetsCompat compat = windowInsets;
+            androidx.core.graphics.Insets bars =
+                    compat.getInsets(WindowInsetsCompat.Type.systemBars());
+            EdgeToEdgeInsets.Insets insets =
+                    new EdgeToEdgeInsets.Insets(bars.left, bars.top, bars.right, bars.bottom);
+            EdgeToEdgeInsets.Padding navPadding = EdgeToEdgeInsets.forNavBar(rail, insets);
+            view.setPadding(navBaseLeft + navPadding.left, navBaseTop + navPadding.top,
+                    navBaseRight + navPadding.right, navBaseBottom + navPadding.bottom);
+            EdgeToEdgeInsets.Padding contentPadding = EdgeToEdgeInsets.forContent(rail, insets);
+            contentView.setPadding(contentBaseLeft + contentPadding.left,
+                    contentBaseTop + contentPadding.top,
+                    contentBaseRight + contentPadding.right,
+                    contentBaseBottom + contentPadding.bottom);
+            // Consumed: the app is a full-screen surface and nothing above it needs the insets.
+            return WindowInsetsCompat.CONSUMED;
+        });
+        ViewCompat.requestApplyInsets(navBar);
     }
 
     /** The window width in dp, from the smallest width the window can be. */
