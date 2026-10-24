@@ -128,20 +128,25 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     /**
      * Moves a module one slot within its section, returning the new order (M9).
      *
-     * <p>Group headers are not movable and a module may not cross into another section: the header
-     * rule (one header per contiguous run) would break, and the saved order is per section. The
-     * move returns the resulting key order so the caller can persist it.
+     * <p>Group headers and one-shot action rows are not movable and a module may not cross into
+     * another section: the header rule (one header per contiguous run) would break, and the saved
+     * order is per section. The move returns the resulting key order so the caller can persist it,
+     * and returns <b>null</b> when it refuses — the refusal has to be visible, because
+     * {@code ItemTouchHelper.onMove} treats a non-null return as "the drag was accepted" and lets a
+     * row that was never actually moved keep floating under the finger.
      */
     public List<String> moveModule(int fromPosition, int toPosition) {
         if (fromPosition < 0 || toPosition < 0
                 || fromPosition >= items.size() || toPosition >= items.size()) {
-            return currentSectionOrder();
+            return null;
         }
         MenuItem from = items.get(fromPosition);
         MenuItem to = items.get(toPosition);
-        if (from.isGroup() || to.isGroup()) return currentSectionOrder();
+        // A group header and a one-shot action row both have no position of their own, and neither
+        // carries a module, so neither can be the source or the target of a move.
+        if (from.mod == null || to.mod == null) return null;
         if (!Objects.equals(from.mod.getGroupId(), to.mod.getGroupId())) {
-            return currentSectionOrder();
+            return null;
         }
         items.remove(fromPosition);
         items.add(toPosition, from);
@@ -163,7 +168,8 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
         if (a >= items.size() || b >= items.size()) return false;
         MenuItem first = items.get(a);
         MenuItem second = items.get(b);
-        if (first.isGroup() || second.isGroup()) return false;
+        // A header or an action row has no module to compare, so it is not a valid drop target.
+        if (first.mod == null || second.mod == null) return false;
         return Objects.equals(first.mod.getGroupId(), second.mod.getGroupId());
     }
 
