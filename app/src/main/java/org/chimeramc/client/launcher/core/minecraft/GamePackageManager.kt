@@ -846,7 +846,11 @@ class GamePackageManager private constructor(
                     elapsedSince(startedAt)
                 )
             } catch (e: UnsatisfiedLinkError) {
-                val detail = e.message ?: e.javaClass.simpleName
+                // Same bitness annotation the file path uses. A launcher-bundled library is
+                // always the process's own ABI, so this is usually a transitive dependency of the
+                // bundled lib that is 32-bit - and "dlopen failed: is 32-bit instead of 64-bit"
+                // does not say which one.
+                val detail = processBitnessMismatchDetail(e) ?: (e.message ?: e.javaClass.simpleName)
                 mirrorLogcat('E', "Failed to load $fileName from $source: $detail")
                 return LibraryLoadResult(normalizedName, fileName, source, false, elapsedSince(startedAt), detail)
             } catch (e: Exception) {
