@@ -65,6 +65,28 @@ object ExtractionCachePolicy {
         required.all { exists(it) }
 
     /**
+     * Libraries the launcher supplies from its own native directory when a package ships none.
+     *
+     * <p>`libc++_shared.so` is the one case: the preloader is linked against it, some packages omit
+     * it, and the launcher always has a copy. Because it is also in the required list, the
+     * launcher's fallback must run <em>before</em> the completeness check — otherwise a perfectly
+     * launchable version is refused for a library the launcher was about to provide.
+     */
+    @JvmStatic
+    fun launcherProvidedLibraries(): List<String> = listOf("libc++_shared.so")
+
+    /**
+     * The required libraries that are missing once every source has been tried.
+     *
+     * <p>Pure, so the refusal rule is unit-tested without a device. The returned names are what the
+     * error message must list: naming the ABI and the exact files is what turns "libX.so not found
+     * in /data/..." at `dlopen` into an actionable message at extraction time.
+     */
+    @JvmStatic
+    fun missingLibraries(required: Collection<String>, present: (String) -> Boolean): List<String> =
+        required.filterNot { present(it) }
+
+    /**
      * The single decision the extraction uses: reuse the cache, or wipe and re-extract.
      *
      * <p>Reuse requires all four: a matching manifest, a matching extraction version, and every

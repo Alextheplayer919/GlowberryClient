@@ -314,32 +314,30 @@ class GamePackageManager private constructor(
         }
         report("Minecraft library cache miss: extracting libraries")
 
+        val abi: String
         if (version != null && !version.isInstalled) {
             // Resolve once: getDeviceAbi scans every APK, so calling it per file would
             // re-open all of them for each one.
-            val abi = getDeviceAbi(apkFiles)
+            abi = getDeviceAbi(apkFiles)
             apkFiles.forEach { extractFromApk(it.absolutePath, outputDir, abi) }
-            // A zero-length file is what an interrupted extraction leaves behind, and it is not
-            // loadable, so it must fail here with the named reason rather than passing the
-            // preflight and dying at dlopen with an error the user cannot act on.
-            val missingLibs = cacheRequiredLibs.filter { lib ->
-                !File(outputDir, lib).let { it.exists() && it.length() > 0L }
-            }
-            if (missingLibs.isNotEmpty()) {
-                throw IllegalStateException(
-                    "Required native libraries for ABI $abi are missing from this version's APK/splits: "
-                        + missingLibs.joinToString()
-                )
-            }
         } else {
             val appInfo = packageContext.applicationInfo
             if (File(appInfo.nativeLibraryDir).exists()) {
                 copyFromNativeDir(appInfo.nativeLibraryDir, outputDir)
             }
-            val abi = getDeviceAbi(apkFiles)
+            abi = getDeviceAbi(apkFiles)
             apkFiles.forEach { extractFromApk(it.absolutePath, outputDir, abi) }
         }
+        // The STL fallback runs before the completeness check, not after. libc++_shared.so is in
+        // the required list, and a package that ships no copy is supplied from the launcher's own
+        // native dir - so checking first would refuse a perfectly launchable version for a library
+        // the launcher was about to provide.
         ensureLibCppSharedFallback(outputDir)
+        // Both extraction paths refuse a missing required library with the same named reason. The
+        // installed-package path used to only *log* it, so an incomplete cache passed this point
+        // and died later at dlopen with "libX.so not found in <dir>" - a message that names the
+        // file but not the cause.
+        requireLibrariesPresent(outputDir, cacheRequiredLibs, abi)
         verifyLibraries(outputDir)
 
         if (cacheRequiredLibs.all { File(outputDir, it).let { f -> f.exists() && f.length() > 0 } }) {
@@ -610,6 +608,28 @@ class GamePackageManager private constructor(
      * not removed here — the launch preflight decides what to do — but every mismatch is logged
      * so the diagnostics report and logcat agree about the failure cause.
      */
+    /**
+     * Fails with the specific cause when a required library is absent from the extracted cache.
+     *
+     * <p>A zero-length file is what an interrupted extraction leaves behind, and it is not loadable,
+     * so it must fail here with the named reason rather than passing the preflight and dying at
+     * {@code dlopen} with an error the user cannot act on.
+     *
+     * <p>Shared by both extraction paths so an imported version and an installed version cannot
+     * report the same condition two different ways.
+     */
+    private fun requireLibrariesPresent(outputDir: File, required: Array<String>, abi: String) {
+        val missingLibs = ExtractionCachePolicy.missingLibraries(required.asList()) { lib ->
+            File(outputDir, lib).let { it.exists() && it.length() > 0L }
+        }
+        if (missingLibs.isNotEmpty()) {
+            throw IllegalStateException(
+                "Required native libraries for ABI $abi are missing from this version's APK/splits: "
+                    + missingLibs.joinToString()
+            )
+        }
+    }
+
     private fun verifyLibraryAbi(dir: File) {
         val processIs64Bit = Build.SUPPORTED_64_BIT_ABIS.isNotEmpty()
         val libs = getCacheRequiredLibs().plus(systemLoadedLibs)

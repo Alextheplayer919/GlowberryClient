@@ -8,6 +8,7 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 /**
  * The extraction-cache decision (G1/B8).
@@ -99,5 +100,36 @@ public class ExtractionCachePolicyTest {
                 }
             }
         }
+    }
+
+    @Test
+    public void theMissingListNamesExactlyTheAbsentLibraries() {
+        List<String> required = Arrays.asList("libc++_shared.so", "libfmod.so", "libminecraftpe.so");
+        List<String> missing = ExtractionCachePolicy.missingLibraries(
+                required, name -> !name.equals("libfmod.so"));
+        assertEquals(Collections.singletonList("libfmod.so"), missing);
+    }
+
+    @Test
+    public void aFullyPopulatedCacheHasNothingMissing() {
+        List<String> required = Arrays.asList("libc++_shared.so", "libminecraftpe.so");
+        assertTrue(ExtractionCachePolicy.missingLibraries(required, name -> true).isEmpty());
+    }
+
+    /**
+     * The STL fallback must be able to satisfy the completeness check.
+     *
+     * <p>{@code libc++_shared.so} is in the required list <em>and</em> is the one library the
+     * launcher supplies from its own native directory. If the fallback ran after the check, a
+     * package that ships no copy would be refused for a library the launcher was about to provide —
+     * a launch-preventing bug. This pins that the two lists agree about it, so the ordering
+     * requirement is visible to anyone who edits either.
+     */
+    @Test
+    public void theStlTheLauncherProvidesIsAlsoARequiredLibrary() {
+        List<String> provided = ExtractionCachePolicy.launcherProvidedLibraries();
+        assertTrue("the launcher must provide the STL", provided.contains("libc++_shared.so"));
+        assertFalse("an empty provision list would mean the fallback is dead code",
+                provided.isEmpty());
     }
 }
