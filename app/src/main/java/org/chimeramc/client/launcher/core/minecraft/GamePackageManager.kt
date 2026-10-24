@@ -21,9 +21,21 @@ import java.util.zip.ZipFile
 class GamePackageManager private constructor(
     private val context: Context,
     private val version: GameVersion?,
-    private val launchTrace: LaunchTrace?,
-    private val progressListener: MinecraftRuntimePreparer.ProgressListener?
+    launchTrace: LaunchTrace?,
+    progressListener: MinecraftRuntimePreparer.ProgressListener?
 ) {
+
+    /**
+     * Where this instance reports progress.
+     *
+     * <p>Not constructor `val`s: the instance is cached per version and reused by the next launch
+     * of that version, so a sink captured once would keep reporting into the *previous* launch's
+     * {@link LaunchTrace}. The second launch of an instance then had no extraction milestones in
+     * its trace at all, which is exactly the diagnostic that explains a slow launch. {@code
+     * getInstance} re-points both on reuse.
+     */
+    private var launchTrace: LaunchTrace? = launchTrace
+    private var progressListener: MinecraftRuntimePreparer.ProgressListener? = progressListener
 
     private val packageContext: Context
     private val assetManager: AssetManager
@@ -656,11 +668,11 @@ class GamePackageManager private constructor(
 
     private fun report(message: String) {
         LaunchLog.append(context, message)
-        if (progressListener != null) {
-            progressListener.onLog(message)
-        } else {
-            launchTrace?.mark(message)
-        }
+        // Both sinks, always. The listener drives the loading screen and the trace drives the
+        // diagnostics report, and they are read by different people at different times; reporting
+        // to only one of them is how the two end up disagreeing about what a launch actually did.
+        progressListener?.onLog(message)
+        launchTrace?.mark(message)
     }
 
     private fun createAssetManager(): AssetManager {
@@ -967,6 +979,12 @@ class GamePackageManager private constructor(
                 if (instance == null || newVersionKey != lastVersionKey) {
                     instance = GamePackageManager(context.applicationContext, version, launchTrace, progressListener)
                     lastVersionKey = newVersionKey
+                } else {
+                    // Reused: re-point the sinks at this launch. The instance outlives a launch, so
+                    // a stale LaunchTrace would silently drop this launch's extraction milestones
+                    // and a stale listener would log into the previous loading screen.
+                    instance!!.launchTrace = launchTrace
+                    instance!!.progressListener = progressListener
                 }
                 instance!!
             }

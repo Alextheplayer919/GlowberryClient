@@ -75,7 +75,11 @@ object MinecraftRuntimePreparer {
         trace.mark("Minecraft version resolved", "${version.directoryName} ${version.versionCode}")
 
         fileListener.onProgress(12,"Preparing game files")
-        val gameManager = GamePackageManager.getInstance(context.applicationContext, version, trace, null)
+        // Hand the loading screen's listener to the package manager so the extraction - by far the
+        // longest part of a cold launch - reports into the UI instead of only into the trace. It
+        // used to pass null, so the progress bar sat on "Preparing game files" for the whole
+        // extraction with no log lines, which reads as a hang.
+        val gameManager = GamePackageManager.getInstance(context.applicationContext, version, trace, fileListener)
         trace.mark("GamePackageManager ready")
 
         if (!gameManager.requireLauncherSupportsVersion(version)) {
