@@ -378,11 +378,6 @@
                 <data android:pathPattern="/.*\\..*\\..*\\.chimerabackup" />
                 <data android:pathPattern="/.*\\..*\\..*\\..*\\.chimerabackup" />
                 <data android:pathPattern="/.*\\..*\\..*\\..*\\..*\\.chimerabackup" />
-                <data android:pathPattern="/.*\\.chimerapack" />
-                <data android:pathPattern="/.*\\..*\\.chimerapack" />
-                <data android:pathPattern="/.*\\..*\\..*\\.chimerapack" />
-                <data android:pathPattern="/.*\\..*\\..*\\..*\\.chimerapack" />
-                <data android:pathPattern="/.*\\..*\\..*\\..*\\..*\\.chimerapack" />
                 <data android:pathPattern="/.*\\.so" />
                 <data android:pathPattern="/.*\\..*\\.so" />
                 <data android:pathPattern="/.*\\..*\\..*\\.so" />
@@ -420,7 +415,6 @@
                 <data android:pathPattern="/.*\\..*\\..*\\..*\\..*\\.mctemplate" />
                 <data android:pathSuffix=".zip" />
                 <data android:pathSuffix=".chimerabackup" />
-                <data android:pathSuffix=".chimerapack" />
                 <data android:pathSuffix=".so" />
                 <data android:pathSuffix=".antegg" />
                 <data android:pathSuffix=".jar" />
@@ -449,11 +443,6 @@
                 <data android:pathPattern="/.*\\..*\\..*\\.chimerabackup" />
                 <data android:pathPattern="/.*\\..*\\..*\\..*\\.chimerabackup" />
                 <data android:pathPattern="/.*\\..*\\..*\\..*\\..*\\.chimerabackup" />
-                <data android:pathPattern="/.*\\.chimerapack" />
-                <data android:pathPattern="/.*\\..*\\.chimerapack" />
-                <data android:pathPattern="/.*\\..*\\..*\\.chimerapack" />
-                <data android:pathPattern="/.*\\..*\\..*\\..*\\.chimerapack" />
-                <data android:pathPattern="/.*\\..*\\..*\\..*\\..*\\.chimerapack" />
                 <data android:pathPattern="/.*\\.so" />
                 <data android:pathPattern="/.*\\..*\\.so" />
                 <data android:pathPattern="/.*\\..*\\..*\\.so" />
@@ -491,7 +480,6 @@
                 <data android:pathPattern="/.*\\..*\\..*\\..*\\..*\\.mctemplate" />
                 <data android:pathSuffix=".zip" />
                 <data android:pathSuffix=".chimerabackup" />
-                <data android:pathSuffix=".chimerapack" />
                 <data android:pathSuffix=".so" />
                 <data android:pathSuffix=".antegg" />
                 <data android:pathSuffix=".jar" />

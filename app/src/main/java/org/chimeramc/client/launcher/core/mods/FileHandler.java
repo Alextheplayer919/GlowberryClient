@@ -210,7 +210,11 @@ public class FileHandler {
         }
 
         String lowerName = fileName.toLowerCase(Locale.ROOT);
-        return lowerName.endsWith(".zip") || lowerName.endsWith(".chimerapack");
+        // One package format name only: `.antegg`. A bare `.zip` is not a named package format, it
+        // is the unpacked-layout import, so it stays. `.chimerapack` and `.levipack` were earlier
+        // names for the same thing and are gone; importing one of those now reports the file as
+        // unsupported rather than silently accepting a name the docs no longer describe.
+        return lowerName.endsWith(".zip");
     }
 
     private boolean isZipModPackageFile(Uri uri, String fileName) {

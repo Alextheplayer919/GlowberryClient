@@ -87,8 +87,20 @@ public final class ModIds {
      * drift apart.
      */
     private static final java.util.Set<String> PVP_MODULES = java.util.Set.of(
-            AIM_SETTINGS, CPS_DISPLAY, SNAPLOOK, CRYSTAL_OPTIMIZER, HIT_REGISTRATION,
-            HIT_TIMING, HITBOX);
+            AIM_SETTINGS, CPS_DISPLAY, SNAPLOOK, ARMOR_HUD, CRYSTAL_OPTIMIZER,
+            HIT_REGISTRATION, HIT_TIMING, HITBOX);
+
+    /**
+     * The shipped PvP module ids, in a stable order.
+     *
+     * <p>Exposed so a caller can assert against the real set rather than restating it:
+     * {@code PvpSectionPolicy} pins that every id here has a boundary sentence, and that nothing
+     * outside it may be advertised as a working PvP feature.
+     */
+    public static java.util.List<String> pvpModuleIds() {
+        return java.util.List.of(AIM_SETTINGS, CPS_DISPLAY, SNAPLOOK, ARMOR_HUD,
+                CRYSTAL_OPTIMIZER, HIT_REGISTRATION, HIT_TIMING, HITBOX);
+    }
 
     public static boolean isPvpModule(String modId) {
         if (modId == null) return false;

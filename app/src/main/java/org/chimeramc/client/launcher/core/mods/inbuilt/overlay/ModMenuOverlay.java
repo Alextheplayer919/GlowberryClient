@@ -39,6 +39,7 @@ import org.chimeramc.client.core.mods.inbuilt.UnifiedMod;
 import org.chimeramc.client.core.mods.inbuilt.manager.InbuiltModManager;
 import org.chimeramc.client.core.replay.ReplayPanel;
 import org.chimeramc.client.core.mods.inbuilt.model.ModIds;
+import org.chimeramc.client.core.mods.pvp.PvpSectionPolicy;
 import org.chimeramc.client.core.mods.inbuilt.model.ModLoadoutStore;
 import org.chimeramc.client.core.mods.inbuilt.vip.ModCategory;
 import java.util.ArrayList;
@@ -2585,7 +2586,10 @@ public class ModMenuOverlay {
             } else if (activeFilter == ModuleFilter.FAVORITES) {
                 emptyStateText.setText(R.string.mod_menu_no_favorites);
             } else if (activeFilter == ModuleFilter.PVP) {
-                emptyStateText.setText(R.string.mod_menu_pvp_empty);
+                // The positioning statement comes from PvpSectionPolicy, the same rule the docs and
+                // the release notes read, so the screen cannot describe the section differently
+                // from the policy that bounds it.
+                emptyStateText.setText(PvpSectionPolicy.positioning());
             } else {
                 emptyStateText.setText(R.string.mod_menu_no_mods);
             }

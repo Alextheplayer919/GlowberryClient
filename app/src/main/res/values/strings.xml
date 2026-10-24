@@ -277,7 +277,7 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="toast_delete_failed">Delete failed: %1$s</string>
     <string name="error_delete_builtin_version">Cannot delete built-in version</string>
     <string name="invalid_mod_file">Failed</string>
-    <string name="invalid_mod_file_reason">Only .so files, .zip mod packages, or .chimerapack mod packages are allowed. The selected file is not a valid native mod import package.</string>
+    <string name="invalid_mod_file_reason">Only .antegg packages, .so files or .zip mod packages are accepted. The selected file is not a valid native mod import package.</string>
     <string name="invalid_zip_mod_package_title">Invalid ZIP Mod Package</string>
     <string name="invalid_zip_mod_package_message">The ZIP mod package must contain manifest.json and a .so file.</string>
     <string name="error_versions">Error Versions</string>
@@ -863,7 +863,6 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="mod_menu_filter_external">External</string>
     <string name="mod_menu_filter_pvp">PvP</string>
     <string name="mod_menu_group_pvp">PvP</string>
-    <string name="mod_menu_pvp_empty">No PvP modules enabled. PvP modules also appear under Inbuilt.</string>
     <string name="mod_menu_search_hint">Search mods…</string>
     <string name="mod_stats_fps_placeholder">— FPS</string>
     <string name="mod_stats_ping_placeholder">— ms</string>

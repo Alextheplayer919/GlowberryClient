@@ -50,7 +50,7 @@ It is built for legitimate players: it runs the copy of Minecraft you already ow
 
 <table>
   <tr>
-    <td width="50%" align="center"><b>Mod Menu</b><br><sub>Two columns, category rail, search, live stats</sub><br>
+    <td width="50%" align="center"><b>Mod Menu</b><br><sub>Two columns, top nav bar, search, switches and action rows</sub><br>
       <img src="docs/assets/mockups/mod_menu.png" alt="GlowberryClient Mod Menu"></td>
     <td width="50%" align="center"><b>Radial wheel</b><br><sub>Opened by an in-game bind, head hub + quick chips</sub><br>
       <img src="docs/assets/mockups/radial_wheel.png" alt="GlowberryClient radial wheel"></td>
@@ -118,7 +118,7 @@ It is built for legitimate players: it runs the copy of Minecraft you already ow
 - **JavaBridge (Java Edition Mod Auto-Porter)** – Point it at a Java Edition `.jar`; it assesses portability, then (with explicit consent and a configured LLM) decompiles and generates a Bedrock `.AntEgg` mod. It **rewrites** Java mods rather than running them, and says so — there is no Java Edition runtime.
 
 **In-game menu & overlays**
-- **Mod Menu (two screens)** – A touch Mod Menu with **General**, **HUD Editor**, **Cosmetics**, **Packs**, **Voice**, **Replay**, and **Settings** sections, plus a premium **VIP Mod Menu** opened by an in-game bind, with controller and keyboard surfaces and a draggable HUD overlay system. A **radial wheel** bound in-game offers the same destinations around the player's skin head.
+- **Mod Menu (one screen)** – A single Mod Menu with a top navigation bar over **General**, **Voice**, **Packs**, **Cosmetics**, **HUD Editor**, **Replay**, **Settings**, **Controller** and **Keyboard**. The Controller and Keyboard pages carry a **Supporter** badge; they are ordinary pages of the same menu, not a second window. A module row is a **pill switch** and a one-shot action is a chevron, so a control always looks like what it does; a module that cannot run says why instead of looking like a plain off toggle. A **radial wheel** bound in-game offers the same destinations around the player's skin head.
 - **PvP Modules** – A dedicated **PvP** section groups combat tools: Aim Settings, CPS Display, Snaplook, Armor HUD, Crystal Optimizer, Hit Registration, Select Hit, and Hitboxes. Modules that need live game data say so on screen instead of showing a fabricated reading.
 - **PvP Suite (V1.1)** – Four overlay-only visual modules in the General tab: Reach Indicator, Trajectory Prediction, Hit Prediction, and Custom Kill Effects. Each fails closed (draws nothing) when it has no data rather than guessing.
 - **Replay System** – Record, trim, favorite, rename, and export clips from a shared Replay panel available in both Mod Menu screens, backed by a single capture/library backend.
@@ -132,8 +132,8 @@ It is built for legitimate players: it runs the copy of Minecraft you already ow
 **Input, content & feel**
 - **Controller Support & Input Mapping** – Up to 5 profiles per controller type (Xbox, DualShock 4, DualSense), with button remapping (including remap layers), stick dead-zone tuning, sensitivity, rumble strength, anti-stick-drift with hysteresis, explicit calibration, and a Low Input Delay mode — applied live to gameplay. Controller screens use **3D illustrations**.
 - **Content Management & Skin Packs** – Import, export, and back up worlds, resource packs, skin packs, and launcher data from one place.
-- **Performance & Personalization** – One-tap presets (Battery/Balanced/Performance), an **FPS Optimization** coordinator that quiets the launcher and sheds speculative work under thermal/battery/memory pressure while a session runs, a **Reduce Network Latency** mode that tunes launcher-owned sockets and avoids polling during a session, user-configurable accent color, glass-card/compact theming, animations, empty states, a "last played" hero card, and an optional blue firework touch layer.
-- **News, Updates & Crash Reporting** – In-app news feed with notifications, a crash-reporting screen surfacing logs, automated release-content tooling ([`docs/RELEASE_CONTENT.md`](docs/RELEASE_CONTENT.md)), and a Discord notification action for beta releases.
+- **Performance & Personalization** – One-tap presets (Battery/Balanced/Performance), an **FPS Optimization** coordinator that quiets the launcher and sheds speculative work under thermal/battery/memory pressure while a session runs, and a **Reduce Network Latency** mode that tunes launcher-owned sockets and avoids polling during a session. One colour system follows the wallpaper's palette with a brand fallback, and there is a single **Reduce motion / Reduce transparency** switch rather than separate animation, glass-card and compact toggles — the system accessibility settings always win over the in-app choice.
+- **Updates & Crash Reporting** – In-app update check with a "What's new" dialog, a **Diagnostics** screen (app/Preloader/SDK versions, native-extraction version, signature-database status, cosmetics hook status, mod load errors, and a **Copy report** button), automated release-content tooling ([`docs/RELEASE_CONTENT.md`](docs/RELEASE_CONTENT.md)), and a Discord notification action for beta releases.
 
 ---
 
@@ -152,7 +152,7 @@ GlowberryClient is **actively developed**. The table below describes what is rea
 | **Voice** | LAN multicast by default; optional internet relay |
 | **Java Edition** | **Not supported** — no Java Edition runtime; JavaBridge ports mods instead |
 
-**Where to get updates:** [Releases](https://github.com/ChimeraAnt-DEV/GlowberryClient/releases) for builds, [Actions](https://github.com/ChimeraAnt-DEV/GlowberryClient/actions) for CI artifacts, and the in-app news feed for announcements. A more detailed compatibility matrix lives in [`docs/guide/compatibility.md`](docs/guide/compatibility.md).
+**Where to get updates:** [Releases](https://github.com/ChimeraAnt-DEV/GlowberryClient/releases) for builds (each release carries its SHA-256 checksum), [Actions](https://github.com/ChimeraAnt-DEV/GlowberryClient/actions) for CI artifacts, and the in-app "What's new" dialog for release notes. A more detailed compatibility matrix lives in [`docs/guide/compatibility.md`](docs/guide/compatibility.md).
 
 ---
 
