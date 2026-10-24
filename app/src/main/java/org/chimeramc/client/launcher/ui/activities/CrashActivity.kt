@@ -9,6 +9,7 @@ import android.widget.TextView
 import androidx.core.content.FileProvider
 import org.chimeramc.client.R
 import org.chimeramc.client.core.crash.CrashReporter
+import org.chimeramc.client.launcher.core.minecraft.LaunchErrorDiagnosis
 import org.chimeramc.client.ui.animation.DynamicAnim
 import java.io.File
 import java.util.concurrent.Executors
@@ -38,7 +39,16 @@ class CrashActivity : BaseActivity() {
 
         tvTitle.text = getString(R.string.crash_title)
 
+        // Name the cause from the crash's own text, so a native dlopen tombstone reads as
+        // "Game library not readable / Google Play version" rather than only a raw stack. The raw
+        // text stays underneath for the report.
+        val cause = LaunchErrorDiagnosis.classifyText(summary)
+        val causeLine = getString(R.string.launch_error_cause_label) + " " +
+                LaunchErrorDiagnosis.label(cause) + "\n" +
+                getString(LaunchErrorDiagnosis.messageRes(cause)) + "\n\n"
+
         tvDetails.text = buildString {
+            append(causeLine)
             appendHeader(crashType, summary)
             if (!logPath.isNullOrBlank()) {
                 append(getString(R.string.crash_log_file_label)).append("\n")
@@ -69,7 +79,12 @@ class CrashActivity : BaseActivity() {
         if (isFinishing || isDestroyed) return
 
         executor.execute {
+            val cause = LaunchErrorDiagnosis.classifyText(summary)
+            val causeLine = getString(R.string.launch_error_cause_label) + " " +
+                    LaunchErrorDiagnosis.label(cause) + "\n" +
+                    getString(LaunchErrorDiagnosis.messageRes(cause)) + "\n\n"
             val detailsText = buildString {
+                append(causeLine)
                 appendHeader(crashType, summary)
 
                 if (!logPath.isNullOrEmpty()) {

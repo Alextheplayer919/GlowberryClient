@@ -43,6 +43,7 @@ import org.chimeramc.client.core.minecraft.MinecraftImportIntents;
 import org.chimeramc.client.core.minecraft.GamePackageManager;
 import org.chimeramc.client.launcher.core.minecraft.LaunchFailurePresenter;
 import org.chimeramc.client.launcher.core.minecraft.AndroidLaunchProbe;
+import org.chimeramc.client.launcher.core.minecraft.LaunchErrorDiagnosis;
 import org.chimeramc.client.launcher.core.minecraft.LaunchProbe;
 import org.chimeramc.client.launcher.core.minecraft.LaunchReadiness;
 import org.chimeramc.client.preloader.PreloaderSignatureRulesManager;
@@ -822,10 +823,14 @@ import okhttp3.OkHttpClient;
 
             @Override
             public void onLaunchFailed(Exception e) {
-                runOnUiThread(() -> Toast.makeText(MainActivity.this,
-                        getString(R.string.dialog_message_launch_failed,
-                                e != null ? e.getMessage() : ""),
-                        Toast.LENGTH_LONG).show());
+                runOnUiThread(() -> {
+                    // Same classifier as the dialog path: the cause is named, then the raw text.
+                    LaunchErrorDiagnosis.Cause cause = LaunchErrorDiagnosis.classify(e);
+                    String detail = e != null ? e.getMessage() : null;
+                    String message = getString(LaunchErrorDiagnosis.messageRes(cause))
+                            + (detail != null ? "\n\n" + detail : "");
+                    Toast.makeText(MainActivity.this, message, Toast.LENGTH_LONG).show();
+                });
             }
         });
     }
@@ -2152,9 +2157,17 @@ import okhttp3.OkHttpClient;
         } catch (Exception e) {
             trace.error("Launch failed before activity start", e.getMessage());
             resetLaunchButton();
+            // Name the cause instead of only appending the raw dlopen text. The raw message is
+            // accurate but does not tell the user what to do; the classifier maps it to the
+            // specific reason (Google Play install, wrong bitness, missing dependency, ...) and the
+            // raw text is kept beneath it for the bug report.
+            LaunchErrorDiagnosis.Cause cause = LaunchErrorDiagnosis.classify(e);
             new CustomAlertDialog(this)
-                    .setTitleText(getString(R.string.dialog_title_launch_failed))
-                    .setMessage(getString(R.string.dialog_message_launch_failed, e.getMessage()))
+                    .setTitleText(getString(LaunchErrorDiagnosis.titleRes(cause)))
+                    .setMessage(getString(LaunchErrorDiagnosis.messageRes(cause))
+                            + "\n\n" + getString(R.string.launch_error_cause_label) + " "
+                            + LaunchErrorDiagnosis.label(cause)
+                            + (e.getMessage() != null ? "\n" + e.getMessage() : ""))
                     .setPositiveButton(getString(R.string.dialog_positive_ok), null)
                     .show();
         }

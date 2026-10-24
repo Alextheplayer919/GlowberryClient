@@ -2395,4 +2395,17 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="launch_failure_title_not_installed">Minecraft not found</string>
     <string name="launch_failure_message_not_installed">Minecraft does not appear to be installed on this device. Install it from the Play Store, or import your own game files from the Library.</string>
 
+    <!-- Post-preflight launch failures (G). The crash and the launch dialog share this copy. -->
+    <string name="launch_error_title_missing_game_library">Game library not readable</string>
+    <string name="launch_error_message_missing_game_library">This is either a Google Play version of Minecraft or a version missing a specific file needed to launch the game.\n\nThe launcher loads the game\'s native library directly, and it could not open libminecraftpe.so from this install.\n\nTo play, import a Minecraft APK from the Library instead. A Play Store install can stay on your device.</string>
+    <string name="launch_error_title_missing_dependency">A required file is missing</string>
+    <string name="launch_error_message_missing_dependency">A library this Minecraft version needs is missing from the launcher\'s extracted files. Open Settings \u2192 Diagnostics and run Repair installation to re-extract them, then launch again.</string>
+    <string name="launch_error_title_mod_failed">A mod stopped the launch</string>
+    <string name="launch_error_message_mod_failed">A mod\'s native library failed to load, so the game could not start. Open the Mods tab, disable the most recently added mod, and launch again. Settings \u2192 Diagnostics names the mod that failed.</string>
+    <string name="launch_error_title_out_of_memory">Not enough memory</string>
+    <string name="launch_error_message_out_of_memory">The launcher ran out of memory while preparing Minecraft. Close other apps, disable a few mods, and try again. A device with 3 GB of RAM or more is recommended.</string>
+    <string name="launch_error_title_unknown">Couldn\'t start Minecraft</string>
+    <string name="launch_error_message_unknown">The launch failed for a reason the launcher could not identify. The exact error is below — it is what a bug report needs.</string>
+    <string name="launch_error_cause_label">Cause:</string>
+
 </resources>
