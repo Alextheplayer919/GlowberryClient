@@ -38,9 +38,16 @@ provide a Minecraft license.
 | "Minecraft is missing" | No compatible Minecraft APK is available to the launcher | Provide an official/authentic Bedrock APK and retry |
 | "Version refused" | The selected version ships no `arm64-v8a` libraries, or is older than 1.21.80 | Pick a supported version |
 | "Import won't launch" | The import did not complete (ABI or extract mismatch) | Re-import the APK, or use Settings → Diagnostics |
+| "Launch failed" naming a Java method (e.g. `NoSuchMethodError: readAllBytes`) | The launcher called a method the device's Android runtime does not have. This is a launcher defect, not a problem with your APK or your version. | Update to the latest build. Report it with the launch log; the message names the exact method. |
+| "Launch failed" with no reason | The game process failed to start before the launcher could attribute it | Open Settings → Diagnostics, copy the report, and attach it to a bug report |
 
 When a launch fails, the launch log from the failure screen names the reported
-reason before changing settings.
+reason before changing settings. A failure that names a **Java method or class**
+is always a launcher bug rather than something you can fix on your device: the
+launcher is expected to run on Android 9 and newer, so it must never call a
+library method that only exists on a later Android version. CI now runs the
+launcher on Android 9 (API 28) and on the newest supported Android to keep that
+promise testable rather than aspirational.
 
 ## Backups and migration
 

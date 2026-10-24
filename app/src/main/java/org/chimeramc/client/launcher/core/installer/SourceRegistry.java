@@ -1,5 +1,6 @@
 package org.chimeramc.client.core.installer;
 
+import org.chimeramc.client.util.Api28Compat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -19,7 +20,7 @@ import java.util.List;
  */
 public final class SourceRegistry {
 
-    private static final List<BedrockSource> SOURCES = List.of(
+    private static final List<BedrockSource> SOURCES = Api28Compat.listOf(
             new McpePlanetSource(),
             new McpedlSource()
     );

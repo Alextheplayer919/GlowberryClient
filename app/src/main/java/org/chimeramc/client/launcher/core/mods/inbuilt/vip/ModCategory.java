@@ -2,6 +2,7 @@ package org.chimeramc.client.core.mods.inbuilt.vip;
 
 import org.chimeramc.client.core.mods.inbuilt.UnifiedMod;
 import org.chimeramc.client.core.mods.inbuilt.model.ModIds;
+import org.chimeramc.client.util.Api28Compat;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,14 +28,14 @@ public final class ModCategory {
     }
 
     /** The visual modules the VISUALS tab collects. */
-    private static final Set<String> VISUAL = Set.of(
+    private static final Set<String> VISUAL = Api28Compat.setOf(
             ModIds.FULLBRIGHT, ModIds.TIME_CHANGER, ModIds.LOW_FIRE, ModIds.BLOCK_OUTLINE,
             ModIds.MOTION_BLUR, ModIds.SATURATION, ModIds.CROSSHAIR, ModIds.ARMOR_VIEW_BENDING,
             ModIds.PROJECTILE_SCALER, ModIds.FREECAM, ModIds.TNT, ModIds.ZOOM, ModIds.FPS_DISPLAY,
             ModIds.CPS_DISPLAY);
 
     /** The information/utility modules the MISC tab collects. */
-    private static final Set<String> MISC = Set.of(
+    private static final Set<String> MISC = Api28Compat.setOf(
             ModIds.LIST_PLAYERS, ModIds.DEBUG_MENU, ModIds.THIRD_PERSON_NAMETAG,
             ModIds.AUTO_SPRINT, ModIds.QUICK_DROP, ModIds.CAMERA_PERSPECTIVE, ModIds.TOGGLE_HUD,
             ModIds.SNAPLOOK, ModIds.VIRTUAL_CURSOR, ModIds.GYRO, ModIds.POJAV_CONTROLS,

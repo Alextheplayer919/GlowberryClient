@@ -1,5 +1,6 @@
 package com.microsoft.xbox.service.network.managers.xblshared;
 
+import java.util.Collections;
 import android.util.Log;
 import android.util.Pair;
 import com.microsoft.xbox.idp.util.HttpCall;
@@ -39,7 +40,7 @@ public class SLSXsapiServiceManager implements ISLSServiceManager {
         XLEAssert.assertTrue(Thread.currentThread() != ThreadManager.UIThread);
         HttpCall appendCommonParameters = HttpUtil.appendCommonParameters(new HttpCall(HttpPost.METHOD_NAME, String.format(XboxLiveEnvironment.Instance().getRemoveUsersFromShareIdentityUrlFormat(), str), ""), "4");
         appendCommonParameters.setRequestBody(str2);
-        boolean responseSyncSucceeded = TcuiHttpUtil.getResponseSyncSucceeded(appendCommonParameters, List.of(HttpStatus.SC_NO_CONTENT));
+        boolean responseSyncSucceeded = TcuiHttpUtil.getResponseSyncSucceeded(appendCommonParameters, Collections.singletonList(HttpStatus.SC_NO_CONTENT));
         TcuiHttpUtil.throwIfNullOrFalse(responseSyncSucceeded);
         return responseSyncSucceeded;
     }
@@ -49,7 +50,7 @@ public class SLSXsapiServiceManager implements ISLSServiceManager {
         XLEAssert.assertTrue(Thread.currentThread() != ThreadManager.UIThread);
         HttpCall appendCommonParameters = HttpUtil.appendCommonParameters(new HttpCall(HttpPost.METHOD_NAME, String.format(XboxLiveEnvironment.Instance().getAddFriendsToShareIdentityUrlFormat(), str), ""), "4");
         appendCommonParameters.setRequestBody(str2);
-        boolean responseSyncSucceeded = TcuiHttpUtil.getResponseSyncSucceeded(appendCommonParameters, List.of(HttpStatus.SC_NO_CONTENT));
+        boolean responseSyncSucceeded = TcuiHttpUtil.getResponseSyncSucceeded(appendCommonParameters, Collections.singletonList(HttpStatus.SC_NO_CONTENT));
         TcuiHttpUtil.throwIfNullOrFalse(responseSyncSucceeded);
         return responseSyncSucceeded;
     }
@@ -59,7 +60,7 @@ public class SLSXsapiServiceManager implements ISLSServiceManager {
         XLEAssert.assertTrue(Thread.currentThread() != ThreadManager.UIThread);
         HttpCall appendCommonParameters = HttpUtil.appendCommonParameters(new HttpCall(HttpPost.METHOD_NAME, String.format(XboxLiveEnvironment.Instance().getProfileFavoriteListUrl(), "add"), ""), "1");
         appendCommonParameters.setRequestBody(str);
-        boolean responseSyncSucceeded = TcuiHttpUtil.getResponseSyncSucceeded(appendCommonParameters, List.of(HttpStatus.SC_NO_CONTENT));
+        boolean responseSyncSucceeded = TcuiHttpUtil.getResponseSyncSucceeded(appendCommonParameters, Collections.singletonList(HttpStatus.SC_NO_CONTENT));
         TcuiHttpUtil.throwIfNullOrFalse(responseSyncSucceeded);
         return responseSyncSucceeded;
     }
@@ -69,7 +70,7 @@ public class SLSXsapiServiceManager implements ISLSServiceManager {
         XLEAssert.assertTrue(Thread.currentThread() != ThreadManager.UIThread);
         HttpCall appendCommonParameters = HttpUtil.appendCommonParameters(new HttpCall(HttpPost.METHOD_NAME, String.format(XboxLiveEnvironment.Instance().getProfileFavoriteListUrl(), "remove"), ""), "1");
         appendCommonParameters.setRequestBody(str);
-        boolean responseSyncSucceeded = TcuiHttpUtil.getResponseSyncSucceeded(appendCommonParameters, List.of(HttpStatus.SC_NO_CONTENT));
+        boolean responseSyncSucceeded = TcuiHttpUtil.getResponseSyncSucceeded(appendCommonParameters, Collections.singletonList(HttpStatus.SC_NO_CONTENT));
         TcuiHttpUtil.throwIfNullOrFalse(responseSyncSucceeded);
         return responseSyncSucceeded;
     }
@@ -121,7 +122,7 @@ public class SLSXsapiServiceManager implements ISLSServiceManager {
         XLEAssert.assertTrue(Thread.currentThread() != ThreadManager.UIThread);
         HttpCall appendCommonParameters = HttpUtil.appendCommonParameters(new HttpCall(HttpPost.METHOD_NAME, String.format(XboxLiveEnvironment.Instance().updateProfileFollowingListUrl(), "remove"), ""), "1");
         appendCommonParameters.setRequestBody(str);
-        boolean responseSyncSucceeded = TcuiHttpUtil.getResponseSyncSucceeded(appendCommonParameters, List.of(HttpStatus.SC_NO_CONTENT));
+        boolean responseSyncSucceeded = TcuiHttpUtil.getResponseSyncSucceeded(appendCommonParameters, Collections.singletonList(HttpStatus.SC_NO_CONTENT));
         TcuiHttpUtil.throwIfNullOrFalse(responseSyncSucceeded);
         return responseSyncSucceeded;
     }
@@ -234,7 +235,7 @@ public class SLSXsapiServiceManager implements ISLSServiceManager {
         XLEAssert.assertTrue(Thread.currentThread() != ThreadManager.UIThread);
         HttpCall appendCommonParameters = HttpUtil.appendCommonParameters(new HttpCall(HttpPut.METHOD_NAME, XboxLiveEnvironment.Instance().getUserProfileSettingUrlFormat(), ""), "4");
         appendCommonParameters.setRequestBody(PrivacySettingsResult.getPrivacySettingRequestBody(privacySettingsResult));
-        boolean responseSyncSucceeded = TcuiHttpUtil.getResponseSyncSucceeded(appendCommonParameters, List.of(HttpStatus.SC_CREATED));
+        boolean responseSyncSucceeded = TcuiHttpUtil.getResponseSyncSucceeded(appendCommonParameters, Collections.singletonList(HttpStatus.SC_CREATED));
         TcuiHttpUtil.throwIfNullOrFalse(responseSyncSucceeded);
         return responseSyncSucceeded;
     }
