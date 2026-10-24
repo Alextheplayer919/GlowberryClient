@@ -86,6 +86,20 @@ public final class ModMenuSwitch {
     }
 
     /**
+     * The TalkBack announcement for a switch (M5).
+     *
+     * <p>The spec asks for "Module name, On, Switch". The view carries this as its content
+     * description and the accessibility node supplies the switch role, so TalkBack composes
+     * "FPS Counter, On, Switch". Built here rather than in the view so the wording is unit-tested;
+     * a null or blank label degrades to the state alone rather than announcing ", On".
+     */
+    public static String accessibilityLabel(String name, boolean on) {
+        String state = on ? "On" : "Off";
+        if (name == null || name.trim().isEmpty()) return state;
+        return name.trim() + ", " + state;
+    }
+
+    /**
      * Draws the switch.
      *
      * @param interactive false draws the disabled appearance (grey thumb, no accent)

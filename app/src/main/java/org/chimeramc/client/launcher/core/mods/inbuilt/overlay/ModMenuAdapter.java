@@ -520,6 +520,9 @@ public class ModMenuAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             // control is disabled and shows the error track.
             modHolder.switchView.setInteractive(rowState.isInteractive());
             modHolder.switchView.setFailed(rowState.isBroken());
+            // The switch's label is the module name, so TalkBack reads "FPS Counter, On, Switch"
+            // rather than an unnamed switch beside a separate text view.
+            modHolder.switchView.setLabel(mod.getName());
             modHolder.switchView.setChecked(isEnabled && !rowState.isBroken(), false);
             modHolder.switchView.setReducedMotion(settings != null
                     && settings.effectiveMotion(false, false) == ModMenuSettings.Motion.REDUCED);

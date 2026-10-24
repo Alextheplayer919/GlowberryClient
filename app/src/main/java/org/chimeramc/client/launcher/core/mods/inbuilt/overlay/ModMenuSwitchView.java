@@ -46,6 +46,7 @@ public class ModMenuSwitchView extends View {
     private boolean failed;
     private boolean hapticsEnabled = true;
     private boolean reducedMotion;
+    private String label;
     private OnCheckedChangeListener listener;
     private ValueAnimator animator;
 
@@ -168,9 +169,65 @@ public class ModMenuSwitchView extends View {
     }
 
     private void updateContentDescription() {
-        // TalkBack announces "Module name, On, Switch" because the row sets the name and this view
-        // carries the state; a bare "On" would lose the module it belongs to.
-        setContentDescription(checked ? "On" : "Off");
+        // TalkBack announces "Module name, On, Switch": this view's content description carries the
+        // module name (the row sets it) and the state, and onInitializeAccessibilityNodeInfo supplies
+        // the switch role. A bare "On" loses the module it belongs to and does not announce the
+        // control as a switch, so assistive tech cannot tell it is toggleable.
+        setContentDescription(ModMenuSwitch.accessibilityLabel(label, checked));
+        announceStateChanged();
+    }
+
+    /**
+     * The module name this switch belongs to, announced before the state.
+     *
+     * <p>The row sets it on bind so a recycled switch does not announce the previous module's name.
+     */
+    public void setLabel(String value) {
+        this.label = value;
+        updateContentDescription();
+    }
+
+    /**
+     * Re-emits the accessibility node after a state change.
+     *
+     * <p>An {@code invalidate()} repaints but does not re-announce, so TalkBack would keep reading
+     * the previous state. The event is best-effort: an announcement must never be able to break the
+     * control, so a failure here is swallowed.
+     */
+    private void announceStateChanged() {
+        if (!isAttachedToWindow()) return;
+        try {
+            android.view.accessibility.AccessibilityEvent event =
+                    android.view.accessibility.AccessibilityEvent.obtain(
+                            android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED);
+            event.setContentChangeTypes(
+                    android.view.accessibility.AccessibilityEvent.CONTENT_CHANGE_TYPE_STATE_DESCRIPTION);
+            event.setSource(this);
+            sendAccessibilityEventUnchecked(event);
+        } catch (Throwable ignored) {
+            // An accessibility announcement must never be able to break the control.
+        }
+    }
+
+    @Override
+    public void onInitializeAccessibilityNodeInfo(android.view.accessibility.AccessibilityNodeInfo info) {
+        super.onInitializeAccessibilityNodeInfo(info);
+        // The role and the state, so TalkBack announces "..., On, Switch" rather than an unnamed
+        // clickable view. `setClassName` on the framework Switch is what makes the switch role.
+        info.setClassName("android.widget.Switch");
+        info.setCheckable(true);
+        info.setChecked(checked);
+        info.setEnabled(interactive);
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, android.view.KeyEvent event) {
+        // Space activates a switch the way it activates a button; the base View already maps
+        // Enter/DPAD_CENTER onto performClick, but not Space.
+        if (keyCode == android.view.KeyEvent.KEYCODE_SPACE) {
+            return performClick();
+        }
+        return super.onKeyDown(keyCode, event);
     }
 
     @Override
