@@ -23,6 +23,7 @@ import java.util.concurrent.Executors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
+import org.chimeramc.client.launcher.core.minecraft.UserFacingError;
 
 public class WorldManager {
     private static final String TAG = "WorldManager";
@@ -133,7 +134,7 @@ public class WorldManager {
 
             } catch (Exception e) {
                 Log.e(TAG, "Failed to import world", e);
-                callback.onError("Import failed: " + e.getMessage());
+                callback.onError(UserFacingError.shortReasonForText(context, "Import failed", e.getMessage()));
             }
         });
     }
@@ -160,7 +161,7 @@ public class WorldManager {
 
             } catch (Exception e) {
                 Log.e(TAG, "Failed to export world", e);
-                callback.onError("Export failed: " + e.getMessage());
+                callback.onError(UserFacingError.shortReasonForText(context, "Export failed", e.getMessage()));
             }
         });
     }
@@ -182,7 +183,7 @@ public class WorldManager {
 
             } catch (Exception e) {
                 Log.e(TAG, "Failed to delete world", e);
-                callback.onError("Delete failed: " + e.getMessage());
+                callback.onError(UserFacingError.shortReasonForText(context, "Delete failed", e.getMessage()));
             }
         });
     }
@@ -199,7 +200,7 @@ public class WorldManager {
 
             } catch (Exception e) {
                 Log.e(TAG, "Failed to backup world", e);
-                callback.onError("Backup failed: " + e.getMessage());
+                callback.onError(UserFacingError.shortReasonForText(context, "Backup failed", e.getMessage()));
             }
         });
     }
@@ -411,7 +412,7 @@ public class WorldManager {
 
             } catch (Exception e) {
                 Log.e(TAG, "Failed to transfer world", e);
-                callback.onError("Transfer failed: " + e.getMessage());
+                callback.onError(UserFacingError.shortReasonForText(context, "Transfer failed", e.getMessage()));
             }
         });
     }

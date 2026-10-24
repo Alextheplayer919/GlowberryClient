@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import org.chimeramc.client.launcher.core.minecraft.UserFacingError;
 
 public class VersionManager {
     private static final String PREFS_NAME = "version_manager";
@@ -1095,7 +1096,7 @@ public class VersionManager {
                 }
             } catch (Exception e) {
                 e.printStackTrace();
-                callback.onError("Import failed: " + e.getMessage());
+                callback.onError(UserFacingError.shortReasonForText(context, "Import failed", e.getMessage()));
             }
         }).start();
     }

@@ -24,6 +24,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.chimeramc.client.launcher.core.minecraft.UserFacingError;
 
 public class ResourcePackManager {
     private static final String TAG = "ResourcePackManager";
@@ -202,7 +203,7 @@ public class ResourcePackManager {
 
             } catch (Exception e) {
                 Log.e(TAG, "Failed to import pack", e);
-                callback.onError("Import failed: " + e.getMessage());
+                callback.onError(UserFacingError.shortReasonForText(context, "Import failed", e.getMessage()));
             }
         });
     }
@@ -457,7 +458,7 @@ public class ResourcePackManager {
 
             } catch (Exception e) {
                 Log.e(TAG, "Failed to delete pack", e);
-                callback.onError("Delete failed: " + e.getMessage());
+                callback.onError(UserFacingError.shortReasonForText(context, "Delete failed", e.getMessage()));
             }
         });
     }
@@ -480,7 +481,7 @@ public class ResourcePackManager {
                 callback.onSuccess("Pack exported successfully");
             } catch (Exception e) {
                 Log.e(TAG, "Failed to export pack", e);
-                callback.onError("Export failed: " + e.getMessage());
+                callback.onError(UserFacingError.shortReasonForText(context, "Export failed", e.getMessage()));
             }
         });
     }
@@ -697,7 +698,7 @@ public class ResourcePackManager {
 
             } catch (Exception e) {
                 Log.e(TAG, "Failed to transfer pack", e);
-                callback.onError("Transfer failed: " + e.getMessage());
+                callback.onError(UserFacingError.shortReasonForText(context, "Transfer failed", e.getMessage()));
             }
         });
     }

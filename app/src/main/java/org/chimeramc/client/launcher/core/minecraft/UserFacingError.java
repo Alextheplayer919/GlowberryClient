@@ -276,4 +276,100 @@ public final class UserFacingError {
     public static String describe(Context context, Throwable error) {
         return describe(error, reason(context, error));
     }
+
+    /**
+     * The cause sentence for a failure that carries its own headline.
+     *
+     * <p>For a background manager whose callback already names the operation ("Import failed"),
+     * where only the cause is missing. The operation is not repeated — the caller's message already
+     * says it — so the result reads as one sentence instead of two stitched fragments.
+     *
+     * <p>Unlike {@link #describe(Context, Throwable)} this never appends the raw text: the callback
+     * string is displayed in a toast, where a second paragraph is clipped.
+     */
+    public static String reason(Context context, String operation, Throwable error) {
+        String cause = reason(context, error);
+        if (operation == null || operation.trim().isEmpty()) return cause;
+        if (cause == null || cause.trim().isEmpty()) return operation;
+        return operation.trim() + ": " + cause;
+    }
+
+    /**
+     * {@link #reason(Context, String, Throwable)} for a callback that reports its own error string.
+     *
+     * <p>A manager callback receives a message, not a throwable, so the caller keeps the operation
+     * prefix it already built and swaps the raw tail for the cause. The throwable is not available
+     * at that point, so the tail is classified from its text.
+     */
+    public static String reasonForText(Context context, String operation, String rawText) {
+        if (context == null) return operation == null ? "" : operation;
+        String cause = context.getString(messageRes(classifyText(rawText)));
+        if (operation == null || operation.trim().isEmpty()) return cause;
+        return operation.trim() + ": " + cause;
+    }
+
+
+    /**
+     * The short cause phrase, for a toast or a one-line status.
+     *
+     * <p>{@link #messageRes(Cause)} is a full sentence with the next step, which is right for a
+     * dialog. A toast clips at roughly two lines, so a content operation that reports
+     * "Import failed: " followed by that sentence would lose the instruction anyway and keep only
+     * the length. The short form names the cause in a phrase that fits beside the operation, so
+     * "Import failed: no internet connection" stays readable.
+     */
+    public static int shortMessageRes(Cause cause) {
+        if (cause == null) return R.string.error_short_unknown;
+        switch (cause) {
+            case NO_CONNECTION:
+                return R.string.error_short_no_connection;
+            case CONNECTION_REFUSED:
+                return R.string.error_short_connection_refused;
+            case HOST_NOT_FOUND:
+                return R.string.error_short_host_not_found;
+            case TIMEOUT:
+                return R.string.error_short_timeout;
+            case SECURE_CONNECTION_FAILED:
+                return R.string.error_short_secure_connection;
+            case SERVER_REFUSED:
+                return R.string.error_short_server_refused;
+            case SERVER_ERROR:
+                return R.string.error_short_server_error;
+            case BAD_RESPONSE:
+                return R.string.error_short_bad_response;
+            case OUT_OF_SPACE:
+                return R.string.error_short_out_of_space;
+            case PERMISSION_DENIED:
+                return R.string.error_short_permission_denied;
+            case CORRUPT_PACKAGE:
+                return R.string.error_short_corrupt_package;
+            case INTERRUPTED:
+                return R.string.error_short_interrupted;
+            default:
+                return R.string.error_short_unknown;
+        }
+    }
+
+    /**
+     * The short cause phrase for a throwable.
+     *
+     * <p>The compact counterpart of {@link #reason(Context, Throwable)}, for a toast.
+     */
+    public static String shortReason(Context context, Throwable error) {
+        if (context == null) return "";
+        return context.getString(shortMessageRes(classify(error)));
+    }
+
+    /**
+     * The short cause phrase for a manager callback that reports its own error string.
+     *
+     * <p>For a background manager whose callback message already names the operation
+     * ("Import failed"), where only the cause is missing and the surface is a toast.
+     */
+    public static String shortReasonForText(Context context, String operation, String rawText) {
+        if (context == null) return operation == null ? "" : operation;
+        String cause = context.getString(shortMessageRes(classifyText(rawText)));
+        if (operation == null || operation.trim().isEmpty()) return cause;
+        return operation.trim() + ": " + cause;
+    }
 }

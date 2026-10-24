@@ -2425,4 +2425,20 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="error_reason_interrupted">The download was interrupted before it finished. Keep the launcher open and the screen on while a package downloads, then try again.</string>
     <string name="error_reason_unknown">The operation failed for a reason the launcher could not identify. The exact error is below — it is what a bug report needs.</string>
 
+    <!-- Short cause phrases for a toast, where the full sentence above would be clipped. Each one
+         names the cause beside the operation ("Import failed: no internet connection"). -->
+    <string name="error_short_no_connection">no internet connection</string>
+    <string name="error_short_connection_refused">the server refused the connection</string>
+    <string name="error_short_host_not_found">the server address was not found — check your connection</string>
+    <string name="error_short_timeout">the server took too long to answer</string>
+    <string name="error_short_secure_connection">a secure connection could not be established</string>
+    <string name="error_short_server_refused">the source refused the request</string>
+    <string name="error_short_server_error">the server reported an internal error</string>
+    <string name="error_short_bad_response">the source returned something unreadable</string>
+    <string name="error_short_out_of_space">not enough free storage</string>
+    <string name="error_short_permission_denied">storage permission denied</string>
+    <string name="error_short_corrupt_package">the file is damaged or not a valid package</string>
+    <string name="error_short_interrupted">the transfer was interrupted</string>
+    <string name="error_short_unknown">see the log for the exact error</string>
+
 </resources>

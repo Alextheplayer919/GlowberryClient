@@ -164,4 +164,29 @@ public class UserFacingErrorTest {
         assertEquals("HOST_NOT_FOUND", UserFacingError.label(UserFacingError.Cause.HOST_NOT_FOUND));
         assertEquals("UNKNOWN", UserFacingError.label(null));
     }
+
+    /**
+     * The short form must exist for every cause the long form does.
+     *
+     * <p>It is what a toast uses, and a missing mapping would return the unknown-cause resource id
+     * for a cause the classifier did identify — the message would contradict the diagnosis.
+     */
+    @Test
+    public void everyCauseHasAShortPhraseDistinctFromTheUnknownOne() {
+        int unknown = UserFacingError.shortMessageRes(UserFacingError.Cause.UNKNOWN);
+        assertTrue("the unknown cause must have a phrase", unknown != 0);
+        for (UserFacingError.Cause cause : UserFacingError.Cause.values()) {
+            int res = UserFacingError.shortMessageRes(cause);
+            assertTrue("no short phrase for " + cause, res != 0);
+            if (cause != UserFacingError.Cause.UNKNOWN) {
+                assertNotEquals("a real cause must not fall back to the unknown phrase: " + cause,
+                        unknown, res);
+            }
+        }
+    }
+
+    @Test
+    public void aNullCauseStillHasAShortPhrase() {
+        assertTrue(UserFacingError.shortMessageRes(null) != 0);
+    }
 }

@@ -23,6 +23,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import org.chimeramc.client.launcher.core.minecraft.UserFacingError;
 
 public class ContentImporter {
     private static final String TAG = "ContentImporter";
@@ -133,7 +134,7 @@ public class ContentImporter {
 
             } catch (Exception e) {
                 Log.e(TAG, "Import failed", e);
-                callback.onError("Import failed: " + e.getMessage());
+                callback.onError(UserFacingError.shortReasonForText(context, "Import failed", e.getMessage()));
             }
         });
     }

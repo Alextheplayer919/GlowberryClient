@@ -16,6 +16,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import org.chimeramc.client.launcher.core.minecraft.UserFacingError;
 
 public class StructureExtractor {
     private static final String TAG = "StructureExtractor";
@@ -132,7 +133,10 @@ public class StructureExtractor {
                 }
 
                 if (errorRef.get() != null) {
-                    callback.onError(errorRef.get());
+                    // The LevelDB layer reports a raw message; classify it here so the toast names
+                    // the cause instead of echoing an exception's text.
+                    callback.onError(UserFacingError.shortReasonForText(
+                            context, "Failed to load structures", errorRef.get()));
                     finalDbManager.shutdown();
                     return;
                 }
@@ -158,7 +162,7 @@ public class StructureExtractor {
 
             } catch (Exception e) {
                 Log.e(TAG, "Failed to load structures", e);
-                callback.onError("Failed to load structures: " + e.getMessage());
+                callback.onError(UserFacingError.shortReasonForText(context, "Failed to load structures", e.getMessage()));
                 if (dbManager != null) {
                     dbManager.shutdown();
                 }
@@ -188,7 +192,7 @@ public class StructureExtractor {
 
             } catch (Exception e) {
                 Log.e(TAG, "Failed to export structure", e);
-                callback.onError("Export failed: " + e.getMessage());
+                callback.onError(UserFacingError.shortReasonForText(context, "Export failed", e.getMessage()));
             }
         });
     }
