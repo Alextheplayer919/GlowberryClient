@@ -24,6 +24,17 @@ class LauncherApplication : Application() {
         // active for it, so a hook that kills the process cannot trap the user in a crash loop.
         org.chimeramc.client.core.minecraft.OptifineModeManager.reconcileOnStartup(applicationContext)
         CrashReporter.init(this)
+        // Send any crash report captured by a previous run, but only when the user's own
+        // "Crash report upload" switch is on and this build has a collector configured. Off the
+        // main thread: it reads files and performs a network request, and a launcher that stalls
+        // on startup to report an old crash has the priorities backwards.
+        Thread({
+            try {
+                org.chimeramc.client.core.crash.CrashReportUploader.uploadPending(applicationContext)
+            } catch (_: Throwable) {
+                // Reporting a crash must never itself crash the launcher; the uploader logs.
+            }
+        }, "crash-report-upload").apply { isDaemon = true }.start()
         // Mirror the persisted haptics preference into the static feedback layer so the
         // very first interaction honours it, before Settings is ever opened.
         org.chimeramc.client.ui.animation.UiTouchFeedback.setEnabled(

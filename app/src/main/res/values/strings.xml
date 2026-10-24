@@ -667,6 +667,8 @@ GlowberryClient must complete the migration before continuing.</string>
 
     <string name="crash_title">Application crashed</string>
     <string name="crash_upload">Crash report upload</string>
+    <string name="crash_upload_unavailable">Unavailable in this build: no crash collector is configured, so there is nowhere to send a report. Your crash logs are still saved on this device and can be copied from Settings \u2192 Diagnostics.</string>
+    <string name="crash_upload_sending">Sending saved crash reports…</string>
     <string name="crash_details_title">Crash details</string>
     <string name="crash_back_to_main">Back to Home</string>
     <string name="crash_share_log">Share Log</string>

@@ -33,6 +33,7 @@ import androidx.activity.result.contract.ActivityResultContracts;
 
 import org.chimeramc.client.R;
 import org.chimeramc.client.core.crash.CrashReporter;
+import org.chimeramc.client.core.crash.CrashReportUploader;
 import org.chimeramc.client.preloader.PreloaderSignatureRulesManager;
 import org.chimeramc.client.settings.FeatureSettings;
 import org.chimeramc.client.settings.LowLatencyNetworkManager;
@@ -417,10 +418,25 @@ public class SettingsActivity extends BaseActivity {
 
         SwitchMaterial switchCrashUpload = findViewById(R.id.switch_crash_upload);
         switchCrashUpload.setChecked(fs.isCrashUploadEnabled());
+        // The switch used to persist a flag nothing read: it flipped, the value was stored, and no
+        // upload ever happened. It is now wired to the uploader, and disabled with a stated reason
+        // when this build has no collector configured — a switch that cannot do anything must say
+        // so rather than pretend.
+        boolean crashUploadConfigured = CrashReportUploader.isConfigured();
+        switchCrashUpload.setEnabled(crashUploadConfigured);
         switchCrashUpload.setOnCheckedChangeListener((btn, checked) -> {
             fs.setCrashUploadEnabled(checked);
             CrashReporter.refreshCrashlyticsCollection(this);
+            if (checked && crashUploadConfigured) {
+                Toast.makeText(this, R.string.crash_upload_sending, Toast.LENGTH_SHORT).show();
+                new Thread(() -> CrashReportUploader.uploadPending(getApplicationContext()),
+                        "crash-report-upload").start();
+            }
         });
+        View crashUploadUnavailable = findViewById(R.id.crash_upload_unavailable);
+        if (crashUploadUnavailable != null) {
+            crashUploadUnavailable.setVisibility(crashUploadConfigured ? View.GONE : View.VISIBLE);
+        }
 
         SwitchMaterial switchManagedLogin = findViewById(R.id.switch_managed_login);
         switchManagedLogin.setChecked(fs.isLauncherManagedMcLoginEnabled());

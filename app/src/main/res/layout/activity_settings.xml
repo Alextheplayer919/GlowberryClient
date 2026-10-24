@@ -336,6 +336,17 @@
                                 android:trackTint="#555555" />
                         </LinearLayout>
 
+                        <TextView
+                            android:id="@+id/crash_upload_unavailable"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:fontFamily="@font/misans"
+                            android:text="@string/crash_upload_unavailable"
+                            android:textColor="@color/mod_menu_text_tertiary"
+                            android:textSize="12sp"
+                            android:visibility="gone" />
+
                         <View
                             android:layout_width="match_parent"
                             android:layout_height="1dp"
