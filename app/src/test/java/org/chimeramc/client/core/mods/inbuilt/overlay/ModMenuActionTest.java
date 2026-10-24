@@ -54,7 +54,9 @@ public class ModMenuActionTest {
     public void theResetHudActionIsPresentBecauseItIsTheCanonicalExample() {
         ModMenuAction reset = ModMenuActionCatalog.byId(ModMenuActionCatalog.ACTION_RESET_HUD);
         assertNotNull("Reset HUD is the example the spec names", reset);
-        assertEquals("hud", reset.getGroupId());
+        // The section id is a module group id, so the action follows the same filter the module
+        // list does; "hud" named no section and the row was never rendered.
+        assertEquals("inbuilt", reset.getGroupId());
     }
 
     @Test
@@ -79,6 +81,14 @@ public class ModMenuActionTest {
     public void theStableKeyIsNamespacedSoItCannotCollideWithAModule() {
         for (ModMenuAction action : ModMenuActionCatalog.all()) {
             assertTrue(action.getStableKey().startsWith("action:"));
+        }
+    }
+
+    @Test
+    public void everyActionCarriesAnIcon() {
+        // The row draws the action's icon in its leading tile; a zero would crash the inflate.
+        for (ModMenuAction action : ModMenuActionCatalog.all()) {
+            assertTrue(action.getId() + " has an icon", action.getIconRes() != 0);
         }
     }
 

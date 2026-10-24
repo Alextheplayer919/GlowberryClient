@@ -18,12 +18,14 @@ public final class ModMenuAction {
     private final int titleRes;
     private final int subtitleRes;
     private final String groupId;
+    private final int iconRes;
 
-    public ModMenuAction(String id, int titleRes, int subtitleRes, String groupId) {
+    public ModMenuAction(String id, int titleRes, int subtitleRes, String groupId, int iconRes) {
         this.id = Objects.requireNonNull(id, "id");
         this.titleRes = titleRes;
         this.subtitleRes = subtitleRes;
         this.groupId = groupId;
+        this.iconRes = iconRes;
     }
 
     public String getId() {
@@ -42,6 +44,11 @@ public final class ModMenuAction {
     /** The section the action belongs to; actions never share a row with a module. */
     public String getGroupId() {
         return groupId;
+    }
+
+    /** The row's leading icon, so an action row reads as an action at a glance. */
+    public int getIconRes() {
+        return iconRes;
     }
 
     /** An action is always an action row: it has no enable state (M3). */
