@@ -27,6 +27,12 @@ public final class LaunchProbe {
         /** Whether the instance's package is present on disk. */
         boolean gameFilesPresent();
 
+        /**
+         * Whether the instance is the installed Minecraft package and the launcher cannot read the
+         * game's native library out of it (see {@link LaunchReadiness.State#PLAY_STORE_PACKAGE}).
+         */
+        boolean installedPackageUnreadable();
+
         /** Whether the APK ships no ABI this process can load. */
         boolean abiIncompatible();
 
@@ -67,6 +73,7 @@ public final class LaunchProbe {
         // "game files missing" is the only probe whose answer the user must act on, so it is read
         // without a fallback that would hide it.
         facts.gameFilesPresent(read(source::gameFilesPresent, false));
+        facts.installedPackageUnreadable(read(source::installedPackageUnreadable, false));
         facts.abiIncompatible(read(source::abiIncompatible, false));
         facts.extractionStale(read(source::extractionStale, false));
         facts.signatureRulesCoverBuild(read(source::signatureRulesCoverBuild, true));

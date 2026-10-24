@@ -2381,6 +2381,9 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="setup_import_failed">Import failed: %1$s</string>
 
     <!-- Named launch failure states (U14). Each cause gets its own copy so a report can name it. -->
+    <string name="launch_failure_title_play_store">Can\'t open this Minecraft install</string>
+    <string name="launch_failure_message_play_store">This is either a Google Play version of Minecraft or a version missing a specific file needed to launch the game.\n\nThe launcher has to load the game\'s native library directly, and the Play Store build keeps it inside the installed app where this launcher cannot reach it.\n\nTo play, import a Minecraft APK from the Library instead. A Play Store install can stay on your device — you do not have to remove it.</string>
+    <string name="import_from_library">Import from Library</string>
     <string name="launch_failure_title_game_files_missing">Game files missing</string>
     <string name="launch_failure_message_game_files_missing">This instance\'s game files are missing or incomplete. Re-import the version from the Library, or run Repair installation in Settings \u2192 Diagnostics.</string>
     <string name="launch_failure_title_abi">Unsupported build</string>

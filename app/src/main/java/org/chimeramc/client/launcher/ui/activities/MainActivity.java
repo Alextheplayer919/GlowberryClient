@@ -2185,6 +2185,18 @@ import okhttp3.OkHttpClient;
             PlayStoreValidationDialog.showNotInstalledDialog(this);
             return;
         }
+        if (state == LaunchReadiness.State.PLAY_STORE_PACKAGE) {
+            // The files are present; they are just not in a form this launcher can open. Send the
+            // user to the import flow, which is the actual fix, rather than to the Play Store.
+            new CustomAlertDialog(this)
+                    .setTitleText(getString(title))
+                    .setMessage(getString(message))
+                    .setPositiveButton(getString(R.string.import_from_library),
+                            v -> startActivity(new Intent(this, LibraryActivity.class)))
+                    .setNegativeButton(getString(R.string.dialog_positive_ok), null)
+                    .show();
+            return;
+        }
         new CustomAlertDialog(this)
                 .setTitleText(getString(title))
                 .setMessage(getString(message))

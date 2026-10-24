@@ -36,6 +36,7 @@ public class LaunchFailurePresenterTest {
         // A shared message would make two different failures indistinguishable in a bug report.
         LaunchReadiness.State[] blocking = {
                 LaunchReadiness.State.NO_VERSION_SELECTED,
+                LaunchReadiness.State.PLAY_STORE_PACKAGE,
                 LaunchReadiness.State.GAME_FILES_MISSING,
                 LaunchReadiness.State.ABI_INCOMPATIBLE,
                 LaunchReadiness.State.STALE_NATIVE_LIBS,
