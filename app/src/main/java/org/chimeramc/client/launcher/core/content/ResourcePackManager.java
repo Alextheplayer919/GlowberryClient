@@ -142,13 +142,12 @@ public class ResourcePackManager {
             return;
         }
         executor.execute(() -> {
+            // The staged copy is deleted in a finally, not after the import calls. The import
+            // helpers throw on a malformed archive, and the old straight-line delete was skipped on
+            // exactly that path - so every failed import left a full copy of the pack in the app
+            // cache until Android reclaimed it.
+            File tempFile = null;
             try {
-                InputStream inputStream = context.getContentResolver().openInputStream(packUri);
-                if (inputStream == null) {
-                    callback.onError("Cannot open pack file");
-                    return;
-                }
-
                 String fileName = getFileName(packUri);
                 if (fileName == null) {
                     fileName = "imported_pack_" + System.currentTimeMillis();
@@ -156,13 +155,20 @@ public class ResourcePackManager {
 
                 if (resourcePacksDirectory == null || behaviorPacksDirectory == null || skinPacksDirectory == null) {
                     callback.onError("No version selected");
-                    inputStream.close();
                     return;
                 }
 
-                File tempFile = new File(context.getCacheDir(), "temp_import_" + System.currentTimeMillis());
-                copyStreamToFile(inputStream, tempFile);
-                inputStream.close();
+                tempFile = new File(context.getCacheDir(), "temp_import_" + System.currentTimeMillis());
+                // try-with-resources: the previous code closed the stream by hand on the two
+                // success paths, so a copy that threw mid-stream (a truncated or unreadable
+                // document) leaked the descriptor until the process died.
+                try (InputStream inputStream = context.getContentResolver().openInputStream(packUri)) {
+                    if (inputStream == null) {
+                        callback.onError("Cannot open pack file");
+                        return;
+                    }
+                    copyStreamToFile(inputStream, tempFile);
+                }
 
                 String lowerName = fileName.toLowerCase();
                 int resourceCount = 0;
@@ -174,19 +180,12 @@ public class ResourcePackManager {
                     resourceCount = counts[0];
                     behaviorCount = counts[1];
                     skinCount = counts[2];
-                } else if (lowerName.endsWith(".mcpack")) {
-                    int[] counts = importMcpack(tempFile);
-                    resourceCount = counts[0];
-                    behaviorCount = counts[1];
-                    skinCount = counts[2];
                 } else {
                     int[] counts = importMcpack(tempFile);
                     resourceCount = counts[0];
                     behaviorCount = counts[1];
                     skinCount = counts[2];
                 }
-
-                tempFile.delete();
 
                 int total = resourceCount + behaviorCount + skinCount;
                 if (total == 0) {
@@ -204,6 +203,11 @@ public class ResourcePackManager {
             } catch (Exception e) {
                 Log.e(TAG, "Failed to import pack", e);
                 callback.onError(UserFacingError.shortReasonForText(context, "Import failed", e.getMessage()));
+            } finally {
+                if (tempFile != null) {
+                    //noinspection ResultOfMethodCallIgnored
+                    tempFile.delete();
+                }
             }
         });
     }
@@ -469,12 +473,14 @@ public class ResourcePackManager {
             return;
         }
         executor.execute(() -> {
-            try {
-                OutputStream outputStream = context.getContentResolver().openOutputStream(exportUri);
+            try (OutputStream outputStream = context.getContentResolver().openOutputStream(exportUri)) {
                 if (outputStream == null) {
                     callback.onError("Cannot create export file");
                     return;
                 }
+                // The ZipOutputStream is closed first so the central directory is written; the
+                // outer resource then closes the destination stream, which the inner close has
+                // already done (a second close on a stream is a no-op).
                 try (ZipOutputStream zos = new ZipOutputStream(outputStream)) {
                     zipDirectory(pack.getFile(), "", zos);
                 }

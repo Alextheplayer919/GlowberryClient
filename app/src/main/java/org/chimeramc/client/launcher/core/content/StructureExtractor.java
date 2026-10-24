@@ -172,8 +172,10 @@ public class StructureExtractor {
 
     public void exportSingleStructure(StructureInfo structure, Uri outputUri, ExtractionCallback callback) {
         executor.execute(() -> {
-            try {
-                OutputStream outputStream = context.getContentResolver().openOutputStream(outputUri);
+            // try-with-resources: the old code closed the stream by hand inside each branch, so a
+            // write that failed partway (a full or unwritable destination) leaked the descriptor
+            // and left a half-written file behind.
+            try (OutputStream outputStream = context.getContentResolver().openOutputStream(outputUri)) {
                 if (outputStream == null) {
                     callback.onError("Cannot create output file");
                     return;
@@ -183,10 +185,8 @@ public class StructureExtractor {
                 if (data != null && data.length > 0) {
                     outputStream.write(data);
                     outputStream.flush();
-                    outputStream.close();
                     callback.onComplete(1, outputUri.toString());
                 } else {
-                    outputStream.close();
                     callback.onError("Structure has no data");
                 }
 

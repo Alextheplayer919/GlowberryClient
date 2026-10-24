@@ -58,6 +58,7 @@ public class ContentImporter {
                 StringBuilder errors = new StringBuilder();
 
                 for (Uri uri : uris) {
+                    File tempFile = null;
                     try {
                         String fileName = getFileName(uri);
                         if (fileName == null || fileName.isEmpty()) {
@@ -66,15 +67,18 @@ public class ContentImporter {
                         String lowerName = fileName.toLowerCase();
                         Log.d(TAG, "Importing file: " + fileName);
 
-                        InputStream inputStream = context.getContentResolver().openInputStream(uri);
-                        if (inputStream == null) {
-                            errors.append("Cannot open file: ").append(fileName).append("\n");
-                            continue;
+                        // try-with-resources, and the staged copy is removed in a finally. The
+                        // old code closed the stream and deleted the temp by hand, so a malformed
+                        // archive - which is exactly when the import helpers throw - skipped both
+                        // and left the descriptor open and a full copy of the pack in the cache.
+                        tempFile = new File(context.getCacheDir(), "temp_import_" + System.currentTimeMillis());
+                        try (InputStream inputStream = context.getContentResolver().openInputStream(uri)) {
+                            if (inputStream == null) {
+                                errors.append("Cannot open file: ").append(fileName).append("\n");
+                                continue;
+                            }
+                            copyStreamToFile(inputStream, tempFile);
                         }
-
-                        File tempFile = new File(context.getCacheDir(), "temp_import_" + System.currentTimeMillis());
-                        copyStreamToFile(inputStream, tempFile);
-                        inputStream.close();
 
                         ImportResult result = new ImportResult();
 
@@ -100,11 +104,14 @@ public class ContentImporter {
                         totalResult.skinPacksImported += result.skinPacksImported;
                         totalResult.worldsImported += result.worldsImported;
 
-                        tempFile.delete();
-
                     } catch (Exception e) {
                         Log.e(TAG, "Import failed for uri: " + uri, e);
                         errors.append("Failed for ").append(uri.getLastPathSegment()).append(": ").append(e.getMessage()).append("\n");
+                    } finally {
+                        if (tempFile != null) {
+                            //noinspection ResultOfMethodCallIgnored
+                            tempFile.delete();
+                        }
                     }
                 }
 
