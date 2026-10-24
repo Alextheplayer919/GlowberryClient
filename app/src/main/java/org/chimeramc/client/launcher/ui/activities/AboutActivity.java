@@ -137,4 +137,12 @@ public class AboutActivity extends BaseActivity {
         });
         DynamicAnim.applyPressScale(btn);
     }
+
+    @Override
+    protected void onDestroy() {
+        // The avatar fetch runs on an Activity-scoped executor; without this its thread outlives
+        // the screen and the process keeps it alive until the next fetch happens to reuse it.
+        executor.shutdownNow();
+        super.onDestroy();
+    }
 }

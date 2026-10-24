@@ -113,6 +113,8 @@ public class ContentDetailsActivity extends BaseActivity {
         if (summary != null) {
             summary.destroy();
         }
+        // The download executor is Activity-scoped; without this its thread outlives the screen.
+        downloadExecutor.shutdownNow();
         super.onDestroy();
     }
 
