@@ -318,6 +318,14 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="instance_shortcut_default_icon">Use Default</string>
     <string name="instance_shortcut_add_button">Add Shortcut</string>
     <string name="instance_settings_auto_save_failed">Could not save this instance setting.</string>
+    <string name="instance_account_title">Microsoft account</string>
+    <string name="instance_account_active">Using the account that is active in the launcher.</string>
+    <string name="instance_account_bound">This instance launches with %1$s.</string>
+    <string name="instance_account_stale">That account is no longer available, so this instance currently launches with the active account. Choose another account to fix the binding.</string>
+    <string name="instance_account_change">Change</string>
+    <string name="instance_account_picker_title">Launch this instance as</string>
+    <string name="instance_account_use_active">Use the active account</string>
+    <string name="instance_account_no_accounts">No accounts are signed in. Add one from the account screen first.</string>
     <string name="in_game_pack_changer_title">In-game pack changer</string>
     <string name="in_game_pack_changer_desc">Adds a resource-pack switcher to the in-game Mod Menu so packs can be enabled or disabled without leaving the game.</string>
     <string name="instance_shortcut_not_supported">Your home screen launcher does not support pinned shortcuts.</string>

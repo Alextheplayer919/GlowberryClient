@@ -52,6 +52,9 @@ public class InstanceSettingsActivity extends BaseActivity {
     private SwitchMaterial switchInGamePackChanger;
     private View shaderCompatContainer;
     private View inGamePackChangerContainer;
+    private View boundAccountContainer;
+    private TextView boundAccountValue;
+    private TextView boundAccountWarning;
     private EditText editShortcutName;
     private ImageView shortcutIconPreview;
     private String shortcutIconUri;
@@ -111,6 +114,10 @@ public class InstanceSettingsActivity extends BaseActivity {
         shaderCompatContainer = findViewById(R.id.shader_compat_container);
         switchInGamePackChanger = findViewById(R.id.switch_in_game_pack_changer);
         inGamePackChangerContainer = findViewById(R.id.in_game_pack_changer_container);
+        boundAccountContainer = findViewById(R.id.bound_account_container);
+        boundAccountValue = findViewById(R.id.bound_account_value);
+        boundAccountWarning = findViewById(R.id.bound_account_warning);
+        setupBoundAccountRow();
         editShortcutName = findViewById(R.id.edit_shortcut_name);
         shortcutIconPreview = findViewById(R.id.shortcut_icon_preview);
 
@@ -227,11 +234,93 @@ public class InstanceSettingsActivity extends BaseActivity {
         if (switchInGamePackChanger != null) {
             switchInGamePackChanger.setChecked(version.inGamePackChangerEnabled);
         }
+
+        refreshBoundAccountRow();
         
         editShortcutName.setText(InstanceShortcutManager.getSavedName(this, version));
         shortcutIconUri = InstanceShortcutManager.getSavedIconUri(this, version);
         updateShortcutIconPreview();
         populatingData = false;
+    }
+
+    /**
+     * Wires the per-instance account binding row (F2).
+     *
+     * <p>The row is a button rather than a switch because it opens a picker: an instance can be
+     * bound to any signed-in account or to "whatever is active". The current choice and a stale
+     * binding are both shown as text, so the state is readable without opening the picker.
+     */
+    private void setupBoundAccountRow() {
+        if (boundAccountContainer == null) return;
+        Button change = findViewById(R.id.button_bound_account);
+        if (change != null) {
+            change.setOnClickListener(v -> showAccountPicker());
+            DynamicAnim.applyPressScale(change);
+        }
+    }
+
+    private void showAccountPicker() {
+        java.util.List<org.chimeramc.client.core.auth.MsftAccountStore.MsftAccount> accounts =
+                org.chimeramc.client.core.auth.MsftAccountStore.list(this);
+        if (accounts.isEmpty()) {
+            Toast.makeText(this, R.string.instance_account_no_accounts, Toast.LENGTH_LONG).show();
+            return;
+        }
+        java.util.List<String> labels = new java.util.ArrayList<>();
+        java.util.List<String> ids = new java.util.ArrayList<>();
+        // "Use the active account" is always the first entry: clearing a binding must be as easy
+        // as setting one, and it is the behaviour an unbound instance has.
+        labels.add(getString(R.string.instance_account_use_active));
+        ids.add(null);
+        for (org.chimeramc.client.core.auth.MsftAccountStore.MsftAccount account : accounts) {
+            String name = account.xboxGamertag != null && !account.xboxGamertag.isEmpty()
+                    ? account.xboxGamertag
+                    : (account.minecraftUsername != null ? account.minecraftUsername : account.id);
+            labels.add(name);
+            ids.add(account.id);
+        }
+        String[] items = labels.toArray(new String[0]);
+        new CustomAlertDialog(this)
+                .setTitleText(getString(R.string.instance_account_picker_title))
+                .setItems(items, (dialog, which) -> {
+                    versionManager.setInstanceBoundAccount(version, ids.get(which));
+                    setResult(RESULT_OK);
+                    refreshBoundAccountRow();
+                })
+                .show();
+    }
+
+    /** Re-renders the binding row from the current metadata, including a stale binding. */
+    private void refreshBoundAccountRow() {
+        if (boundAccountContainer == null || boundAccountValue == null) return;
+        String boundId = versionManager.getInstanceBoundAccount(version);
+        java.util.List<org.chimeramc.client.core.auth.MsftAccountStore.MsftAccount> accounts =
+                org.chimeramc.client.core.auth.MsftAccountStore.list(this);
+
+        if (boundId == null || boundId.isEmpty()) {
+            boundAccountValue.setText(R.string.instance_account_active);
+            if (boundAccountWarning != null) boundAccountWarning.setVisibility(View.GONE);
+            return;
+        }
+
+        org.chimeramc.client.core.auth.MsftAccountStore.MsftAccount bound = null;
+        for (org.chimeramc.client.core.auth.MsftAccountStore.MsftAccount account : accounts) {
+            if (boundId.equals(account.id)) {
+                bound = account;
+                break;
+            }
+        }
+        boolean stale = bound == null || bound.serializedAuthManager == null;
+        if (stale) {
+            boundAccountValue.setText(R.string.instance_account_active);
+            if (boundAccountWarning != null) boundAccountWarning.setVisibility(View.VISIBLE);
+        } else {
+            String name = bound.xboxGamertag != null && !bound.xboxGamertag.isEmpty()
+                    ? bound.xboxGamertag
+                    : (bound.minecraftUsername != null ? bound.minecraftUsername : bound.id);
+            boundAccountValue.setText(getString(R.string.instance_account_bound, name));
+            if (boundAccountWarning != null) boundAccountWarning.setVisibility(View.GONE);
+        }
     }
 
     private void selectTab(TextView selectedTab) {

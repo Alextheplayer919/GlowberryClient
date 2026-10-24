@@ -11,6 +11,9 @@ import org.chimeramc.client.core.mods.ModManager
 import org.chimeramc.client.core.mods.ModNativeLoader
 import org.chimeramc.client.core.mods.ModSafeMode
 import org.chimeramc.client.core.minecraft.MinecraftLauncher
+import org.chimeramc.client.core.auth.InstanceAccountBinding
+import org.chimeramc.client.core.auth.MsftAccountStore
+import org.chimeramc.client.core.auth.storage.XalExporter
 import org.chimeramc.client.core.versions.GameVersion
 import io.bambosan.mbloader.launcherUtils.LibBindings
 import org.chimeramc.client.preloader.PreloaderInput
@@ -184,6 +187,39 @@ val modsDir = modManager.currentVersion?.modsDir?.absolutePath
         } catch (error: Exception) {
             trace.error("Bundled native-mod pack synchronization failed", error.message ?: error.javaClass.simpleName)
             throw RuntimeException("Failed to prepare bundled native-mod packs", error)
+        }
+
+        // F2: an instance can be bound to a specific Microsoft account. Export that account's XAL
+        // data before the game starts, so the instance signs in as the account it was bound to
+        // rather than whichever one is globally active. A binding whose account is gone is left in
+        // place and reported, never silently re-pointed; a failure is logged and the launch
+        // continues, because an account problem must not block a launch.
+        try {
+            val boundAccountId = version.boundAccountId
+            if (boundAccountId != null && boundAccountId.isNotEmpty()) {
+                val accounts = MsftAccountStore.list(context).map {
+                    object : InstanceAccountBinding.Account {
+                        override fun id() = it.id
+                        override fun active() = it.active
+                        override fun hasAuthMaterial() = it.serializedAuthManager != null
+                    }
+                }
+                val resolution = InstanceAccountBinding.resolve(boundAccountId, accounts)
+                val chosen = resolution.account
+                if (chosen != null && chosen.id() == boundAccountId) {
+                    if (XalExporter.exportAccount(context, boundAccountId)) {
+                        fileListener.onLog("Bound account exported for this instance")
+                    } else {
+                        fileListener.onLog("Bound account has no usable sign-in data")
+                    }
+                } else if (resolution.bindingStale) {
+                    fileListener.onLog(
+                        "This instance is bound to an account that is no longer available; " +
+                            "launching with the active account instead")
+                }
+            }
+        } catch (error: Throwable) {
+            trace.error("Instance account binding failed", error.javaClass.simpleName)
         }
 
         // Publish the equipped set into the native cosmetics registry before every launch, so the

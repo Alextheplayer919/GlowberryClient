@@ -117,6 +117,20 @@ should say a screen "works in game" until this list passes.
   content description is the recorded `kind: reason`.
 - [ ] A mod that failed to load can still be switched off from its row.
 
+## 3c. Per-instance account binding (F2)
+
+- [ ] Sign in two accounts. Open Instance Settings: the account row says "Using the account that is
+  active in the launcher."
+- [ ] Tap Change, pick the second account: the row names that gamertag, and the launcher's own
+  active account has **not** changed.
+- [ ] Launch that instance: it signs in as the bound account.
+- [ ] Launch a different, unbound instance: it still signs in as the launcher's active account.
+- [ ] Pick "Use the active account": the row returns to the active-account text.
+- [ ] Delete the bound account from the account screen, then reopen Instance Settings: the row shows
+  the warning, not a different name, and the instance still launches (as the active account).
+- [ ] Bind an account, then remove its sign-in data: the warning appears and the launch is not
+  blocked.
+
 ## 4. Closet (cosmetics)
 
 - [ ] Left rail: Capes, Hats, Pets, Back, Offhand, Effects.

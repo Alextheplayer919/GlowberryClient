@@ -12,6 +12,8 @@ public class VersionProfileMetadata {
     public boolean launchVertically;
     public boolean shaderCompatEnabled;
     public boolean inGamePackChangerEnabled;
+    /** The bound Microsoft account id, or null when the instance uses the active account (F2). */
+    public String boundAccountId;
     public boolean installed;
     public String packageName;
     public long updatedAt;

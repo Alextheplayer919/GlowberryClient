@@ -23,6 +23,35 @@ public class XalExporter {
     private static final String TAG = "XalExporter";
     private static final Gson GSON = new Gson();
 
+    /**
+     * Exports a specific account instead of the globally active one (F2).
+     *
+     * <p>Used when an instance is bound to an account: the launch must write <em>that</em> account's
+     * tokens, not whichever account happens to be active in the launcher UI. The active account is
+     * deliberately left marked active, so choosing an account for one instance does not silently
+     * change the account the launcher shows everywhere else.
+     *
+     * <p>Returns false when the account cannot be resolved or carries no auth material, so the
+     * caller can report it rather than launching signed out with no explanation. A false result
+     * does <b>not</b> clear the XAL directory: the previous account's data is still the best
+     * available, and wiping it would sign the user out mid-session.
+     */
+    public static boolean exportAccount(Context ctx, String accountId) {
+        if (accountId == null || accountId.trim().isEmpty()) return false;
+        try {
+            MsftAccountStore.MsftAccount account = MsftAccountStore.find(ctx, accountId.trim());
+            if (account == null || account.serializedAuthManager == null) {
+                return false;
+            }
+            JsonObject authJson = JsonParser.parseString(account.serializedAuthManager).getAsJsonObject();
+            export(ctx, authJson, account.msUserId, account.xboxGamertag, account.xuid);
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to export XAL data for a bound account", e);
+            return false;
+        }
+    }
+
     public static void exportActiveAccount(Context ctx) {
         try {
             MsftAccountStore.MsftAccount active = null;
