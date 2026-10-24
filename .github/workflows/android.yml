@@ -295,10 +295,22 @@ jobs:
   # (InputStream.readAllBytes, API 33) was invisible to a build-only pipeline and to the JVM test
   # suite, because a desktop JDK has that method. Only a real API 28 runtime can catch it.
   instrumented-smoke:
-    # The APK ships arm64-v8a only (see app/build.gradle: the process locks in one bitness and the
-    # prebuilt libgxcore.so has no 32-bit or x86 build). An x86_64 emulator therefore cannot install
-    # it - `connectedDebugAndroidTest` fails with "No compatible devices connected" before any test
-    # runs, which is what this job did. It needs an arm64 host running an arm64 system image.
+    # Manual only, and here is why it cannot be an automatic gate.
+    #
+    # The APK ships arm64-v8a only (app/build.gradle sets abiFilters 'arm64-v8a': an Android process
+    # locks in one bitness and the prebuilt libgxcore.so has no 32-bit or x86 build). That rules out
+    # the usual x86_64 emulator - the install is refused with "No compatible devices connected"
+    # before a single test runs, which is what this job used to do on every push.
+    #
+    # An arm64 system image needs an arm64 host, and GitHub's arm64 runners have no /dev/kvm
+    # ("Failed to open the device 'kvm': Invalid argument"), so the emulator cannot be accelerated
+    # there and would take longer to boot than a runner is allowed to live.
+    #
+    # So: the static scan in Api28CompatTest (build job, seconds) is the automatic gate, and this
+    # job is for a self-hosted arm64 runner with KVM or a real device attached. It is kept rather
+    # than deleted because the runtime check is the one that proves the fix, and the test source
+    # runs on any developer's device.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04-arm
     strategy:
       fail-fast: false
