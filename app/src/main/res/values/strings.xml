@@ -277,6 +277,17 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="toast_delete_failed">Delete failed: %1$s</string>
     <string name="error_delete_builtin_version">Cannot delete built-in version</string>
     <string name="invalid_mod_file">Failed</string>
+    <string name="mod_import_chooser_title">Add a mod</string>
+    <string name="mod_import_chooser_message">Import a package file from this device, or paste a link someone shared with you. Both go through the same validation.</string>
+    <string name="mod_import_from_file">Choose a file</string>
+    <string name="mod_import_from_link">Use a link</string>
+    <string name="mod_import_link_message">Paste the link to an .antegg package. If you copied a whole message, the link inside it is found for you.</string>
+    <string name="mod_import_link_hint">https://example.com/mod.antegg</string>
+    <string name="mod_import_link_go">Import</string>
+    <string name="mod_import_link_invalid">That text does not contain a link to an .antegg package.</string>
+    <string name="mod_import_link_downloading">Downloading the package…</string>
+    <string name="mod_import_link_done">Imported %1$s.</string>
+    <string name="mod_import_link_failed">Could not import from that link: %1$s</string>
     <string name="invalid_mod_file_reason">Only .antegg packages, .so files or .zip mod packages are accepted. The selected file is not a valid native mod import package.</string>
     <string name="invalid_zip_mod_package_title">Invalid ZIP Mod Package</string>
     <string name="invalid_zip_mod_package_message">The ZIP mod package must contain manifest.json and a .so file.</string>

@@ -114,9 +114,7 @@ public class ModsFullscreenActivity extends BaseActivity {
         Button addModButton = findViewById(R.id.add_mod_fullscreen_button);
 
         addModButton.setVisibility(View.VISIBLE);
-        addModButton.setOnClickListener(v -> {
-            startFilePicker();
-        });
+        addModButton.setOnClickListener(v -> showImportChooser());
         DynamicAnim.applyPressScale(addModButton);
 
         Button modHubButton = findViewById(R.id.mod_hub_fullscreen_button);
@@ -296,6 +294,96 @@ public class ModsFullscreenActivity extends BaseActivity {
         }
         return new java.text.SimpleDateFormat("MMM d, HH:mm", java.util.Locale.getDefault())
                 .format(new java.util.Date(timestampMs));
+    }
+
+    /**
+     * "Add Mod" asks how, rather than assuming a file picker (F1).
+     *
+     * <p>A {@code .AntEgg} now arrives two ways: as a file, or as a link someone shared. A chooser
+     * keeps the common path one tap away and makes the link path discoverable without adding a
+     * fourth button to a header that is already full. Both paths end in the same validated loader,
+     * so neither is a shortcut around it.
+     */
+    private void showImportChooser() {
+        // The chooser is the only entry point; a plain file picker is one of its two answers.
+        new CustomAlertDialog(this)
+                .setTitleText(getString(R.string.mod_import_chooser_title))
+                .setMessage(getString(R.string.mod_import_chooser_message))
+                .setPositiveButton(getString(R.string.mod_import_from_file), d -> startFilePicker())
+                .setNegativeButton(getString(R.string.mod_import_from_link), d -> promptForLink())
+                .setNeutralButton(getString(R.string.cancel), d -> { })
+                .show();
+    }
+
+    /** Prompts for a shared or pasted package link and imports it through the validated loader. */
+    private void promptForLink() {
+        android.widget.EditText input = new android.widget.EditText(this);
+        input.setSingleLine(true);
+        input.setHint(R.string.mod_import_link_hint);
+        CustomAlertDialog dialog = new CustomAlertDialog(this)
+                .setTitleText(getString(R.string.mod_import_from_link))
+                .setMessage(getString(R.string.mod_import_link_message))
+                .setCustomView(input)
+                .setPositiveButton(getString(R.string.mod_import_link_go), v -> {
+                    String link = org.chimeramc.client.core.antegg.AntEggLink
+                            .firstImportableUrl(input.getText().toString());
+                    if (link == null) {
+                        Toast.makeText(this, R.string.mod_import_link_invalid,
+                                Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    importFromLink(link);
+                })
+                .setNegativeButton(getString(R.string.cancel), v -> { });
+        dialog.show();
+    }
+
+    /**
+     * Downloads and imports a link, reporting both stages.
+     *
+     * <p>The progress toast is deliberately coarse (a single "downloading" notice) because the
+     * import itself is what the user is waiting for, and a percentage that only updates for
+     * servers that send a length is not worth a second widget.
+     */
+    private void importFromLink(String url) {
+        Toast.makeText(this, R.string.mod_import_link_downloading, Toast.LENGTH_SHORT).show();
+        new org.chimeramc.client.core.antegg.AntEggLinkDownloader().download(
+                this, url, null, new org.chimeramc.client.core.antegg
+                        .AntEggLinkDownloader.Callback() {
+                    @Override
+                    public void onSuccess(java.io.File staged, String fileName) {
+                        new Thread(() -> {
+                            org.chimeramc.client.core.antegg.AntEggLoader.LoadResult result =
+                                    org.chimeramc.client.core.antegg.AntEggLoader
+                                            .loadMod(ModsFullscreenActivity.this, staged);
+                            //noinspection ResultOfMethodCallIgnored
+                            staged.delete();
+                            if (!result.success) {
+                                org.chimeramc.client.core.antegg.AntEggLoader.recordFailure(
+                                        ModsFullscreenActivity.this, fileName, result.error);
+                            }
+                            runOnUiThread(() -> {
+                                if (result.success) {
+                                    Toast.makeText(ModsFullscreenActivity.this,
+                                            getString(R.string.mod_import_link_done, fileName),
+                                            Toast.LENGTH_LONG).show();
+                                    viewModel.reloadMods();
+                                } else {
+                                    Toast.makeText(ModsFullscreenActivity.this,
+                                            getString(R.string.mod_import_link_failed, result.error),
+                                            Toast.LENGTH_LONG).show();
+                                }
+                            });
+                        }, "antegg-link-import").start();
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        runOnUiThread(() -> Toast.makeText(ModsFullscreenActivity.this,
+                                getString(R.string.mod_import_link_failed, message),
+                                Toast.LENGTH_LONG).show());
+                    }
+                });
     }
 
     private void startFilePicker() {

@@ -110,6 +110,11 @@ public class FileHandler {
     }
 
     public void processIncomingFilesWithConfirmation(Intent intent, FileOperationCallback callback, boolean isButtonClick) {
+        // A share sheet hands over text, not a document: the package link is inside the message.
+        // This runs before the URI path because an ACTION_SEND with a link has no data URI at all,
+        // and an ACTION_SEND with both a link and an attachment should import both.
+        String sharedLink = sharedPackageLink(intent);
+
         List<Uri> fileUris = extractFileUris(intent);
 
         // A Java Edition .jar is not a Bedrock mod package, so it is never imported by this
@@ -128,6 +133,10 @@ public class FileHandler {
         }
 
         if (supportedUris.isEmpty()) {
+            if (sharedLink != null) {
+                importSharedLink(sharedLink, callback);
+                return;
+            }
             if (isButtonClick) {
                 new CustomAlertDialog(context)
                         .setTitleText(context.getString(R.string.invalid_mod_file))
@@ -138,6 +147,10 @@ public class FileHandler {
                         .show();
             }
             return;
+        }
+
+        if (sharedLink != null) {
+            importSharedLink(sharedLink, callback);
         }
 
         new Thread(() -> {
@@ -194,6 +207,67 @@ public class FileHandler {
                 }
             });
         }).start();
+    }
+
+    /**
+     * The package link inside an incoming share, or {@code null}.
+     *
+     * <p>Reads both extras a share can use: {@code EXTRA_TEXT} is the common one and
+     * {@code EXTRA_TITLE} is where some apps put the link. Only an {@code .AntEgg} link counts, so
+     * a share of unrelated text is not swallowed by this importer.
+     */
+    private String sharedPackageLink(Intent intent) {
+        if (intent == null) return null;
+        if (!Intent.ACTION_SEND.equals(intent.getAction())
+                && !Intent.ACTION_SEND_MULTIPLE.equals(intent.getAction())) {
+            return null;
+        }
+        for (String extra : new String[] {Intent.EXTRA_TEXT, Intent.EXTRA_TITLE,
+                Intent.EXTRA_SUBJECT}) {
+            String value = intent.getStringExtra(extra);
+            String link = org.chimeramc.client.core.antegg.AntEggLink.firstImportableUrl(value);
+            if (link != null) return link;
+        }
+        return null;
+    }
+
+    /**
+     * Downloads a shared {@code .AntEgg} link and runs it through the ordinary validated loader.
+     *
+     * <p>The download only stages a file; {@link #importAntEggFiles} does the import, so a link
+     * import gets exactly the same validation, sandbox resolution and atomic install as a picked
+     * file. The staged copy is deleted once the loader has it.
+     */
+    private void importSharedLink(String url, FileOperationCallback callback) {
+        new org.chimeramc.client.core.antegg.AntEggLinkDownloader().download(
+                context, url, null, new org.chimeramc.client.core.antegg
+                        .AntEggLinkDownloader.Callback() {
+                    @Override
+                    public void onSuccess(File staged, String fileName) {
+                        new Thread(() -> {
+                            org.chimeramc.client.core.antegg.AntEggLoader.LoadResult result =
+                                    org.chimeramc.client.core.antegg.AntEggLoader.loadMod(context, staged);
+                            //noinspection ResultOfMethodCallIgnored
+                            staged.delete();
+                            if (!result.success) {
+                                org.chimeramc.client.core.antegg.AntEggLoader.recordFailure(
+                                        context, fileName, result.error);
+                            }
+                            new Handler(Looper.getMainLooper()).post(() -> {
+                                if (result.success) {
+                                    if (callback != null) callback.onSuccess(1);
+                                } else if (callback != null) {
+                                    callback.onError(result.error);
+                                }
+                            });
+                        }).start();
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        if (callback != null) callback.onError(message);
+                    }
+                });
     }
 
     private boolean needsMetadataInput(String fileName) {
