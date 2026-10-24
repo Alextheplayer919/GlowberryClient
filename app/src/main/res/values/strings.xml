@@ -493,7 +493,7 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="minecraft_playstore_required_message">This launcher works only with the official Minecraft app from the Google Play Store. Please install the Play Store version to continue.</string>
     <string name="buy_minecraft">Get Minecraft</string>
     <string name="minecraft_not_installed_title">Minecraft Not Installed</string>
-    <string name="minecraft_not_installed_message">Minecraft isn’t installed on your device. Install Minecraft from any official source (Google Play Store, Amazon Appstore, or a sideloaded APK) to use this launcher.</string>
+    <string name="minecraft_not_installed_message">Minecraft isn’t installed on your device. Import a Minecraft APK from the Library to play — a Google Play install cannot be launched by this launcher, because the game keeps its native library inside the installed app where the launcher cannot reach it.</string>
     <string name="install_minecraft">Install Minecraft</string>
     <string name="genuine_badge_label">License not verified</string>
     <string name="invalid_license_detected_toast">Non-genuine Minecraft detected. Ensure Minecraft is from Google Play Store</string>
@@ -2393,7 +2393,7 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="launch_failure_title_rules">Limited compatibility</string>
     <string name="launch_failure_message_rules">There are no hook definitions for this Minecraft build yet, so in-game overlays and cosmetics are disabled. The game itself will run normally.</string>
     <string name="launch_failure_title_not_installed">Minecraft not found</string>
-    <string name="launch_failure_message_not_installed">Minecraft does not appear to be installed on this device. Install it from the Play Store, or import your own game files from the Library.</string>
+    <string name="launch_failure_message_not_installed">Minecraft does not appear to be installed on this device. Import a Minecraft APK from the Library — a Google Play install cannot be launched by this launcher, because the game keeps its native library inside the installed app where the launcher cannot reach it.</string>
 
     <!-- Post-preflight launch failures (G). The crash and the launch dialog share this copy. -->
     <string name="launch_error_title_missing_game_library">Game library not readable</string>
