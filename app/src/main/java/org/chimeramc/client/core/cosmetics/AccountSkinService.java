@@ -185,7 +185,7 @@ public final class AccountSkinService {
             Bitmap atlas = android.graphics.BitmapFactory.decodeByteArray(png, 0, png.length);
             if (atlas == null) return null;
             AccountSkinCache.write(context.getFilesDir(),
-                    new AccountSkinCache.Entry(png, "account:" + xuid));
+                    new AccountSkinCache.Entry(png, AccountSkinCache.accountKeyFor(xuid)));
             return PlayerSkinProvider.normalise(atlas);
         } catch (Throwable t) {
             return null;

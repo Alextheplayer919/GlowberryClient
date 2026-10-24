@@ -305,8 +305,11 @@ public class DiagnosticsActivity extends BaseActivity {
         try {
             snapshot.skinLookupEnabled(AccountSkinService.isEnabled(this));
             snapshot.skinLookupAvailable(AccountSkinService.canLookup(this));
+            // Cached means cached for the account signed in now: an entry for a previous account is
+            // refreshed rather than shown, so reporting it as cached would misdiagnose the report.
             AccountSkinCache.Entry entry = AccountSkinCache.read(getFilesDir());
-            snapshot.skinCached(entry != null && entry.png != null && entry.png.length > 0);
+            snapshot.skinCached(AccountSkinCache.isValidFor(entry,
+                    AccountSkinService.activeXuid(this)));
         } catch (Throwable ignored) {
         }
         return snapshot;
