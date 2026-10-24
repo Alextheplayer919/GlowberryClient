@@ -120,15 +120,11 @@
 
     <string name="dialog_title_no_version">Sürüm Seçilmedi</string>
     <string name="dialog_message_no_version">Lütfen başlatmadan önce bir oyun sürümü seçin.</string>
-    <string name="dialog_title_version_isolation">Sürüm Yalıtımı Gerekli</string>
-    <string name="dialog_message_version_isolation">Bu içe aktarılmış bir sürümdür. Bu sürümü başlatmak için ayarlardan sürüm yalıtımını etkinleştirin.</string>
     <string name="dialog_positive_enable">Etkinleştir</string>
     <string name="dialog_title_launch_failed">Başlatma Başarısız</string>
     <string name="dialog_message_launch_failed">Minecraft başlatılamadı: %1$s</string>
     <string name="dialog_title_incompatible_mods">Uyumsuz Modlar Atlandı</string>
     <string name="dialog_message_incompatible_mods">Etkin bazı modlar mevcut Minecraft sürümünüz %1$s ile uyumsuz olduğundan atlandı:\n\n%2$s</string>
-    <string name="dialog_title_disable_version_isolation">Sürüm Yalıtımını Devre Dışı Bırak</string>
-    <string name="dialog_message_disable_version_isolation">Sürüm yalıtımı etkinken yüklü bir sürümü başlatmaya çalışıyorsunuz. Devam etmek için sürüm yalıtımını devre dışı bırakın.</string>
     <string name="dialog_positive_disable">Devre Dışı Bırak</string>
     <string name="dialog_positive_ok">Tamam</string>
 

@@ -121,15 +121,11 @@
 
     <string name="dialog_title_no_version">Chưa chọn phiên bản</string>
     <string name="dialog_message_no_version">Vui lòng chọn phiên bản trò chơi trước khi khởi chạy.</string>
-    <string name="dialog_title_version_isolation">Yêu cầu chia phiên bản</string>
-    <string name="dialog_message_version_isolation">Đây là phiên bản được nhập. Vui lòng bật tính năng chia phiên bản trong cài đặt để khởi chạy phiên bản này. </string>
     <string name="dialog_positive_enable">Bật</string>
     <string name="dialog_title_launch_failed">Khởi chạy không thành công</string>
     <string name="dialog_message_launch_failed">Không thể khởi chạy Minecraft: %1$s</string>
     <string name="dialog_title_incompatible_mods">Các bản mod không tương thích đã bị bỏ qua</string>
     <string name="dialog_message_incompatible_mods">Một số bản mod không tương thích với phiên bản Minecraft hiện tại của bạn %1$s và đã bị bỏ qua:\n\n%2$s</string>
-    <string name="dialog_title_disable_version_isolation">Tắt tính năng chia phiên bản</string>
-    <string name="dialog_message_disable_version_isolation">Bạn đang cố gắng khởi chạy một phiên bản đã cài đặt với tính năng chia phiên bản được bật. Vui lòng tắt tính năng này để tiếp tục. </string>
     <string name="dialog_positive_disable">Tắt</string>
     <string name="dialog_positive_ok">OK</string>
 

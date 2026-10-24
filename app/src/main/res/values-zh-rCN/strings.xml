@@ -180,15 +180,11 @@
 
     <string name="dialog_title_no_version">未选择版本</string>
     <string name="dialog_message_no_version">请在启动前选择游戏版本。</string>
-    <string name="dialog_title_version_isolation">需要版本隔离</string>
-    <string name="dialog_message_version_isolation">这是一个导入的版本。请在设置中启用版本隔离以启动此版本。</string>
     <string name="dialog_positive_enable">启用</string>
     <string name="dialog_title_launch_failed">启动失败</string>
     <string name="dialog_message_launch_failed">无法启动Minecraft：%1$s</string>
     <string name="dialog_title_incompatible_mods">已跳过不兼容模组</string>
     <string name="dialog_message_incompatible_mods">部分已启用模组与当前 Minecraft 版本 %1$s 不兼容，已跳过加载：\n\n%2$s</string>
-    <string name="dialog_title_disable_version_isolation">禁用版本隔离</string>
-    <string name="dialog_message_disable_version_isolation">您尝试在启用版本隔离的情况下启动已安装的版本。请禁用版本隔离以继续。</string>
     <string name="dialog_positive_disable">禁用</string>
     <string name="dialog_positive_ok">确定</string>
 

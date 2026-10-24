@@ -103,15 +103,11 @@
 
     <string name="dialog_title_no_version">Версия не выбрана</string>
     <string name="dialog_message_no_version">Пожалуйста, выберите версию игры перед запуском.</string>
-    <string name="dialog_title_version_isolation">Требуется изоляция версии</string>
-    <string name="dialog_message_version_isolation">Это импортированная версия. Пожалуйста, включите изоляцию версии в настройках, чтобы запустить эту версию.</string>
     <string name="dialog_positive_enable">Включить</string>
     <string name="dialog_title_launch_failed">Ошибка запуска</string>
     <string name="dialog_message_launch_failed">Не удалось запустить Minecraft: %1$s</string>
     <string name="dialog_title_incompatible_mods">Несовместимые моды пропущены</string>
     <string name="dialog_message_incompatible_mods">Некоторые включенные моды несовместимы с текущей версией Minecraft %1$s и были пропущены:\n\n%2$s</string>
-    <string name="dialog_title_disable_version_isolation">Отключить изоляцию версии</string>
-    <string name="dialog_message_disable_version_isolation">Вы пытаетесь запустить установленную версию с включенной изоляцией версии. Пожалуйста, отключите изоляцию версии, чтобы продолжить.</string>
     <string name="dialog_positive_disable">Отключить</string>
     <string name="dialog_positive_ok">ОК</string>
 

@@ -121,15 +121,11 @@
 
     <string name="dialog_title_no_version">バージョンが選択されていません</string>
     <string name="dialog_message_no_version">起動する前にゲームのバージョンを選択してください。</string>
-    <string name="dialog_title_version_isolation">バージョン分離が必要です</string>
-    <string name="dialog_message_version_isolation">これはインポートされたバージョンです。起動するには設定でバージョン分離を有効にしてください。</string>
     <string name="dialog_positive_enable">有効にする</string>
     <string name="dialog_title_launch_failed">起動失敗</string>
     <string name="dialog_message_launch_failed">Minecraft の起動に失敗しました: %1$s</string>
     <string name="dialog_title_incompatible_mods">互換性のない Mod をスキップしました</string>
     <string name="dialog_message_incompatible_mods">有効な一部の Mod は現在の Minecraft バージョン %1$s と互換性がないためスキップされました:\n\n%2$s</string>
-    <string name="dialog_title_disable_version_isolation">バージョン分離を無効にする</string>
-    <string name="dialog_message_disable_version_isolation">バージョン分離が有効な状態でインストール済みバージョンを起動しようとしています。続行するには無効にしてください。</string>
     <string name="dialog_positive_disable">無効にする</string>
     <string name="dialog_positive_ok">OK</string>
 

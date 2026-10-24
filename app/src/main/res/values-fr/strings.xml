@@ -121,15 +121,11 @@
 
     <string name="dialog_title_no_version">Aucune version sélectionnée</string>
     <string name="dialog_message_no_version">Veuillez sélectionner une version du jeu avant le lancement.</string>
-    <string name="dialog_title_version_isolation">Isolation de version requise</string>
-    <string name="dialog_message_version_isolation">C\'est une version importée. Veuillez activer l\'isolation de version dans les paramètres pour lancer cette version.</string>
     <string name="dialog_positive_enable">Activer</string>
     <string name="dialog_title_launch_failed">Échec du lancement</string>
     <string name="dialog_message_launch_failed">Échec du lancement de Minecraft : %1$s</string>
     <string name="dialog_title_incompatible_mods">Mods incompatibles ignorés</string>
     <string name="dialog_message_incompatible_mods">Certains mods activés sont incompatibles avec votre version actuelle de Minecraft %1$s et ont été ignorés :\n\n%2$s</string>
-    <string name="dialog_title_disable_version_isolation">Désactiver l\'isolation de version</string>
-    <string name="dialog_message_disable_version_isolation">Vous essayez de lancer une version installée avec l\'isolation de version activée. Veuillez désactiver l\'isolation de version pour continuer.</string>
     <string name="dialog_positive_disable">Désactiver</string>
     <string name="dialog_positive_ok">OK</string>
 
