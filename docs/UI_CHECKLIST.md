@@ -158,3 +158,41 @@ should say a screen "works in game" until this list passes.
   applied / Steve skin.
 - **Cosmetics in game** depend on the preloader's player-render hook, which resolves to "no hook" on
   the shipped builds (see `AGENTS.md`); the preview is the verified surface.
+
+---
+
+## 9. Device screenshots (B7)
+
+No screenshot in the README is a device capture yet. This is how they get produced, and what makes
+one acceptable.
+
+### Which devices
+
+Three, at minimum, because the layout changes by width class (U5):
+
+| Slot | Target | Why this one |
+|---|---|---|
+| Low-end phone | ~360dp wide, Android 9-11, 2-3 GB RAM | The narrowest layout, the API-28 fallbacks (R12), and the memory floor (B11). |
+| Mid-range phone | ~410dp wide, Android 12+ | The common case, and the first build with `RenderEffect` glass (R2/R12). |
+| Tablet | 600dp+ wide | The expanded layout; also where a nav rail replaces the bottom bar. |
+
+### How
+
+1. Install the **signed release** APK (B16), not a debug build - a screenshot of a debug artifact
+   does not represent what users get.
+2. Set the device to its **default** font scale and a light **and** dark wallpaper if you can, so
+   the dynamic-color path is visible.
+3. Capture: Launch tab, Library/Instances, Mods, Settings, the radial wheel open in game, the Mod
+   Menu open in game, and the Diagnostics screen.
+4. Save to `docs/assets/screenshots/<slot>-<screen>.png`, e.g. `lowend-launch.png`.
+
+### Caption rules
+
+- Every caption names the **device model, Android version and font scale**. "On a phone" is not a
+  caption.
+- A screenshot may only be captioned with a claim the checklist above has actually verified. If a
+  screen was captured but its checklist section did not pass, the caption says so.
+- **Never caption a mockup with a device name**, and never place a mockup where a reader would
+  assume it is a capture.
+
+Until these exist, no release note may describe a screen as working on a device.
