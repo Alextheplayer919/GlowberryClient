@@ -14,7 +14,6 @@ import xcrash.XCrash
 import java.io.File
 
 object CrashReporter {
-    private const val MAX_CRASHLYTICS_VALUE_LENGTH = 1024
     private const val EXTRA_LOG_PATH = "LOG_PATH"
     private const val EXTRA_SUMMARY = "SUMMARY"
     private const val EXTRA_CRASH_TYPE = "CRASH_TYPE"
@@ -53,14 +52,23 @@ object CrashReporter {
         }
     }
 
+    /**
+     * Uploads any captured report the user has not already sent.
+     *
+     * <p>This used to be a documented no-op left over from a Crashlytics integration this build
+     * does not have, while the real uploader
+     * ({@link org.chimeramc.client.core.crash.CrashReportUploader}) was only reachable from
+     * `Application` and the Settings switch. The Crash screen called the no-op, so the moment a
+     * report is most likely to be sent - the user looking straight at it - was the one moment
+     * nothing happened. It now delegates, off the calling thread because it does network I/O.
+     */
     @JvmStatic
-    fun sendUnsentReports() {
-        // No-op: Crashlytics is not wired up in this build (no google-services.json).
-    }
-
-    @JvmStatic
-    fun refreshCrashlyticsCollection(context: Context) {
-        // No-op: Crashlytics is not wired up in this build (no google-services.json).
+    fun sendUnsentReports(context: Context) {
+        val appContext = context.applicationContext
+        Thread(
+            { org.chimeramc.client.core.crash.CrashReportUploader.uploadPending(appContext) },
+            "crash-report-upload"
+        ).apply { isDaemon = true }.start()
     }
 
     @JvmStatic

@@ -32,7 +32,6 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 
 import org.chimeramc.client.R;
-import org.chimeramc.client.core.crash.CrashReporter;
 import org.chimeramc.client.core.crash.CrashReportUploader;
 import org.chimeramc.client.preloader.PreloaderSignatureRulesManager;
 import org.chimeramc.client.settings.FeatureSettings;
@@ -426,7 +425,6 @@ public class SettingsActivity extends BaseActivity {
         switchCrashUpload.setEnabled(crashUploadConfigured);
         switchCrashUpload.setOnCheckedChangeListener((btn, checked) -> {
             fs.setCrashUploadEnabled(checked);
-            CrashReporter.refreshCrashlyticsCollection(this);
             if (checked && crashUploadConfigured) {
                 Toast.makeText(this, R.string.crash_upload_sending, Toast.LENGTH_SHORT).show();
                 new Thread(() -> CrashReportUploader.uploadPending(getApplicationContext()),
