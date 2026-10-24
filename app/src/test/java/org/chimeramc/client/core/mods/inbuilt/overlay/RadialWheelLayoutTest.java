@@ -74,9 +74,16 @@ public class RadialWheelLayoutTest {
 
     @Test
     public void theWheelFractionsMatchTheSpec() {
-        assertEquals(0.40f, RadialWheelLayout.OUTER_FRACTION, 1e-6);
-        assertEquals(0.52f, RadialWheelLayout.RING_INNER_FRACTION, 1e-6);
+        // R1: the annulus band is 30% to 46% of the short screen edge, so the ring is a band with a
+        // hole in the middle rather than a filled disc.
+        assertEquals(0.46f, RadialWheelLayout.ANNULUS_OUTER_FRACTION, 1e-6);
+        assertEquals(0.30f, RadialWheelLayout.ANNULUS_INNER_FRACTION, 1e-6);
+        assertEquals(RadialWheelLayout.ANNULUS_OUTER_FRACTION, RadialWheelLayout.OUTER_FRACTION, 1e-6);
+        assertEquals(RadialWheelLayout.ANNULUS_INNER_FRACTION / RadialWheelLayout.ANNULUS_OUTER_FRACTION,
+                RadialWheelLayout.RING_INNER_FRACTION, 1e-6);
         assertEquals(0.46f, RadialWheelLayout.HUB_FRACTION, 1e-6);
+        // The hub must fit inside the annulus' hole, or the head would sit under the segments.
+        assertTrue(RadialWheelLayout.HUB_FRACTION < RadialWheelLayout.RING_INNER_FRACTION);
     }
 
     @Test

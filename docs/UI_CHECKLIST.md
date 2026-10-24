@@ -9,6 +9,30 @@ should say a screen "works in game" until this list passes.
 
 ## 1. Radial wheel
 
+### 1a. Glass, motion and fallbacks (R1-R13)
+
+1. Glass tiers.
+   - [ ] Over the game the ring sits on a frosted sheet (a blur, not a flat grey disc).
+   - [ ] A very bright scene (snow, sky) still leaves the sector labels readable - the scrim
+     escalates; the labels never wash out.
+2. Fallbacks.
+   - [ ] On Android 11 or older (or with "remove animations" / reduce motion on) the wheel draws
+     solid with a clear 1dp border instead of a blur - still fully usable.
+   - [ ] With "reduce motion" on, the wheel appears in ~120ms with no spring, and no haptic fires.
+   - [ ] High-contrast on: every sector label has an outline.
+3. Thermal.
+   - [ ] With a session running and the device hot (or battery saver on), the wheel drops its blur
+     instead of stuttering; it does not make the game stutter.
+4. Motion and haptics.
+   - [ ] The ring scales up from 0.86 to 1.0 on open; **no** haptic fires on open.
+   - [ ] A light tick on each segment crossing, a firmer one on commit.
+5. Cancel gesture.
+   - [ ] Drag well past the outer ring: the wheel dims to ~40% and shrinks slightly; releasing
+     dismisses and does not open a destination.
+6. Targets.
+   - [ ] Every sector is comfortably tappable; a small screen never shows more segments than can
+     hold a 48dp target.
+
 1. Open the wheel from its in-game bind.
    - [ ] Opens in under ~200ms; the ring scales up with the scrim fading in.
    - [ ] The four sectors (top MODS, right CLOSET, bottom SETTINGS, left HUD) are rounded wedges

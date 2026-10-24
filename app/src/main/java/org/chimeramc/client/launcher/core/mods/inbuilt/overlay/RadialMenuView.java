@@ -148,8 +148,56 @@ public class RadialMenuView extends View {
     private ValueAnimator openAnimator;
     private ValueAnimator hoverAnimator;
 
+    // --- Glass material (R2, R8, R9, R10, R12) -----------------------------------------------
+
+    /** The glass renderer: the only place the API-level blur lives. */
+    private final WheelGlassRenderer glassRenderer = new WheelGlassRenderer();
+    /** The resolved material for this open, recomputed when the environment changes. */
+    private RadialWheelMaterial.Resolved material = RadialWheelMaterial.resolve(
+            RadialWheelMaterial.Tier.REGULAR, null);
+    /** The backdrop capture the stack-blur draws under the fill (API 28-30 only). */
+    private Bitmap backdropCapture;
+    /** Supplies the device/environment state; the host installs it. */
+    private MaterialEnvProvider materialEnvProvider;
+    /** The most recent backdrop sample, used for the contrast floor (R9). */
+    private int backdropSample = 0xFF070A0F;
+
+    /** Supplies the environment the material resolves against. */
+    public interface MaterialEnvProvider {
+        RadialWheelMaterial.Env env();
+        /** The window the wheel is drawn in, or null when it is a plain child view. */
+        android.view.Window window();
+    }
+
+    // --- Cancel gesture (R11) -----------------------------------------------------------------
+
+    /** True while a drag past the outer radius has armed the cancel. */
+    private boolean cancelArmed;
+    private float cancelOpacity = 1f;
+    private float cancelScale = 1f;
+
+    // --- Cached sector paths (R13) ------------------------------------------------------------
+
+    /** The four resting sector paths, rebuilt only when the geometry changes. */
+    private final Path[] cachedSectorPaths = new Path[4];
+    private boolean sectorPathsValid;
+    private float cachedPathOuter = -1f;
+    private float cachedPathInner = -1f;
+
     private static final PathInterpolator FAST_OUT_SLOW_IN =
             new PathInterpolator(0.4f, 0f, 0.2f, 1f);
+
+    /**
+     * How square the segment caps are (R1): 1 is a full squircle, 0 a circular fillet. Slightly
+     * under 1 keeps the caps from reading as sharp corners at small radii.
+     */
+    private static final float SQUIRCLE_SQUARENESS = 0.85f;
+
+    /**
+     * The backdrop disc's radius as a multiple of the ring's outer radius (R2): the sheet extends a
+     * little past the ring so the segments read as sitting on a panel rather than floating.
+     */
+    private static final float BACKDROP_RADIUS_SCALE = 1.12f;
 
     public RadialMenuView(Context context) {
         this(context, null);
@@ -165,12 +213,67 @@ public class RadialMenuView extends View {
         buildChips();
         resolveSkinHead();
         labelPaint.setTextAlign(Paint.Align.CENTER);
-        labelPaint.setTypeface(Typeface.create(Typeface.DEFAULT, UiTokens.SECTION_WEIGHT, false));
-        labelPaint.setLetterSpacing(UiTokens.SECTION_LETTER_SPACING);
+        // R6: the segment label is 11sp at wght 500, one line.
+        labelPaint.setTypeface(Typeface.create(Typeface.DEFAULT,
+                RadialWheelMotion.LABEL_WEIGHT, false));
+        labelPaint.setTextSize(RadialWheelMotion.LABEL_SP * density);
     }
 
     public void setListener(Listener listener) {
         this.listener = listener;
+    }
+
+    /**
+     * Installs the environment provider and resolves the material (R2/R8/R10/R12).
+     *
+     * <p>The wheel owns no device state: the host supplies the API level, the accessibility flags,
+     * the thermal reading and whether a session is running, and this resolves them once per open.
+     */
+    public void setMaterialEnvProvider(MaterialEnvProvider provider) {
+        this.materialEnvProvider = provider;
+        refreshMaterial();
+    }
+
+    /** Re-resolves the glass material from the current environment and applies the window blur. */
+    public void refreshMaterial() {
+        RadialWheelMaterial.Env env = materialEnvProvider == null
+                ? new RadialWheelMaterial.Env() : materialEnvProvider.env();
+        if (env == null) env = new RadialWheelMaterial.Env();
+        material = RadialWheelMaterial.resolveForBackdrop(
+                RadialWheelMaterial.tierFor(RadialWheelMaterial.Role.PANEL), env,
+                UiTokens.TEXT_PRIMARY, backdropSample);
+        if (materialEnvProvider != null) {
+            glassRenderer.applyWindowBlur(materialEnvProvider.window(), material, density);
+        }
+        invalidate();
+    }
+
+    /**
+     * Hands the wheel a backdrop sample for the contrast floor (R9/R3).
+     *
+     * <p>The capture is the window the wheel sits over, already downscaled; the view only reads one
+     * pixel to decide whether the labels need a heavier scrim. A null or recycled bitmap clears the
+     * sample and the fixed floor applies.
+     */
+    public void setBackdropCapture(Bitmap capture) {
+        if (backdropCapture != null && backdropCapture != capture && !backdropCapture.isRecycled()) {
+            backdropCapture.recycle();
+        }
+        backdropCapture = capture;
+        if (capture != null && !capture.isRecycled()
+                && capture.getWidth() > 0 && capture.getHeight() > 0) {
+            try {
+                backdropSample = capture.getPixel(capture.getWidth() / 2, capture.getHeight() / 2);
+            } catch (Throwable ignored) {
+                backdropSample = 0xFF070A0F;
+            }
+        }
+        refreshMaterial();
+    }
+
+    /** The resolved glass material; exposed so the host can assert the fallback ladder. */
+    public RadialWheelMaterial.Resolved material() {
+        return material;
     }
 
     public void setChipToggle(ChipToggle chipToggle) {
@@ -324,9 +427,16 @@ public class RadialMenuView extends View {
     /** Runs the open animation (scrim fade + ring scale/alpha with a stagger). */
     public void playOpen() {
         cancelAnimators();
+        sectorPathsValid = false;
         openAnimator = ValueAnimator.ofFloat(0f, 1f);
-        openAnimator.setDuration(UiTokens.MOTION_DEFAULT_MS + 20);
-        openAnimator.setInterpolator(FAST_OUT_SLOW_IN);
+        // R10: reduced motion runs a short linear transition rather than the spring.
+        if (material != null && material.reducedMotion) {
+            openAnimator.setDuration(RadialWheelMotion.REDUCED_MS);
+            openAnimator.setInterpolator(new android.view.animation.LinearInterpolator());
+        } else {
+            openAnimator.setDuration(UiTokens.MOTION_DEFAULT_MS + 20);
+            openAnimator.setInterpolator(FAST_OUT_SLOW_IN);
+        }
         openAnimator.addUpdateListener(a -> {
             openProgress = (float) a.getAnimatedValue();
             invalidate();
@@ -337,9 +447,12 @@ public class RadialMenuView extends View {
     /** Runs the close animation. */
     public void playClose() {
         cancelAnimators();
+        sectorPathsValid = false;
         openAnimator = ValueAnimator.ofFloat(openProgress, 0f);
-        openAnimator.setDuration(120);
-        openAnimator.setInterpolator(FAST_OUT_SLOW_IN);
+        openAnimator.setDuration(material != null && material.reducedMotion
+                ? RadialWheelMotion.REDUCED_MS : 120);
+        openAnimator.setInterpolator(material != null && material.reducedMotion
+                ? new android.view.animation.LinearInterpolator() : FAST_OUT_SLOW_IN);
         openAnimator.addUpdateListener(a -> {
             openProgress = (float) a.getAnimatedValue();
             invalidate();
@@ -419,19 +532,26 @@ public class RadialMenuView extends View {
         if (getWidth() <= 0 || getHeight() <= 0) return;
         float cx = centerX();
         float cy = centerY();
-        float outer = outerRadius() * (0.85f + 0.15f * openProgress);
+        // R4: the ring springs from 0.86 to 1.0 on open; R11 dims and shrinks it while a cancel
+        // drag is armed. Both factors come from the pure motion rules.
+        float openScale = RadialWheelMotion.openScale(openProgress);
+        float outer = outerRadius() * openScale * cancelScale;
         float inner = RadialWheelLayout.ringInnerRadius(outer);
         float hub = RadialWheelLayout.hubRadius(outer);
-        int alpha = (int) (255 * Math.min(1f, openProgress * 1.4f));
+        int alpha = (int) (255 * Math.min(1f, openProgress * 1.4f) * cancelOpacity);
 
-        // Scrim. A soft translucent wash so the game behind stays visible but the wheel reads.
-        // Deliberately NOT an opaque layer: an opaque white/grey scrim was what left a pale film
-        // over the game after the wheel closed. The alpha is tied to openProgress, so at
-        // openProgress 0 nothing is painted at all.
-        int scrimAlpha = (int) (((UiTokens.WHEEL_SCRIM >>> 24) & 0xFF) * openProgress);
+        // The scrim is the material's floor (R2), not an ad-hoc wash: an opaque layer was what left
+        // a pale film over the game after the wheel closed, so the alpha stays tied to openProgress
+        // and the floor is the minimum the labels need over a bright frame.
+        int scrimAlpha = (int) (material.scrimAlpha * 255 * openProgress);
         if (scrimAlpha > 0) {
-            canvas.drawColor(UiTokens.withAlpha(UiTokens.WHEEL_SCRIM, scrimAlpha));
+            canvas.drawColor(UiTokens.withAlpha(0xFF000000, scrimAlpha));
         }
+        // R2/R3: the glass sheet behind the ring, drawn from the resolved material (the tier's fill,
+        // its white tint, and the stack-blurred capture below API 31). Drawn before the sectors so
+        // the ring sits on the sheet rather than beside it.
+        glassRenderer.drawBackdrop(canvas, material, backdropCapture, cx, cy,
+                outer * BACKDROP_RADIUS_SCALE, openProgress);
 
         // Sectors.
         if (activeProfile != null) {
@@ -446,7 +566,7 @@ public class RadialMenuView extends View {
                 float rOuter = outer * scale;
                 float rInner = inner * scale;
                 drawSector(canvas, cx, cy, rInner, rOuter, center - 45f, 90f,
-                        s == highlighted, alpha, local);
+                        s == highlighted, alpha, local, i);
             }
         }
 
@@ -475,27 +595,76 @@ public class RadialMenuView extends View {
 
     private void drawSector(Canvas canvas, float cx, float cy, float rInner, float rOuter,
                             float startDeg, float sweepDeg, boolean hover, int alpha,
-                            float localProgress) {
+                            float localProgress, int index) {
         float gapPx = RadialWheelLayout.GAP_DP * density;
         // Parallel-sided gap: inset the angular span by the half-gap at the mid radius.
         float midR = (rInner + rOuter) / 2f;
         float halfGapDeg = (float) RadialWheelLayout.angularHalfGapDegrees(midR, gapPx);
         float corner = RadialWheelLayout.SECTOR_CORNER_DP * density;
-        sectorPath.reset();
-        buildRoundedAnnularSector(sectorPath, cx, cy, rInner, rOuter,
-                startDeg + halfGapDeg, sweepDeg - 2f * halfGapDeg, corner);
 
-        int fill = hover ? UiTokens.WHEEL_SEGMENT_HOVER : UiTokens.WHEEL_SEGMENT_BASE;
+        // R13: the four resting paths are built once and reused. Only the highlighted sector (whose
+        // radius is scaled by the hover/press animation) is rebuilt per frame, so a steady open
+        // wheel allocates nothing and re-tessellates nothing.
+        Path path;
+        if (!hover && index >= 0 && index < cachedSectorPaths.length) {
+            if (!sectorPathsValid || cachedPathOuter != rOuter || cachedPathInner != rInner) {
+                buildSectorPathCache(cx, cy, rInner, rOuter, corner, halfGapDeg, sweepDeg);
+            }
+            if (cachedSectorPaths[index] == null) {
+                cachedSectorPaths[index] = new Path();
+                sectorPath.reset();
+                buildRoundedAnnularSector(sectorPath, cx, cy, rInner, rOuter,
+                        startDeg + halfGapDeg, sweepDeg - 2f * halfGapDeg, corner);
+                cachedSectorPaths[index].set(sectorPath);
+            }
+            path = cachedSectorPaths[index];
+        } else {
+            sectorPath.reset();
+            buildRoundedAnnularSector(sectorPath, cx, cy, rInner, rOuter,
+                    startDeg + halfGapDeg, sweepDeg - 2f * halfGapDeg, corner);
+            path = sectorPath;
+        }
+
+        // R2: the sector fill is the resolved material's fill and tint, so the glass thickness is
+        // one decision for the whole wheel rather than a literal per draw call.
+        int base = hover ? UiTokens.WHEEL_SEGMENT_HOVER : UiTokens.WHEEL_SEGMENT_BASE;
+        int fill = UiTokens.withAlpha(base, material.fillAlpha);
         sectorPaint.setStyle(Paint.Style.FILL);
         sectorPaint.setColor(UiTokens.withAlpha(fill,
                 (int) (((fill >>> 24) & 0xFF) * localProgress)));
-        canvas.drawPath(sectorPath, sectorPaint);
+        canvas.drawPath(path, sectorPaint);
+
+        // The white tint catches the light on the sheet (R2).
+        int tintAlpha = (int) (material.tint * 255 * localProgress);
+        if (tintAlpha > 0) {
+            rimPaint.setStyle(Paint.Style.FILL);
+            rimPaint.setColor(UiTokens.withAlpha(0xFFFFFFFF, tintAlpha));
+            canvas.drawPath(path, rimPaint);
+        }
 
         rimPaint.setStyle(Paint.Style.STROKE);
-        rimPaint.setStrokeWidth(Math.max(1f, density));
-        rimPaint.setColor(UiTokens.withAlpha(UiTokens.WHEEL_SEGMENT_RIM,
-                (int) (0x24 * localProgress)));
-        canvas.drawPath(sectorPath, rimPaint);
+        // R10: a solid tier (reduce transparency, no blur) needs a real 1dp border rather than the
+        // faint glass hairline, because there is no blur to define the edge.
+        boolean solidTier = material.tier == RadialWheelMaterial.Tier.SOLID;
+        rimPaint.setStrokeWidth(Math.max(1f, density) * (solidTier ? 1.5f : 1f));
+        rimPaint.setColor(UiTokens.withAlpha(hover ? accent : UiTokens.WHEEL_SEGMENT_RIM,
+                (int) ((hover ? 0xAA : (solidTier ? 0x44 : 0x24)) * localProgress)));
+        canvas.drawPath(path, rimPaint);
+    }
+
+    /** Builds the four resting sector paths for the current geometry (R13). */
+    private void buildSectorPathCache(float cx, float cy, float rInner, float rOuter, float corner,
+                                      float halfGapDeg, float sweepDeg) {
+        for (int i = 0; i < SECTORS.length && i < cachedSectorPaths.length; i++) {
+            if (cachedSectorPaths[i] == null) cachedSectorPaths[i] = new Path();
+            float start = (float) RadialWheelLayout.sectorCenterDegrees(SECTORS[i]) - sweepDeg / 2f;
+            cachedSectorPaths[i].reset();
+            buildRoundedAnnularSector(cachedSectorPaths[i], cx, cy, rInner, rOuter,
+                    start + halfGapDeg, sweepDeg - 2f * halfGapDeg, corner);
+        }
+        cachedPathOuter = rOuter;
+        cachedPathInner = rInner;
+        sectorPathsValid = true;
     }
 
     // --- Profile mode drawing -----------------------------------------------------------------
@@ -582,7 +751,7 @@ public class RadialMenuView extends View {
         int count = WheelLayout.clampSectorCount(entries.size());
         if (entries.isEmpty()) return;
 
-        float labelSize = UiTokens.TEXT_CAPTION * density;
+        float labelSize = RadialWheelMotion.LABEL_SP * density;
         labelPaint.setTextSize(labelSize);
         for (int i = 0; i < entries.size() && i < count; i++) {
             double a = Math.toRadians(WheelLayout.sectorCenterDegrees(i, count));
@@ -591,10 +760,18 @@ public class RadialMenuView extends View {
             // A sub-wheel entry gets a chevron instead of an icon so "this opens another wheel" is
             // visible before it is selected.
             UiIcons.Icon icon = entries.get(i).isSubWheel() ? UiIcons.Icon.CHEVRON : iconFor(entries.get(i));
-            UiIcons.draw(canvas, iconPaint, icon, px, py - labelSize * 0.6f, 24f * density,
+            UiIcons.draw(canvas, iconPaint, icon, px, py - labelSize * 0.6f,
+                    RadialWheelMotion.ICON_DP * density,
                     UiTokens.withAlpha(entries.get(i).effectiveColor(accent), alpha), density);
+            String label = RadialWheelMotion.ellipsise(entries.get(i).label);
+            if (material.outlinedLabels) {
+                Paint outline = glassRenderer.labelOutlinePaint(labelPaint, 0xFF000000, density);
+                outline.setTextAlign(Paint.Align.CENTER);
+                outline.setTextSize(labelSize);
+                canvas.drawText(label, px, py + labelSize * 0.9f, outline);
+            }
             labelPaint.setColor(UiTokens.withAlpha(UiTokens.TEXT_PRIMARY, alpha));
-            canvas.drawText(entries.get(i).label, px, py + labelSize * 0.9f, labelPaint);
+            canvas.drawText(label, px, py + labelSize * 0.9f, labelPaint);
         }
         // The open profile's name, so a nested wheel says where it is.
         if (profile.name != null && !profile.name.isEmpty() && !navigation.atRoot()) {
@@ -640,15 +817,39 @@ public class RadialMenuView extends View {
 
         path.moveTo(polarX(cx, rOuter, a0 + oInset), polarY(cy, rOuter, a0 + oInset));
         arc(path, cx, cy, rOuter, a0 + oInset, a1 - oInset);
-        // Corner fillet at the far end (outer -> inner).
-        float ix = polarX(cx, rInner, a1 - iInset), iy = polarY(cy, rInner, a1 - iInset);
-        path.quadTo(polarX(cx, (rInner + rOuter) / 2f, a1), polarY(cy, (rInner + rOuter) / 2f, a1),
-                ix, iy);
+        // R1: the cap is a squircle, not a circular fillet. A cubic with its control points pulled
+        // toward the corner by the squircle ratio gives the flat-sided cap the design asks for; a
+        // quadTo fillet reads as a plain rounded rectangle.
+        squircleCap(path, cx, cy, rOuter, rInner, a1, oInset, iInset, r, false);
         arc(path, cx, cy, rInner, a1 - iInset, a0 + iInset);
-        float ox0 = polarX(cx, rOuter, a0 + oInset), oy0 = polarY(cy, rOuter, a0 + oInset);
-        path.quadTo(polarX(cx, (rInner + rOuter) / 2f, a0), polarY(cy, (rInner + rOuter) / 2f, a0),
-                ox0, oy0);
+        squircleCap(path, cx, cy, rOuter, rInner, a0, oInset, iInset, r, true);
         path.close();
+    }
+
+    /**
+     * Adds one squircle end cap from the outer edge to the inner edge (R1).
+     *
+     * <p>The control points sit along each edge's tangent, offset by the fillet radius scaled by
+     * {@link RadialWheelMaterial#squircleControl}, which is what makes the cap flat-sided rather than
+     * a quarter circle. {@code fromInner} selects the direction of travel.
+     */
+    private void squircleCap(Path path, float cx, float cy, float rOuter, float rInner, float angle,
+                             float oInset, float iInset, float r, boolean fromInner) {
+        float k = RadialWheelMaterial.squircleControl(SQUIRCLE_SQUARENESS) * r;
+        float aOut = fromInner ? angle + oInset : angle - oInset;
+        float aIn = fromInner ? angle - iInset : angle + iInset;
+        float ox = polarX(cx, rOuter, aOut), oy = polarY(cy, rOuter, aOut);
+        float ix = polarX(cx, rInner, aIn), iy = polarY(cy, rInner, aIn);
+        // The tangent of a circle at angle a is (sin a, -cos a) when the angle decreases.
+        double aRad = Math.toRadians(angle);
+        float tx = (float) Math.sin(aRad), ty = (float) -Math.cos(aRad);
+        float c1x = ox + tx * k, c1y = oy + ty * k;
+        float c2x = ix - tx * k, c2y = iy - ty * k;
+        if (fromInner) {
+            path.cubicTo(c2x, c2y, c1x, c1y, ox, oy);
+        } else {
+            path.cubicTo(c1x, c1y, c2x, c2y, ix, iy);
+        }
     }
 
     private static void arc(Path path, float cx, float cy, float radius, float from, float to) {
@@ -665,17 +866,44 @@ public class RadialMenuView extends View {
     }
 
     private void drawHub(Canvas canvas, float cx, float cy, float radius, int alpha) {
+        // R7: the hub is a squircle-headed disc; the head fills 40dp of it.
         hubPaint.setStyle(Paint.Style.FILL);
         hubPaint.setColor(UiTokens.withAlpha(UiTokens.WHEEL_HUB_FILL,
                 (int) (((UiTokens.WHEEL_HUB_FILL >>> 24) & 0xFF) * (alpha / 255f))));
+        float headRadius = Math.min(radius, RadialWheelMotion.HUB_HEAD_DP * density / 2f);
         canvas.drawCircle(cx, cy, radius, hubPaint);
-        drawHead(canvas, cx, cy, radius);
+        drawHead(canvas, cx, cy, headRadius);
+        // R7: the active destination's name under the head, at 10sp and 60% white.
+        String active = hubLabel();
+        if (active != null && !active.isEmpty()) {
+            labelPaint.setTextSize(RadialWheelMotion.HUB_LABEL_SP * density);
+            labelPaint.setColor(UiTokens.withAlpha(0xFFFFFFFF,
+                    (int) (RadialWheelMotion.HUB_LABEL_ALPHA * 255 * (alpha / 255f))));
+            canvas.drawText(RadialWheelMotion.ellipsise(active), cx, cy + radius + 14f * density,
+                    labelPaint);
+            labelPaint.setTextSize(RadialWheelMotion.LABEL_SP * density);
+        }
+    }
+
+    /** The active destination's label for the hub, or null when nothing is highlighted (R7). */
+    private String hubLabel() {
+        if (activeProfile != null) {
+            WheelEntry.Profile profile = currentProfile();
+            if (profile == null) return null;
+            if (highlightedEntry >= 0 && highlightedEntry < profile.safeEntries().size()) {
+                return profile.safeEntries().get(highlightedEntry).label;
+            }
+            return profile.name;
+        }
+        return RadialWheelLayout.isDestination(highlighted) ? sectorLabel(highlighted) : null;
     }
 
     private void drawSectorContent(Canvas canvas, float cx, float cy, float radius, int alpha) {
-        float iconSize = 24f * density;
-        float labelSize = UiTokens.TEXT_CAPTION * density;
+        float iconSize = RadialWheelMotion.ICON_DP * density;
+        float labelSize = RadialWheelMotion.LABEL_SP * density;
         labelPaint.setTextSize(labelSize);
+        // R6: one line, medium weight, ellipsised at the character budget.
+        labelPaint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
         // Centre the icon+label block vertically in the ring band: the block is iconSize tall plus a
         // small gap plus the label, so its centre is the band radius and both halves sit around it.
         float gap = 4f * density;
@@ -689,8 +917,17 @@ public class RadialMenuView extends View {
             float py = cy + (float) (Math.sin(a) * radius);
             UiIcons.draw(canvas, iconPaint, iconFor(s), px, py + iconCenterY, iconSize,
                     UiTokens.withAlpha(UiTokens.TEXT_PRIMARY, alpha), density);
+            String label = RadialWheelMotion.ellipsise(sectorLabel(s));
+            // R10: high contrast outlines the label so it stays readable on a bright frame without
+            // thickening the whole sheet.
+            if (material.outlinedLabels) {
+                Paint outline = glassRenderer.labelOutlinePaint(labelPaint, 0xFF000000, density);
+                outline.setTextAlign(Paint.Align.CENTER);
+                outline.setTextSize(labelSize);
+                canvas.drawText(label, px, py + labelBaselineY, outline);
+            }
             labelPaint.setColor(UiTokens.withAlpha(UiTokens.TEXT_PRIMARY, alpha));
-            canvas.drawText(sectorLabel(s), px, py + labelBaselineY, labelPaint);
+            canvas.drawText(label, px, py + labelBaselineY, labelPaint);
         }
     }
 
@@ -1033,7 +1270,7 @@ public class RadialMenuView extends View {
             int index = hit[1];
             if (index >= 0 && index < list.size()) {
                 if (chipToggle != null) chipToggle.onChipToggled(list.get(index).moduleId);
-                performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                applyHaptic(RadialWheelMotion.hapticFor(false, false, true));
                 // The right column is the enabled set, so a toggle must rebuild it immediately.
                 rebuildEnabledList();
                 cursorChip = -1;
@@ -1056,6 +1293,8 @@ public class RadialMenuView extends View {
         Sector s = RadialWheelLayout.sectorAtLinear(
                 cursor.x() - cx, cursor.y() - cy, inner, outer, RadialWheelLayout.GAP_DP * density);
         if (listener != null && RadialWheelLayout.isDestination(s)) {
+            // R5: a committed selection gets the medium pulse.
+            applyHaptic(RadialWheelMotion.hapticFor(false, false, true));
             listener.onSector(s);
             return true;
         }
@@ -1070,7 +1309,7 @@ public class RadialMenuView extends View {
      */
     public boolean controllerBack() {
         if (activeProfile != null && backOut()) {
-            performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
+            applyHaptic(RadialWheelMotion.hapticFor(false, true, false));
             return true;
         }
         if (entryListener != null && activeProfile != null) {
@@ -1092,7 +1331,7 @@ public class RadialMenuView extends View {
             int index = hit[1];
             if (index >= 0 && index < list.size()) {
                 if (chipToggle != null) chipToggle.onChipToggled(list.get(index).moduleId);
-                performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                applyHaptic(RadialWheelMotion.hapticFor(false, false, true));
                 rebuildEnabledList();
                 cursorChip = -1;
                 invalidate();
@@ -1129,7 +1368,7 @@ public class RadialMenuView extends View {
             int count = WheelLayout.clampSectorCount(profile.safeEntries().size());
             int current = highlightedEntry < 0 ? 0 : highlightedEntry;
             highlightedEntry = ((current + direction) % count + count) % count;
-            performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
+            applyHaptic(RadialWheelMotion.hapticFor(false, true, false));
             invalidate();
             return;
         }
@@ -1139,7 +1378,7 @@ public class RadialMenuView extends View {
         for (int i = 0; i < order.length; i++) if (order[i] == current) idx = i;
         int next = ((idx + direction) % order.length + order.length) % order.length;
         focusSector(order[next]);
-        performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
+        applyHaptic(RadialWheelMotion.hapticFor(false, true, false));
     }
 
     /** The LB/RB: cycle the chips, selecting the module under the cursor. */
@@ -1169,6 +1408,7 @@ public class RadialMenuView extends View {
                 if (handleChipTap(event.getX(), event.getY(), getWidth(), getHeight())) {
                     return true;
                 }
+                setCancelArmed(false);
                 if (activeProfile != null) {
                     highlightedEntry = profileEntryAt(event.getX(), event.getY());
                 } else {
@@ -1179,6 +1419,14 @@ public class RadialMenuView extends View {
                 updateHeadLook(event.getX(), event.getY(), 1f / 60f);
                 return true;
             case MotionEvent.ACTION_MOVE:
+                // R11: a drag well past the outer radius arms the cancel gesture; the ring dims and
+                // shrinks so the player can see the release will dismiss.
+                float dist = (float) Math.hypot(event.getX() - cx, event.getY() - cy);
+                setCancelArmed(RadialWheelMotion.isCancelArmed(dist, outer, density));
+                if (cancelArmed) {
+                    updateHeadLook(event.getX(), event.getY(), 1f / 60f);
+                    return true;
+                }
                 if (activeProfile != null) {
                     highlightedEntry = profileEntryAt(event.getX(), event.getY());
                     invalidate();
@@ -1189,6 +1437,15 @@ public class RadialMenuView extends View {
                 updateHeadLook(event.getX(), event.getY(), 1f / 60f);
                 return true;
             case MotionEvent.ACTION_UP:
+                if (cancelArmed) {
+                    setCancelArmed(false);
+                    highlighted = Sector.NONE;
+                    highlightedEntry = -1;
+                    animateHover(null);
+                    invalidate();
+                    if (listener != null) listener.onDismiss();
+                    return true;
+                }
                 if (activeProfile != null) {
                     int hit = profileEntryAt(event.getX(), event.getY());
                     highlightedEntry = -1;
@@ -1207,6 +1464,8 @@ public class RadialMenuView extends View {
                 invalidate();
                 if (listener != null) {
                     if (RadialWheelLayout.isDestination(s)) {
+                        // R5: a committed selection gets the medium pulse, never on open.
+                        applyHaptic(RadialWheelMotion.hapticFor(false, false, true));
                         listener.onSector(s);
                     } else {
                         listener.onDismiss();
@@ -1214,6 +1473,7 @@ public class RadialMenuView extends View {
                 }
                 return true;
             case MotionEvent.ACTION_CANCEL:
+                setCancelArmed(false);
                 highlighted = Sector.NONE;
                 highlightedEntry = -1;
                 invalidate();
@@ -1250,10 +1510,10 @@ public class RadialMenuView extends View {
         if (index < 0 || index >= entries.size()) return;
         WheelEntry entry = entries.get(index);
         if (entry.isSubWheel() && openSubWheel(entry.target)) {
-            performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
+            applyHaptic(RadialWheelMotion.hapticFor(false, true, false));
             return;
         }
-        performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+        applyHaptic(RadialWheelMotion.hapticFor(false, false, true));
         if (entryListener != null) entryListener.onEntry(entry);
     }
 
@@ -1265,7 +1525,7 @@ public class RadialMenuView extends View {
         int index = hit[1];
         if (index < 0 || index >= list.size()) return false;
         if (chipToggle != null) chipToggle.onChipToggled(list.get(index).moduleId);
-        performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+        applyHaptic(RadialWheelMotion.hapticFor(false, false, true));
         // The right column reflects what is enabled, so a toggle (either direction) must rebuild it.
         rebuildEnabledList();
         invalidate();
@@ -1277,10 +1537,47 @@ public class RadialMenuView extends View {
         boolean wasDestination = RadialWheelLayout.isDestination(highlighted);
         highlighted = sector;
         if (RadialWheelLayout.isDestination(sector) && !wasDestination) {
-            performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
+            // R5: a light tick when the pointer crosses into a new segment.
+            applyHaptic(RadialWheelMotion.hapticFor(false, true, false));
         }
         animateHover(sector);
         invalidate();
+    }
+
+    /**
+     * Applies the wheel's haptic vocabulary (R5).
+     *
+     * <p>The mapping from the pure {@link RadialWheelMotion.Haptic} to the platform constant lives
+     * here, so the "which signal" decision is testable and this is the only place that touches
+     * {@code HapticFeedbackConstants}.
+     */
+    private void applyHaptic(RadialWheelMotion.Haptic haptic) {
+        switch (haptic) {
+            case COMMIT:
+                performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                break;
+            case TICK:
+                performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
+                break;
+            case NONE:
+            default:
+                break;
+        }
+    }
+
+    /** Arms or clears the cancel gesture, dimming and shrinking the ring while armed (R11). */
+    private void setCancelArmed(boolean armed) {
+        if (cancelArmed == armed) return;
+        cancelArmed = armed;
+        cancelOpacity = RadialWheelMotion.cancelOpacity(armed);
+        cancelScale = RadialWheelMotion.cancelScale(armed);
+        sectorPathsValid = false;
+        invalidate();
+    }
+
+    /** True while a drag past the outer radius has armed the cancel (R11). */
+    public boolean isCancelArmed() {
+        return cancelArmed;
     }
 
     /** Scales the hovered sector to 1.04 over 80ms. */

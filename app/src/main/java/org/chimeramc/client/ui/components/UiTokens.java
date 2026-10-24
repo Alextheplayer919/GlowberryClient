@@ -64,12 +64,20 @@ public final class UiTokens {
 
     // --- Radial wheel (translucent, over the game) -------------------------------------------
 
-    public static final int WHEEL_SCRIM = 0x7306060C;             // rgba(6,6,12,0.45)
-    public static final int WHEEL_SEGMENT_BASE = 0xB360526E;      // rgba(96,82,110,0.70)
-    public static final int WHEEL_SEGMENT_HOVER = 0xE09680BE;     // rgba(150,128,190,0.88)
+    /**
+     * The wheel's scrim. It is now the {@link RadialWheelMaterial} scrim floor's dark base rather
+     * than the retired violet wash: the material decides the strength (R2), this is only the hue, and
+     * a violet scrim under a blue palette was the last place the old brand survived.
+     */
+    public static final int WHEEL_SCRIM = 0x73070A0F;             // rgba(7,10,15,0.45)
+    /** The segment's dark base fill; the material's white tint is laid over it (R2). */
+    public static final int WHEEL_SEGMENT_BASE = 0xCC0B1118;      // rgba(11,17,24,0.80)
+    /** The hovered/selected segment: one surface step lighter. */
+    public static final int WHEEL_SEGMENT_HOVER = 0xE616202D;     // rgba(22,32,45,0.90)
     public static final int WHEEL_SEGMENT_RIM = 0x24FFFFFF;       // rgba(255,255,255,0.14)
-    public static final int WHEEL_HUB_FILL = 0xE0181420;          // rgba(24,20,32,0.88)
-    public static final int CHIP_BG = 0xC716161E;                 // rgba(22,22,30,0.78)
+    /** The hub disc: the panel surface, so the head sits on the same material as the ring (R7). */
+    public static final int WHEEL_HUB_FILL = 0xE60B1118;          // rgba(11,17,24,0.90)
+    public static final int CHIP_BG = 0xC7101823;                 // rgba(16,24,35,0.78)
     public static final int CHIP_BORDER = 0x1AFFFFFF;             // rgba(255,255,255,0.10)
 
     // --- Shape (dp) --------------------------------------------------------------------------
