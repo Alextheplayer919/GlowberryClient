@@ -53,17 +53,6 @@ public class PersonalizationManager {
     private static final String KEY_BLUR_INTENSITY = "blur_intensity";
     private static final String KEY_SHOW_ANIMATIONS = "show_animations";
     private static final String KEY_ENABLE_GLOW = "enable_glow_effects";
-
-    /** Blue firework touch effect (Part C1). */
-    private static final String KEY_FIREWORK_ENABLED = "firework_touch_enabled";
-    private static final String KEY_FIREWORK_INTENSITY = "firework_intensity";
-    private static final String KEY_FIREWORK_FOLLOW_ACCENT = "firework_follow_accent";
-
-    /** Intensity levels for the firework effect; Low/Med/High map to particle counts. */
-    public static final int FIREWORK_LOW = 0;
-    public static final int FIREWORK_MEDIUM = 1;
-    public static final int FIREWORK_HIGH = 2;
-    private static final String KEY_COMPACT_MODE = "compact_mode";
     private static final String KEY_HAPTIC_FEEDBACK = "haptic_feedback";
     public static final String KEY_DYNAMIC_COLOR = "dynamic_color";
 
@@ -113,23 +102,23 @@ public class PersonalizationManager {
         this.prefs = this.context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
     }
 
+    /**
+     * The one accent colour (U7): the theme's {@code colorPrimary}, which Material You rewrites
+     * from the wallpaper when dynamic colour is on and which otherwise resolves to the brand
+     * colour from {@code colors.xml}.
+     *
+     * <p>There is deliberately no user-selected accent any more. Two sources of truth — a stored
+     * swatch and the theme attribute — meant a wallpaper-derived palette and a hand-picked colour
+     * fought over every tinted view. Reading the theme makes dynamic colour and the brand
+     * fallback the only two outcomes, which is what the design system asks for.
+     */
     public int getAccentColor() {
-        return prefs.getInt(KEY_ACCENT_COLOR, PRESET_COLORS[0]);
+        if (context == null) return BRAND_ACCENT;
+        return resolveThemeColor(context, androidx.appcompat.R.attr.colorPrimary, R.color.primary);
     }
 
-    public void setAccentColor(int color) {
-        prefs.edit().putInt(KEY_ACCENT_COLOR, color).apply();
-        sChangeGeneration++;
-    }
-
-    public boolean hasCustomAccent() {
-        return prefs.contains(KEY_ACCENT_COLOR) && prefs.getInt(KEY_ACCENT_COLOR, 0) != 0;
-    }
-
-    public void clearAccentColor() {
-        prefs.edit().remove(KEY_ACCENT_COLOR).apply();
-        sChangeGeneration++;
-    }
+    /** The brand accent, used when no theme is available to resolve one. */
+    public static final int BRAND_ACCENT = 0xFF0F5BE4;
 
     public String getBackgroundImagePath() {
         return prefs.getString(KEY_BG_IMAGE_PATH, null);
@@ -317,51 +306,31 @@ public class PersonalizationManager {
         sChangeGeneration++;
     }
 
-    /** Whether the blue firework touch layer is on. Off by default: it is a flourish, not chrome. */
-    public boolean isFireworkTouchEnabled() {
-        return prefs.getBoolean(KEY_FIREWORK_ENABLED, false);
-    }
-
-    public void setFireworkTouchEnabled(boolean enabled) {
-        prefs.edit().putBoolean(KEY_FIREWORK_ENABLED, enabled).apply();
-    }
-
-    public int getFireworkIntensity() {
-        return clamp(prefs.getInt(KEY_FIREWORK_INTENSITY, FIREWORK_MEDIUM),
-                FIREWORK_LOW, FIREWORK_HIGH);
-    }
-
-    public void setFireworkIntensity(int level) {
-        prefs.edit().putInt(KEY_FIREWORK_INTENSITY,
-                clamp(level, FIREWORK_LOW, FIREWORK_HIGH)).apply();
-    }
-
-    /** Whether the sparks follow the user's accent instead of the blue default palette. */
-    public boolean isFireworkFollowAccent() {
-        return prefs.getBoolean(KEY_FIREWORK_FOLLOW_ACCENT, false);
-    }
-
-    public void setFireworkFollowAccent(boolean follow) {
-        prefs.edit().putBoolean(KEY_FIREWORK_FOLLOW_ACCENT, follow).apply();
-    }
-
     public boolean isEnableGlowEffects() {
         return prefs.getBoolean(KEY_ENABLE_GLOW, true);
+    }
+
+    /**
+     * The single accessibility switch: one control that turns off decorative motion and the
+     * glow/glass treatment together.
+     *
+     * <p>Two separate toggles ("show animations", "enable glow") meant a player who wanted calm
+     * had to find both, and the OS "remove animations" setting only covered the first. This is
+     * derived from the two stored flags so an older install keeps its choice, and writing it
+     * moves both.
+     */
+    public boolean isReduceMotion() {
+        return !isShowAnimations() || !isEnableGlowEffects();
+    }
+
+    public void setReduceMotion(boolean reduce) {
+        setShowAnimations(!reduce);
+        setEnableGlowEffects(!reduce);
     }
 
     public void setEnableGlowEffects(boolean enabled) {
         if (isEnableGlowEffects() == enabled) return;
         prefs.edit().putBoolean(KEY_ENABLE_GLOW, enabled).apply();
-        sChangeGeneration++;
-    }
-
-    public boolean isCompactMode() {
-        return prefs.getBoolean(KEY_COMPACT_MODE, false);
-    }
-
-    public void setCompactMode(boolean enabled) {
-        if (isCompactMode() == enabled) return;
-        prefs.edit().putBoolean(KEY_COMPACT_MODE, enabled).apply();
         sChangeGeneration++;
     }
 
@@ -410,10 +379,6 @@ public class PersonalizationManager {
             .remove(KEY_BLUR_INTENSITY)
             .remove(KEY_SHOW_ANIMATIONS)
             .remove(KEY_ENABLE_GLOW)
-            .remove(KEY_FIREWORK_ENABLED)
-            .remove(KEY_FIREWORK_INTENSITY)
-            .remove(KEY_FIREWORK_FOLLOW_ACCENT)
-            .remove(KEY_COMPACT_MODE)
             .remove(KEY_HAPTIC_FEEDBACK)
             .remove(KEY_DYNAMIC_COLOR)
             .apply();
@@ -995,32 +960,4 @@ public class PersonalizationManager {
         return dp * context.getResources().getDisplayMetrics().density;
     }
 
-    /**
-     * Default accent choices. The first entry is the brand violet and is what
-     * {@link #getAccentColor()} falls back to, so the out-of-the-box accent is the Chimera
-     * brand rather than an arbitrary preset.
-     */
-    public static final int[] PRESET_COLORS = {
-            0xFF0F5BE4, 0xFF3682E2, 0xFF71ACEF,
-            0xFFB4690E, 0xFF10254F, 0xFF4A7CFF,
-            0xFF7C4DFF, 0xFF5C6BC0, 0xFFAB47BC,
-            0xFFEC407A, 0xFFEF5350, 0xFFFF7043,
-            0xFFFFA726, 0xFF26C6DA, 0xFF66BB6A
-    };
-
-    public static final int[] MORE_COLORS = {
-            0xFFFF9800, 0xFFF57C00, 0xFFE65100,
-            0xFFFF5722, 0xFFBF360C, 0xFFD32F2F,
-            0xFFC62828, 0xFFAD1457, 0xFF880E4F,
-            0xFFE91E63, 0xFFF06292, 0xFFCE93D8,
-            0xFF9C27B0, 0xFF7B1FA2, 0xFF4A148C,
-            0xFF5C6BC0, 0xFF3F51B5, 0xFF283593,
-            0xFF1A237E, 0xFF1565C0, 0xFF0D47A1,
-            0xFF0277BD, 0xFF00838F, 0xFF006064,
-            0xFF00796B, 0xFF00695C, 0xFF004D40,
-            0xFF2E7D32, 0xFF1B5E20, 0xFF33691E,
-            0xFF827717, 0xFF9E9E9E, 0xFF757575,
-            0xFF616161, 0xFF455A64, 0xFF37474F,
-            0xFF71ACEF, 0xFFCDDC39, 0xFF8BC34A
-    };
 }

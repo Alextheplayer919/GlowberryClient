@@ -40,6 +40,10 @@ import androidx.lifecycle.ViewModelProvider;
 
 import org.chimeramc.client.R;
 import org.chimeramc.client.core.minecraft.MinecraftImportIntents;
+import org.chimeramc.client.core.minecraft.GamePackageManager;
+import org.chimeramc.client.launcher.core.minecraft.LaunchFailurePresenter;
+import org.chimeramc.client.launcher.core.minecraft.LaunchReadiness;
+import org.chimeramc.client.preloader.PreloaderSignatureRulesManager;
 import org.chimeramc.client.core.minecraft.LaunchTrace;
 import org.chimeramc.client.core.minecraft.MinecraftLauncher;
 import org.chimeramc.client.core.minecraft.PlaytimeManager;
@@ -963,12 +967,18 @@ import okhttp3.OkHttpClient;
     private void showStorageMigrationPromptDialog() {
         migrationPromptShown = true;
 
+        String message = getString(
+                R.string.storage_migration_message,
+                LauncherStorage.getTargetAppRootDisplayPath(this)
+        );
+        if (StorageMigrationService.readPersistedStatus(this)
+                == StorageMigrationService.Status.INTERRUPTED) {
+            message = message + "\n\n" + getString(R.string.storage_migration_interrupted_hint);
+        }
+
         CustomAlertDialog dialog = new CustomAlertDialog(this)
                 .setTitleText(getString(R.string.storage_migration_title))
-                .setMessage(getString(
-                        R.string.storage_migration_message,
-                        LauncherStorage.getTargetAppRootDisplayPath(this)
-                ))
+                .setMessage(message)
                 .setPositiveButton(getString(R.string.storage_migration_start), v -> {
                     if (storageMigrationManager.canReadLegacyRoot()) {
                         startStorageMigrationService();
@@ -1152,6 +1162,14 @@ import okhttp3.OkHttpClient;
                     getString(R.string.storage_migration_failed_title),
                     getString(R.string.storage_migration_failed_message, state.errorMessage)
             );
+        } else if (state.status == StorageMigrationService.Status.INTERRUPTED) {
+            String message = state.errorMessage != null && !state.errorMessage.isEmpty()
+                    ? state.errorMessage
+                    : getString(R.string.storage_migration_interrupted_hint);
+            showBlockingMigrationRetryDialog(
+                    getString(R.string.storage_migration_interrupted_title),
+                    message
+            );
         }
     }
 
@@ -1277,7 +1295,16 @@ import okhttp3.OkHttpClient;
         org.chimeramc.client.ui.components.HeadPodView headPod =
                 (org.chimeramc.client.ui.components.HeadPodView) pod;
         headPod.refreshSkin();
-        headPod.setListener(() -> openCustomizeTab(CustomizeActivity.TAB_SKINS));
+        // The avatar opens the profile sheet (U2): cosmetics and skins are properties of the
+        // player, not destinations, so they live behind the player's own head rather than in a
+        // top-level tab.
+        headPod.setListener(() -> {
+            try {
+                new org.chimeramc.client.launcher.ui.dialogs.ProfileSheet(this).show();
+            } catch (Throwable ignored) {
+                // A sheet that cannot inflate must never take the Play screen down with it.
+            }
+        });
         try {
             headPod.setAnimationsEnabled(new PersonalizationManager(this).isShowAnimations());
         } catch (Throwable ignored) {
@@ -1329,9 +1356,6 @@ import okhttp3.OkHttpClient;
         boolean glow = pm.isEnableGlowEffects();
         applyGlowEffects(glow);
         
-        // Apply Compact Mode
-        boolean compact = pm.isCompactMode();
-        applyCompactMode(compact);
         
         // Apply Show Animations toggle
         boolean showAnims = pm.isShowAnimations();
@@ -1408,24 +1432,6 @@ import okhttp3.OkHttpClient;
         }
     }
     
-    private void applyCompactMode(boolean enabled) {
-        if (binding == null) return;
-        
-        if (enabled) {
-            // Reduce padding/margins for compact mode
-            int smallPadding = (int)(8 * getResources().getDisplayMetrics().density);
-            if (binding.getRoot() instanceof ViewGroup) {
-                ((ViewGroup) binding.getRoot()).setPadding(smallPadding, smallPadding, smallPadding, smallPadding);
-            }
-        } else {
-            // Restore normal padding
-            int normalPadding = (int)(16 * getResources().getDisplayMetrics().density);
-            if (binding.getRoot() instanceof ViewGroup) {
-                ((ViewGroup) binding.getRoot()).setPadding(normalPadding, normalPadding, normalPadding, normalPadding);
-            }
-        }
-    }
-
     private void startHeroCardPulse() {
         View heroCard = findViewById(R.id.last_played_card);
         if (heroCard == null) return;
@@ -1640,8 +1646,7 @@ import okhttp3.OkHttpClient;
         }
         View replay = findViewById(R.id.launch_toggle_replay);
         if (replay != null) {
-            replay.setOnClickListener(v -> startActivity(
-                    new Intent(this, org.chimeramc.client.ui.activities.ReplayActivity.class)));
+            replay.setOnClickListener(v -> LibraryActivity.open(this, LibraryActivity.TAB_REPLAY));
             DynamicAnim.applyPressScale(replay);
         }
         refreshLaunchToggles();
@@ -1985,7 +1990,7 @@ import okhttp3.OkHttpClient;
         }
         View cosmetics = findViewById(R.id.quickdock_cosmetics);
         if (cosmetics != null) {
-            cosmetics.setOnClickListener(v -> openCustomizeTab(CustomizeActivity.TAB_SKINS));
+            cosmetics.setOnClickListener(v -> openProfileSheet());
             DynamicAnim.applyPressScale(cosmetics);
             DynamicAnim.applyHoverBloom(cosmetics);
         }
@@ -2002,6 +2007,20 @@ import okhttp3.OkHttpClient;
         Intent intent = new Intent(this, CustomizeActivity.class);
         intent.putExtra(CustomizeActivity.EXTRA_INITIAL_TAB, tab);
         startActivity(intent);
+    }
+
+    /**
+     * Opens the profile sheet: who you are, your cosmetics and your skins (U2).
+     *
+     * <p>Cosmetics are a property of the player, not a destination, so they are reached from the
+     * avatar and the dock's Cosmetics entry rather than from a top-level tab.
+     */
+    private void openProfileSheet() {
+        try {
+            new org.chimeramc.client.launcher.ui.dialogs.ProfileSheet(this).show();
+        } catch (Throwable ignored) {
+            // A sheet that cannot inflate must never take the Play screen down with it.
+        }
     }
 
     /**
@@ -2061,41 +2080,55 @@ import okhttp3.OkHttpClient;
 
         GameVersion version = versionManager != null ? versionManager.getSelectedVersion() : null;
 
-        if (version == null) {
-            trace.warning("Launch cancelled", "No version selected");
-            resetLaunchButton();
-            new CustomAlertDialog(this)
-                    .setTitleText(getString(R.string.dialog_title_no_version))
-                    .setMessage(getString(R.string.dialog_message_no_version))
-                    .setPositiveButton(getString(R.string.dialog_positive_ok), null)
-                    .show();
-            return;
-        }
-
-        if (FeatureSettings.getInstance().isLauncherManagedMcLoginEnabled()) {
-            trace.mark("Checking launcher-managed login");
-            MsftAccountStore.MsftAccount active = getActiveAccount();
-            boolean loggedIn = active != null && active.minecraftUsername != null && !active.minecraftUsername.isEmpty();
-            if (!loggedIn) {
-                trace.warning("Launch cancelled", "Minecraft account is missing");
-                resetLaunchButton();
-                new CustomAlertDialog(this)
-                        .setTitleText(getString(R.string.dialog_title_login_required))
-                        .setMessage(getString(R.string.dialog_message_login_required))
-                        .setPositiveButton(getString(R.string.go_to_accounts), v -> {
-                            startActivity(new Intent(this, AccountsActivity.class));
-                        })
-                        .setNegativeButton(getString(R.string.disable_launcher_login_and_continue), null)
-                        .show();
-                return;
+        // One named state decides what the user is told (U14). The facts are gathered here; the
+        // precedence between them lives in LaunchReadiness so this method cannot drift from the
+        // diagnostics screen or the wizard, which read the same states.
+        LaunchReadiness.Facts facts = new LaunchReadiness.Facts()
+                .versionSelected(version != null)
+                .minecraftInstalled(PlayStoreValidator.isMinecraftInstalled(this))
+                .signInRequired(FeatureSettings.getInstance().isLauncherManagedMcLoginEnabled())
+                .signedIn(getActiveAccount() != null);
+        if (version != null) {
+            // The instance's package is the base.apk.chimera the import pipeline writes; its
+            // absence is what "game files missing" means, not a version that was never selected.
+            facts.gameFilesPresent(version.versionDir != null
+                    && new java.io.File(version.versionDir, "base.apk.chimera").exists());
+            try {
+                facts.abiIncompatible(!GamePackageManager
+                        .getInstance(this, version, trace, null)
+                        .requireLauncherSupportsVersion(version));
+            } catch (Throwable ignored) {
+                // An unreadable package is reported as missing game files by the check above,
+                // not as an ABI problem; leaving the flag false keeps the message honest.
+            }
+            try {
+                facts.extractionStale(!GamePackageManager.isExtractionCacheCurrent(this, version));
+            } catch (Throwable ignored) {
+            }
+            try {
+                facts.signatureRulesCoverBuild(version.versionCode == null
+                        || version.versionCode.isEmpty()
+                        || PreloaderSignatureRulesManager
+                                .describeCoverageFailure(this, version.versionCode) == null);
+            } catch (Throwable ignored) {
             }
         }
 
-        if (!PlayStoreValidator.isMinecraftInstalled(this)) {
-            trace.warning("Launch cancelled", "Minecraft package is not installed");
+        LaunchReadiness.State readiness = LaunchReadiness.evaluate(facts);
+        if (LaunchReadiness.blocksLaunch(readiness)) {
+            trace.warning("Launch cancelled", LaunchReadiness.key(readiness));
             resetLaunchButton();
-            PlayStoreValidationDialog.showNotInstalledDialog(this);
+            showLaunchFailure(readiness);
             return;
+        }
+        if (readiness == LaunchReadiness.State.STALE_NATIVE_LIBS) {
+            // Repairable and non-fatal: re-extract silently and launch. Telling the user to run
+            // Repair for something the launcher can fix itself is the friction this removes.
+            trace.mark("Re-extracting stale native libraries");
+            try {
+                GamePackageManager.invalidateExtractionCache(this, version);
+            } catch (Throwable ignored) {
+            }
         }
 
         trace.mark("Launch validation completed", version.directoryName + " " + version.versionCode);
@@ -2127,6 +2160,38 @@ import okhttp3.OkHttpClient;
                     .setPositiveButton(getString(R.string.dialog_positive_ok), null)
                     .show();
         }
+    }
+
+    /**
+     * Shows the dialog for a named failure state (U14).
+     *
+     * <p>The title and message come from {@link LaunchFailurePresenter}, so every state has copy and
+     * the model's warning/blocking decision is the one the UI uses.
+     */
+    private void showLaunchFailure(LaunchReadiness.State state) {
+        int title = LaunchFailurePresenter.titleRes(state);
+        int message = LaunchFailurePresenter.messageRes(state);
+        if (title == 0 || message == 0) return;
+
+        if (state == LaunchReadiness.State.SIGN_IN_REQUIRED) {
+            new CustomAlertDialog(this)
+                    .setTitleText(getString(title))
+                    .setMessage(getString(message))
+                    .setPositiveButton(getString(R.string.go_to_accounts),
+                            v -> startActivity(new Intent(this, AccountsActivity.class)))
+                    .setNegativeButton(getString(R.string.disable_launcher_login_and_continue), null)
+                    .show();
+            return;
+        }
+        if (state == LaunchReadiness.State.GAME_NOT_INSTALLED) {
+            PlayStoreValidationDialog.showNotInstalledDialog(this);
+            return;
+        }
+        new CustomAlertDialog(this)
+                .setTitleText(getString(title))
+                .setMessage(getString(message))
+                .setPositiveButton(getString(R.string.dialog_positive_ok), null)
+                .show();
     }
 
     private Intent createMinecraftLaunchIntent() {

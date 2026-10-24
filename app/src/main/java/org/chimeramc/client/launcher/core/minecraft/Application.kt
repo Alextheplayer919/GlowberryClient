@@ -30,6 +30,11 @@ class LauncherApplication : Application() {
             org.chimeramc.client.util.PersonalizationManager(applicationContext)
                 .isHapticFeedbackEnabled()
         )
+        // A migrated instance whose storage-migration foreground service was killed mid-run leaves
+        // the running flag set; a fresh process is proof the run died, so record the interruption
+        // and clear the flag before the launcher can blind-resume it on the next launch.
+        org.chimeramc.client.util.StorageMigrationService.reconcileOnProcessStart(applicationContext)
+
         val processName = Application.getProcessName()
         if (processName.endsWith(":crash")) return
 

@@ -27,7 +27,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * The Replay section, shared by the touch Mod Menu (Screen A) and the VIP Mod Menu (Screen B).
+ * The Replay section, hosted by the one Mod Menu (and by the launcher's Replay screen).
  *
  * <p>One panel is used by both screens so the data, controls and polish are identical — the spec
  * requires the two tabs to be the same feature. It is built in code because everything on it is

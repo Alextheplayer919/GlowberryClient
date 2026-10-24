@@ -43,4 +43,28 @@ public class ModNativeLoaderTest {
                 Arrays.asList("1.25.*", "1.26.20"),
                 "1.26.21"));
     }
+
+    @Test
+    public void unpinnedModsAlwaysLoad() {
+        Mod unpinned = new Mod("m", "libm.so", "libm.so", "M", true, 0);
+        assertTrue(ModNativeLoader.mayLoad(unpinned));
+    }
+
+    @Test
+    public void pinnedVerifiedModLoads() {
+        String pin = "ab".repeat(32);
+        Mod verified = new Mod("m", "libm.so", "libm.so", "M", java.util.Collections.emptyList(),
+                null, null, null, null, null,
+                "/mods/m", "/mods/m/config", false, 0, pin, true, true, 0);
+        assertTrue(ModNativeLoader.mayLoad(verified));
+    }
+
+    @Test
+    public void pinnedButUnverifiedModIsRefused() {
+        String pin = "ab".repeat(32);
+        Mod tampered = new Mod("m", "libm.so", "libm.so", "M", java.util.Collections.emptyList(),
+                null, null, null, null, null,
+                "/mods/m", "/mods/m/config", false, 0, pin, false, true, 0);
+        assertFalse(ModNativeLoader.mayLoad(tampered));
+    }
 }

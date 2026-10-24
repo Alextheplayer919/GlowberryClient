@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Discord support
+    url: https://discord.gg/chimeramc
+    about: Real-time help from the community and maintainers for setup, crashes, and mod questions.
+  - name: Documentation
+    url: https://launch.chimeramc.org/
+    about: The user guide, compatibility statement, and developer documentation.
+  - name: Security report
+    url: https://github.com/ChimeraAnt-DEV/GlowberryClient/security/advisories/new
+    about: Please report security issues privately so they can be fixed before disclosure.

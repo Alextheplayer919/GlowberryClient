@@ -28,6 +28,15 @@
             android:textStyle="bold" />
 
         <TextView
+            android:id="@+id/changelog_date"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:fontFamily="@font/misans"
+            android:textColor="@color/text_secondary_light"
+            android:textSize="11sp" />
+
+        <TextView
             android:id="@+id/changelog_headline"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

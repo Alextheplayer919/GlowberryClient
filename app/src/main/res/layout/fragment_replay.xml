@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The Replay fragment's host. The clip panel is added in code because it is a shared component
+    (the in-game Mod Menu hosts the same instance type), so this layout is only a slot for it.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/replay_fragment_container"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent" />

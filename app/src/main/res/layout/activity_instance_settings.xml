@@ -344,6 +344,68 @@
                                 android:trackTint="#555555" />
                         </LinearLayout>
 
+                        <LinearLayout
+                            android:id="@+id/bound_account_container"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="16dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/instance_account_title"
+                                    android:fontFamily="@font/misans"
+                                    android:textColor="@color/on_surface"
+                                    android:textSize="15sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:id="@+id/bound_account_value"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="@string/instance_account_active"
+                                    android:fontFamily="@font/misans"
+                                    android:textColor="@color/text_secondary"
+                                    android:textSize="12sp" />
+
+                                <TextView
+                                    android:id="@+id/bound_account_warning"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="@string/instance_account_stale"
+                                    android:fontFamily="@font/misans"
+                                    android:textColor="@color/mod_menu_state_warn"
+                                    android:textSize="12sp"
+                                    android:visibility="gone" />
+                            </LinearLayout>
+
+                            <Button
+                                android:id="@+id/button_bound_account"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:minHeight="40dp"
+                                android:minWidth="0dp"
+                                android:backgroundTint="@color/secondary"
+                                android:text="@string/instance_account_change"
+                                android:textColor="@color/on_secondary"
+                                android:paddingHorizontal="16dp"
+                                android:textSize="13sp"
+                                android:textStyle="bold"
+                                android:textAllCaps="false"
+                                android:gravity="center"
+                                android:fontFamily="@font/misans" />
+                        </LinearLayout>
+
                         <View
                             android:layout_width="match_parent"
                             android:layout_height="1dp"

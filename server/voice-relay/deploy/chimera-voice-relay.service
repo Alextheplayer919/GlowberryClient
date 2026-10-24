@@ -1,6 +1,6 @@
 [Unit]
 Description=Chimera Voice Relay
-Documentation=https://github.com/ChimeraAnt-DEV/ChimeraLauncher
+Documentation=https://github.com/ChimeraAnt-DEV/GlowberryClient
 After=network-online.target
 Wants=network-online.target
 

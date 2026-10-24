@@ -1,0 +1,184 @@
+package org.chimeramc.client.core.mods.inbuilt.overlay;
+
+import android.animation.ValueAnimator;
+import android.content.Context;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.os.Build;
+import android.util.AttributeSet;
+import android.view.HapticFeedbackConstants;
+import android.view.View;
+import android.view.animation.LinearInterpolator;
+import android.view.animation.PathInterpolator;
+
+
+/**
+ * The Mod Menu's pill switch (M2, M5).
+ *
+ * <p>A module has an <b>enable state</b>; an action fires once. Rendering both as tap targets is the
+ * component-type mismatch that made the menu feel wrong — a stateful switch that looks like a
+ * one-shot button never shows whether it is on. This view is the switch half of that rule: it shows
+ * the state, animates the state change, and refuses to be a button.
+ *
+ * <p>Geometry and colours come from the pure {@link ModMenuSwitch}; this class only animates and
+ * paints. Both constructors exist so a layout can inflate it.
+ */
+public class ModMenuSwitchView extends View {
+
+    /** Called when the user flips the switch. */
+    public interface OnCheckedChangeListener {
+        void onCheckedChanged(boolean checked);
+    }
+
+    /** The on-state spring: springier, because an enable is a commitment. */
+    private static final PathInterpolator SPRING_ON =
+            new PathInterpolator(0.2f, 0f, 0.1f, 1.15f);
+    /** The off-state spring: flatter, because a disable is a plain retreat. */
+    private static final PathInterpolator SPRING_OFF =
+            new PathInterpolator(0.3f, 0f, 0.2f, 1f);
+
+    private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final float density;
+
+    private boolean checked;
+    private float progress;
+    private boolean interactive = true;
+    private boolean failed;
+    private boolean hapticsEnabled = true;
+    private boolean reducedMotion;
+    private OnCheckedChangeListener listener;
+    private ValueAnimator animator;
+
+    public ModMenuSwitchView(Context context) {
+        this(context, null);
+    }
+
+    public ModMenuSwitchView(Context context, AttributeSet attrs) {
+        super(context, attrs);
+        density = getResources().getDisplayMetrics().density;
+        setClickable(true);
+        setFocusable(true);
+        setDefaultFocusHighlightEnabled(false);
+        // The visual is 52x32dp, which is narrower than the 48dp minimum in one axis; the view
+        // reserves the full target so a thumb-sized press still lands.
+        setMinimumWidth((int) (ModMenuMetrics.MIN_TOUCH_TARGET_DP * density));
+        setMinimumHeight((int) (ModMenuMetrics.MIN_TOUCH_TARGET_DP * density));
+        updateContentDescription();
+    }
+
+    public boolean isChecked() {
+        return checked;
+    }
+
+    /** Sets the state without notifying the listener; {@code animate} false snaps. */
+    public void setChecked(boolean value, boolean animate) {
+        this.checked = value;
+        if (!animate || !isAttachedToWindow()) {
+            cancelAnimator();
+            progress = value ? 1f : 0f;
+            updateContentDescription();
+            invalidate();
+            return;
+        }
+        if (progress == (value ? 1f : 0f)) return;
+        cancelAnimator();
+        animator = ValueAnimator.ofFloat(progress, value ? 1f : 0f);
+        animator.setDuration(ModMenuMotion.durationMs(reducedMotion));
+        // Reduced motion is linear (a short fade, no travel); full motion is the on/off spring.
+        animator.setInterpolator(reducedMotion
+                ? new LinearInterpolator()
+                : (value ? SPRING_ON : SPRING_OFF));
+        animator.addUpdateListener(a -> {
+            progress = (float) a.getAnimatedValue();
+            invalidate();
+        });
+        animator.start();
+        updateContentDescription();
+    }
+
+    /** A module that cannot be driven shows the disabled appearance and refuses the tap. */
+    public void setInteractive(boolean value) {
+        this.interactive = value;
+        setClickable(value);
+        invalidate();
+    }
+
+    /** A module that failed to register shows the error track (M10). */
+    public void setFailed(boolean value) {
+        this.failed = value;
+        invalidate();
+    }
+
+    /** Disables the haptic tick for this instance (e.g. a settings preview). */
+    public void setHapticsEnabled(boolean value) {
+        this.hapticsEnabled = value;
+    }
+
+    /**
+     * Switches to the reduced-motion scheme (M6, U11).
+     *
+     * <p>Reduced motion is a short linear transition rather than a spring: still a transition, so
+     * the control does not pop, but with no overshoot. The OS setting wins over the in-menu choice,
+     * which is why this is pushed in from the overlay rather than read here.
+     */
+    public void setReducedMotion(boolean value) {
+        this.reducedMotion = value;
+    }
+
+    public void setOnCheckedChangeListener(OnCheckedChangeListener value) {
+        this.listener = value;
+    }
+
+    @Override
+    protected void onDraw(Canvas canvas) {
+        super.onDraw(canvas);
+        if (getWidth() <= 0 || getHeight() <= 0) return;
+        // Centre the 52x32dp control in whatever the layout gave us, so the invisible padding the
+        // touch target needs does not shift the visual.
+        float left = (getWidth() - ModMenuMetrics.SWITCH_WIDTH_DP * density) / 2f;
+        float top = (getHeight() - ModMenuMetrics.SWITCH_HEIGHT_DP * density) / 2f;
+        ModMenuSwitch.draw(canvas, paint, left, top, density, checked, progress, interactive, failed);
+    }
+
+    @Override
+    public boolean performClick() {
+        if (!interactive) return super.performClick();
+        boolean next = !checked;
+        setChecked(next, true);
+        if (hapticsEnabled && ModMenuSwitch.hapticsOnStateChange()) {
+            performHapticFeedback(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                    ? HapticFeedbackConstants.CLOCK_TICK
+                    : HapticFeedbackConstants.VIRTUAL_KEY);
+        }
+        if (listener != null) listener.onCheckedChanged(next);
+        return true;
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        cancelAnimator();
+        super.onDetachedFromWindow();
+    }
+
+    private void cancelAnimator() {
+        if (animator != null) {
+            animator.cancel();
+            animator = null;
+        }
+    }
+
+    private void updateContentDescription() {
+        // TalkBack announces "Module name, On, Switch" because the row sets the name and this view
+        // carries the state; a bare "On" would lose the module it belongs to.
+        setContentDescription(checked ? "On" : "Off");
+    }
+
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        int desiredW = (int) (ModMenuMetrics.MIN_TOUCH_TARGET_DP * density);
+        int desiredH = (int) (ModMenuMetrics.MIN_TOUCH_TARGET_DP * density);
+        setMeasuredDimension(
+                resolveSize(desiredW, widthMeasureSpec),
+                resolveSize(desiredH, heightMeasureSpec));
+    }
+}

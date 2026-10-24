@@ -247,9 +247,7 @@ public class ModHubActivity extends BaseActivity {
 
     private void buildTypeChips() {
         PersonalizationManager pm = new PersonalizationManager(this);
-        int accentColor = pm.hasCustomAccent()
-                ? pm.getAccentColor()
-                : ContextCompat.getColor(this, R.color.primary);
+        int accentColor = pm.getAccentColor();
         int onSurface = ContextCompat.getColor(this, R.color.on_surface);
 
         ColorStateList textColors = new ColorStateList(

@@ -740,7 +740,7 @@ public final class CosmeticCatalog {
      * selection always wins, so turning Optifine Mode on never overrides a cape the player chose.
      *
      * @param id            the stored cape id ({@link #NONE} for none)
-     * @param optifineMode  whether the Bedrock Optifine Mode setting is enabled
+     * @param optifineMode  whether the Game Performance Mode setting is enabled
      * @return the cape to render/install, or null when nothing should be worn
      */
     public static Cape resolveEquippedCape(String id, boolean optifineMode) {

@@ -149,6 +149,9 @@ class MinecraftActivity : MainActivity(), PojavControlsHost {
         trace.mark("Mojang MainActivity super.onCreate finished")
         ModSafeMode.completeLaunch(this)
         trace.mark("Mod crash-loop marker cleared")
+        // The game process is up, so the previous launch's crash attribution (if any) is stale:
+        // this launch succeeded, so the consecutive-crash counter restarts.
+        org.chimeramc.client.core.mods.ModCrashAttribution.clear(this)
         // The game process reached its own onCreate, so the optifine set active for this launch
         // did not kill it before the game started; clear the crash attribution.
         org.chimeramc.client.core.minecraft.OptifineModeManager.onSessionReachedWorld(this)

@@ -123,6 +123,29 @@ public class ModLoadDiagnosticsTest {
     }
 
     @Test
+    public void hashMismatchClassifiedAsHashMismatch() {
+        RuntimeException error = new RuntimeException(
+                "refusing to load: entry does not match the pinned checksum in the mod manifest");
+        assertEquals(ModLoadDiagnostics.KIND_HASH_MISMATCH, ModLoadDiagnostics.Classifier.kindOf(error));
+
+        RuntimeException archive = new RuntimeException("packaged hash does not match the manifest pin");
+        assertEquals(ModLoadDiagnostics.KIND_HASH_MISMATCH, ModLoadDiagnostics.Classifier.kindOf(archive));
+    }
+
+    @Test
+    public void hashMismatchKindRoundTrips() {
+        List<ModLoadDiagnostics.Record> records = Collections.singletonList(
+                record("mod", "Mod", "1.0", "packaged hash does not match the manifest pin",
+                        ModLoadDiagnostics.KIND_HASH_MISMATCH));
+
+        List<ModLoadDiagnostics.Record> parsed = ModLoadDiagnostics.parse(
+                ModLoadDiagnostics.serialize(records));
+
+        assertEquals(1, parsed.size());
+        assertEquals(ModLoadDiagnostics.KIND_HASH_MISMATCH, parsed.get(0).kind);
+    }
+
+    @Test
     public void unknownErrorClassifiedAsUnknown() {
         assertEquals(ModLoadDiagnostics.KIND_UNKNOWN,
                 ModLoadDiagnostics.Classifier.kindOf(new RuntimeException("boom")));

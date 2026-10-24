@@ -8,7 +8,7 @@
 开始。
 
 推荐以 `examples/full-cpp-mod` 作为参考实现。它包含生命周期注册、类型化
-配置、Mod Menu 集成、Android 打包和 `.levipack` 输出。
+配置、Mod Menu 集成、Android 打包和 `.AntEgg` 输出。
 
 ## 构建示例
 
@@ -25,10 +25,10 @@
 
 ```text
 examples\full-cpp-mod\dist\arm64-v8a\full-cpp-mod\
-examples\full-cpp-mod\dist\arm64-v8a\full-cpp-mod.levipack
+examples\full-cpp-mod\dist\arm64-v8a\full-cpp-mod.antegg
 ```
 
-可以导入 `.levipack`，也可以把解包后的 mod 目录复制到启动器 native mod 位置。
+可以导入 `.antegg`，也可以把解包后的 mod 目录复制到启动器 native mod 位置。
 
 ## 包结构
 
@@ -49,7 +49,7 @@ full-cpp-mod/
 {
   "type": "preload-native",
   "name": "Full C++ Lifecycle Mod Example",
-  "author": "LiteLDev",
+  "author": "Your Name",
   "version": "1.0.0",
   "entry": "libfull_cpp_mod.so",
   "minecraft_versions": [],
@@ -167,7 +167,7 @@ bool FullCppMod::load() {
 ```
 
 把 `config.json` 和 `config.schema.json` 随 mod 一起打包。完整示例的构建脚本会在
-生成 `.levipack` 前产出这两个文件。
+生成 `.antegg` 前产出这两个文件。
 
 ## Mod Menu
 

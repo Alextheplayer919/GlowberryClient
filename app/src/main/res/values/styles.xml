@@ -49,6 +49,28 @@
     </style>
 
     <!--
+        One destination row in the navigation rail (U5). Same font and colours as the top bar's tab,
+        but the icon leads the row horizontally so it stays aligned with the label beside it; the
+        expanded rail shows that label, the icon-only rail sets the text to "" in BaseActivity.
+        paddingStart is the rail width so the icon lands on the same centre line as the logo above
+        it, whether or not a label follows.
+    -->
+    <style name="Widget.Chimera.NavRailTab" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">@dimen/nav_rail_tab_height</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:paddingStart">@dimen/nav_rail_width</item>
+        <item name="android:paddingEnd">8dp</item>
+        <item name="android:fontFamily">@font/misans</item>
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:drawablePadding">0dp</item>
+        <item name="android:background">?attr/selectableItemBackground</item>
+    </style>
+
+    <!--
         The single card style. Every card surface uses one of these three variants so the
         radius, border and elevation cannot drift screen to screen.
 

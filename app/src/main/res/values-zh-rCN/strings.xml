@@ -208,7 +208,7 @@
     <string name="toast_delete_failed">删除失败: %1$s</string>
     <string name="error_delete_builtin_version">不能删除内置版本</string>
     <string name="invalid_mod_file">失败</string>
-    <string name="invalid_mod_file_reason">仅允许导入 .so 文件、.zip 模组包或 .chimerapack 模组包。所选文件不是有效的原生模组导入包。</string>
+    <string name="invalid_mod_file_reason">仅允许导入 .so 文件、.zip 模组包或 .antegg 模组包。所选文件不是有效的原生模组导入包。</string>
     <string name="invalid_zip_mod_package_title">非法 ZIP 模组包</string>
     <string name="invalid_zip_mod_package_message">ZIP 模组包必须包含 manifest.json 与 .so 文件。</string>
     <string name="error_versions">错误版本</string>
@@ -445,7 +445,7 @@
     <string name="disable_launcher_login_and_continue">关闭</string>
     <string name="sign_in">登录</string>
     <string name="ms_account_subtitle_format">用户ID：%1$s • 更新：%2$s</string>
-    <string name="about_footer_github">GitHub: https://github.com/ChimeraAnt-DEV/ChimeraLauncher</string>
+    <string name="about_footer_github">GitHub: https://github.com/ChimeraAnt-DEV/GlowberryClient</string>
 
     <string name="label_current_account">当前账号</string>
     <string name="label_other_accounts">其他账号</string>

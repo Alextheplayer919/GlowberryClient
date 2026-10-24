@@ -25,7 +25,7 @@
     <string name="about_title">Sobre</string>
     <string name="copyright">©2024–2026 GlowberryClient. Todos os direitos reservados.</string>
     <string name="font_license">Este aplicativo usa a fonte Misans.</string>
-    <string name="about_footer_github">GitHub: https://github.com/ChimeraAnt-DEV/ChimeraLauncher</string>
+    <string name="about_footer_github">GitHub: https://github.com/ChimeraAnt-DEV/GlowberryClient</string>
     <string name="quick_actions_title">Ações Rápidas</string>
     <string name="content_mgmt_section_title">Gerenciamento de Conteúdo</string>
     <string name="misc_section_title">Diversos</string>
@@ -226,7 +226,7 @@ A migração deve ser concluída antes que o GlowberryClient continue.</string>
     <string name="toast_delete_failed">Falha ao excluir: %1$s</string>
     <string name="error_delete_builtin_version">Não é possível excluir a versão integrada</string>
     <string name="invalid_mod_file">Falha</string>
-    <string name="invalid_mod_file_reason">Apenas arquivos .so, pacotes de mod .zip ou pacotes de mod .chimerapack são permitidos. O arquivo selecionado não é válido.</string>
+    <string name="invalid_mod_file_reason">Apenas arquivos .so, pacotes de mod .zip ou pacotes de mod .antegg são permitidos. O arquivo selecionado não é válido.</string>
     <string name="invalid_zip_mod_package_title">Pacote ZIP de mod inválido</string>
     <string name="invalid_zip_mod_package_message">O pacote ZIP de mod deve conter manifest.json e um arquivo .so.</string>
     <string name="error_versions">Versões com Erro</string>

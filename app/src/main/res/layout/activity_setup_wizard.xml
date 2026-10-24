@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The first-run wizard (U13). One step is shown at a time: a title, an explanation, the step's
+    primary action and a Skip. The progress rail is populated in code from SetupWizard.activeSteps,
+    so a wizard with sign-in turned off draws three dots rather than four.
+-->
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/ui_bg_window"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="@dimen/space_8">
+
+        <LinearLayout
+            android:id="@+id/setup_rail"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal" />
+
+        <TextView
+            android:id="@+id/setup_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_6"
+            android:fontFamily="@font/dmsans"
+            android:gravity="center"
+            android:text="@string/setup_step_import_title"
+            android:textColor="@color/ui_text_primary"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/setup_body"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_3"
+            android:fontFamily="@font/dmsans"
+            android:gravity="center"
+            android:text="@string/setup_step_import_body"
+            android:textColor="@color/ui_text_secondary"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/setup_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_3"
+            android:fontFamily="@font/dmsans"
+            android:gravity="center"
+            android:textColor="@color/ui_danger"
+            android:textSize="12sp"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/setup_primary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_6"
+            android:minHeight="@dimen/min_touch_target"
+            android:fontFamily="@font/dmsans"
+            android:text="@string/setup_step_import_action" />
+
+        <Button
+            android:id="@+id/setup_secondary"
+            style="?attr/borderlessButtonStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_2"
+            android:minHeight="@dimen/min_touch_target"
+            android:fontFamily="@font/dmsans"
+            android:text="@string/setup_skip"
+            android:textColor="@color/ui_text_secondary" />
+    </LinearLayout>
+</ScrollView>

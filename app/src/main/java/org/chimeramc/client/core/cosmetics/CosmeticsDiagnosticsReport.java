@@ -351,6 +351,12 @@ public final class CosmeticsDiagnosticsReport {
         b.append("Last GL error: ").append(errorText(v.lastError)).append('\n');
         b.append('\n');
 
+        b.append("Layers (item G9):\n");
+        b.append("  render hook: ").append(layerRenderHook(v)).append('\n');
+        b.append("  skin data: ").append(layerSkinData(v)).append('\n');
+        b.append("  session: ").append(layerSession(v)).append('\n');
+        b.append('\n');
+
         b.append("Published geometry bytes: ").append(countText(v.geometryBytes)).append('\n');
         b.append("Piece atlases: ").append(pieceMaskText(v.pieceAtlasMask)).append('\n');
         b.append("Cape overrides: ").append(v.capeOverrides).append('\n');
@@ -586,6 +592,40 @@ public final class CosmeticsDiagnosticsReport {
                     + "observed a loaded cape texture yet this session.";
         }
         return "render hook not installed and no cape texture observed — cosmetics are preview-only.";
+    }
+
+    /**
+     * The render-hook layer of the G9 breakdown: how cosmetics geometry reaches the game's own
+     * player renderer. "waiting" is distinct from "not live" because the install is deferred to the
+     * game's frame tick.
+     */
+    private static String layerRenderHook(Inputs v) {
+        if (!v.nativeLoaded) return "native library not loaded";
+        if (v.hookInstalled) return "live (renderer frames seen: " + countText(v.framesSeen) + ")";
+        if (v.hookInstallPending) return "waiting for the render context";
+        return "not live (" + hookRefusalText(v) + ")";
+    }
+
+    /**
+     * The skin-data layer of the G9 breakdown: whether the game's own skin (the base skin the
+     * engine loads) reached the launcher's feed, and how far the join/texture seam got.
+     */
+    private static String layerSkinData(Inputs v) {
+        if (v.skinSeamStage < 0 && !v.skinFeedInstalled && !v.skinCaptured) {
+            return "unknown (native skin seam absent)";
+        }
+        return (v.skinCaptured ? "captured" : "no capture yet")
+                + (v.skinFeedInstalled ? " (game-skin feed installed)" : "")
+                + (v.skinSeamStage >= 0 ? "; " + skinSeamText(v) : "");
+    }
+
+    /**
+     * The session layer of the G9 breakdown: whether the report was generated in a live game
+     * session or in the launcher, which decides how much of the pipeline could have run.
+     */
+    private static String layerSession(Inputs v) {
+        if (!v.sessionActive) return "launcher (no game session this process)";
+        return v.inWorld ? "in-world" : "game session, menu/loading screen";
     }
 
     /**

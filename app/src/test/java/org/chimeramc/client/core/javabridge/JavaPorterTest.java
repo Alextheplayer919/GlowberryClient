@@ -7,6 +7,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import org.chimeramc.client.core.antegg.AntEggPackage;
+import org.chimeramc.client.core.antegg.ModHash;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -151,6 +152,13 @@ public class JavaPorterTest {
         assertTrue("a ported mod must be marked aiPorted", inspected.manifest.aiPorted);
         assertEquals("JavaBridge (AI port)", inspected.manifest.author);
         assertEquals("coolmod 1.0.0", inspected.manifest.originMod);
+        // Item G12: the porter pins the entry hash, so a ported package always verifies.
+        assertNotNull(inspected.manifest.sha256);
+        assertFalse(inspected.manifest.sha256.isEmpty());
+        AntEggPackage.Result extracted = AntEggPackage.extract(result.packageFile, folder.getRoot());
+        assertTrue(extracted.isValid());
+        File entry = new File(extracted.directory, inspected.manifest.entryPoint);
+        assertTrue(ModHash.matches(entry, inspected.manifest.sha256));
     }
 
     @Test

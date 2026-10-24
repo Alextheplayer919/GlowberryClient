@@ -8,6 +8,7 @@ import android.content.res.AssetManager
 import android.os.Build
 import android.os.SystemClock
 import android.util.Log
+import org.chimeramc.client.BuildConfig
 import org.chimeramc.client.core.versions.GameVersion
 import org.levimc.launcher.util.NativeBridgeHelper
 import org.levimc.launcher.util.NativeImageGuard
@@ -245,8 +246,26 @@ class GamePackageManager private constructor(
         } catch (_: Exception) {
             false
         }
+        // A launcher update changes the extraction pipeline (new NativeImageGuard step, ABI
+        // handling, packaging rules). Stale extracted libs from an older extractor can fail
+        // dlopen with confusing errors until wiped. Invalidate on both a manual extractor bump
+        // and the app's own version so a plain update always wipes + re-extracts before any
+        // dlopen can touch the old files.
+        val nativeExtractionVersion = nativeExtractionVersion()
+        val versionFile = File(nativeLibDir, "native_extraction_version")
+        val versionMatches = try {
+            versionFile.isFile && versionFile.readText().trim() == nativeExtractionVersion.toString()
+        } catch (_: Exception) {
+            false
+        }
         val cacheRequiredLibs = getCacheRequiredLibs()
-        var allPresent = markerMatches
+
+        if (markerMatches && !versionMatches) {
+            report("Extraction version changed ($nativeExtractionVersion): wiping stale native library cache")
+            wipeExtractedLibraries(outputDir, cacheRequiredLibs)
+        }
+
+        var allPresent = markerMatches && versionMatches
         if (allPresent) {
             for (lib in cacheRequiredLibs) {
                 val file = File(outputDir, lib)
@@ -256,7 +275,7 @@ class GamePackageManager private constructor(
                 }
             }
         }
-        
+
         if (allPresent) {
             report("Minecraft library cache hit: ${outputDir.absolutePath}")
             for (lib in extractableLibs) {
@@ -292,16 +311,61 @@ class GamePackageManager private constructor(
             val abi = getDeviceAbi(apkFiles)
             apkFiles.forEach { extractFromApk(it.absolutePath, outputDir, abi) }
         }
+        ensureLibCppSharedFallback(outputDir)
         verifyLibraries(outputDir)
 
         if (cacheRequiredLibs.all { File(outputDir, it).let { f -> f.exists() && f.length() > 0 } }) {
             try {
                 manifestFile.writeText(manifestString)
                 File(outputDir, ".extraction_marker").delete()
+                writeNativeExtractionVersion(versionFile, nativeExtractionVersion)
                 report("Minecraft library cache manifest written")
             } catch (e: Exception) {
                 mirrorLogcat('W', "Failed to write extraction manifest: ${e.message}")
                 report("Failed to write extraction manifest: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Version of the extraction pipeline itself. Tied to both an explicit manual bump and the
+     * launcher's own version code, so shipping a new launcher build always invalidates the
+     * extracted library cache instead of trusting stale `.so` files.
+     */
+    private fun nativeExtractionVersion(): Int =
+        Companion.calculateNativeExtractionVersion()
+
+    private fun writeNativeExtractionVersion(versionFile: File, version: Int) {
+        try {
+            versionFile.writeText(version.toString())
+        } catch (e: Exception) {
+            mirrorLogcat('W', "Failed to write native extraction version: ${e.message}")
+        }
+    }
+
+    private fun wipeExtractedLibraries(outputDir: File, keep: Array<out String>) {
+        val keepSet = keep.toHashSet()
+        keepSet.add(".extraction_manifest")
+        keepSet.add("native_extraction_version")
+        val children = outputDir.listFiles() ?: return
+        for (child in children) {
+            if (child.isFile && child.name.endsWith(".so")) {
+                if (!keepSet.contains(child.name)) {
+                    try {
+                        child.setWritable(true, true)
+                        if (child.delete()) {
+                            mirrorLogcat('W', "Wiped stale extracted library: ${child.name}")
+                        }
+                    } catch (e: Exception) {
+                        mirrorLogcat('W', "Failed to wipe stale library ${child.name}: ${e.message}")
+                    }
+                }
+            }
+        }
+        // Remove any .tmp leftover from an interrupted extraction.
+        outputDir.listFiles()?.forEach { child ->
+            if (child.isFile && child.name.endsWith(".tmp") && child.delete()) {
+                mirrorLogcat('W', "Removed interrupted extraction temp file: ${child.name}")
             }
         }
     }
@@ -391,22 +455,33 @@ class GamePackageManager private constructor(
         }
 
         try {
+            // G3: extract every `.so` the package ships for this ABI, not only the ones the
+            // launcher names. A Bedrock package can carry extra multi-.so deps (codecs, fmod
+            // variants, a packaged libc++_shared.so) that a DT_NEEDED lookup will demand from
+            // the same directory; the named list gates what must be present, extraction covers
+            // everything, so a runtime dlopen never misses a transitive dependency.
             ZipFile(apkPath).use { zip ->
-                val abiPath = "lib/$abi"
-                extractableLibs.forEach { lib ->
-                    val entry = zip.getEntry("$abiPath/$lib")
-                    if (entry == null) {
-                        return@forEach
-                    }
-                    val output = File(outputDir, lib)
+                val abiPath = "lib/$abi/"
+                val entries = zip.entries()
+                val extracted = mutableListOf<String>()
+                while (entries.hasMoreElements()) {
+                    val entry = entries.nextElement()
+                    if (entry.isDirectory || entry.name.isEmpty()) continue
+                    if (!entry.name.startsWith(abiPath) || !entry.name.endsWith(".so")) continue
+                    val libName = entry.name.removePrefix(abiPath)
+                    val output = File(outputDir, libName)
                     zip.getInputStream(entry).use { input ->
                         copyStreamToReadOnlyFile(input, output)
                     }
-                    report("Extracted $lib from ${apkFile.name} for $abi")
+                    extracted += libName
+                    report("Extracted $libName from ${apkFile.name} for $abi")
                     if (!processNativeImage(output, true)) {
                         output.delete()
                         throw IOException("Failed to prepare native library: ${output.name}")
                     }
+                }
+                if (extracted.isEmpty()) {
+                    mirrorLogcat('W', "No .so files found under $abiPath in $apkPath")
                 }
             }
         } catch (e: Exception) {
@@ -462,6 +537,54 @@ class GamePackageManager private constructor(
         if (missing.isNotEmpty()) {
             mirrorLogcat('W', "Missing libraries in $dir: ${missing.joinToString()}")
             report("Missing libraries in ${dir.absolutePath}: ${missing.joinToString()}")
+        }
+
+        verifyLibraryAbi(dir)
+    }
+
+    /**
+     * G3: SONAME/ABI validation. Reads each extracted ELF header and reports any library whose
+     * architecture cannot load in this process *before* a launch attempt, instead of the raw
+     * "dlopen failed: is 32-bit instead of 64-bit" surfacing mid-launch. A mismatched library is
+     * not removed here — the launch preflight decides what to do — but every mismatch is logged
+     * so the diagnostics report and logcat agree about the failure cause.
+     */
+    private fun verifyLibraryAbi(dir: File) {
+        val processIs64Bit = Build.SUPPORTED_64_BIT_ABIS.isNotEmpty()
+        val libs = getCacheRequiredLibs().plus(systemLoadedLibs)
+        for (name in libs) {
+            val file = File(dir, name)
+            if (!file.isFile) continue
+            val mismatch = ElfHeaderValidator.describeMismatch(file, processIs64Bit)
+            if (mismatch != null) {
+                mirrorLogcat('E', "ABI mismatch: $mismatch")
+                report("ABI-mismatched native library: $mismatch")
+            }
+        }
+    }
+
+    /**
+     * G3: multi-`.so` robustness. When a version's package does not ship `libc++_shared.so`, fall
+     * back to the launcher's own bundled copy (the preloader is linked against `c++_shared`), so
+     * the extracted cache always has the STL the game's libraries load against. Copied only when
+     * the file is absent — the game's own copy, if present, is the correct version for that build.
+     */
+    private fun ensureLibCppSharedFallback(outputDir: File) {
+        val target = File(outputDir, "libc++_shared.so")
+        if (target.exists() && target.length() > 0) {
+            return
+        }
+        try {
+            val appNativeDir = File(context.applicationInfo.nativeLibraryDir)
+            val source = File(appNativeDir, "libc++_shared.so")
+            if (source.isFile && source.length() > 0) {
+                copyStreamToReadOnlyFile(source.inputStream(), File(outputDir, "libc++_shared.so"))
+                report("libc++_shared.so missing from game package; copied launcher-bundled copy")
+            } else {
+                mirrorLogcat('W', "libc++_shared.so not found in APK or launcher native dir")
+            }
+        } catch (e: Exception) {
+            mirrorLogcat('W', "libc++_shared.so fallback failed: ${e.message}")
         }
     }
 
@@ -674,6 +797,15 @@ class GamePackageManager private constructor(
         val libFile = resolvedPath?.let(::File) ?: File(nativeLibDir, fileName)
         val source = "Minecraft extracted library cache"
         return if (libFile.exists() && libFile.length() > 0) {
+            // G3: refuse a library whose ELF architecture cannot load in this process before
+            // dlopen; the raw error names neither the file nor the mismatch.
+            val processIs64Bit = Build.SUPPORTED_64_BIT_ABIS.isNotEmpty()
+            val abiMismatch = ElfHeaderValidator.describeMismatch(libFile, processIs64Bit)
+            if (abiMismatch != null) {
+                val detail = abiMismatch
+                mirrorLogcat('E', "Refusing to load $fileName from ${libFile.absolutePath}: $detail")
+                return LibraryLoadResult(normalizedName, fileName, source, false, elapsedSince(startedAt), detail)
+            }
             try {
                 ensureReadOnly(libFile)
                 System.load(libFile.absolutePath)
@@ -812,7 +944,7 @@ class GamePackageManager private constructor(
 
     companion object {
         private const val TAG = "GamePackageManager"
-        private const val EXTRACTOR_VERSION = 3
+        private const val EXTRACTOR_VERSION = 4
 
         @Volatile
         private var instance: GamePackageManager? = null
@@ -853,5 +985,74 @@ class GamePackageManager private constructor(
         }
 
         fun isInitialized() = instance != null
+
+        /** Manual extractor pipeline version; bump when the extraction logic changes. */
+        @JvmStatic
+        fun extractorVersion(): Int = EXTRACTOR_VERSION
+
+        /**
+         * The extraction version this launcher build expects, as written to the
+         * `native_extraction_version` marker. Combining the manual pipeline version with the
+         * app version code means a launcher update automatically invalidates stale extracted
+         * libs without a manual bump.
+         */
+        @JvmStatic
+        fun calculateNativeExtractionVersion(): Int {
+            val manual = EXTRACTOR_VERSION
+            val appVersion = try {
+                BuildConfig.VERSION_CODE
+            } catch (_: Throwable) {
+                0
+            }
+            return (manual shl 16) or (appVersion and 0xffff)
+        }
+
+        /**
+         * True when the extraction cache for this version still holds the expected marker and
+         * will be reused on the next launch instead of being wiped + re-extracted.
+         */
+        @JvmStatic
+        fun isExtractionCacheCurrent(context: Context, version: GameVersion?): Boolean {
+            return try {
+                if (version == null) return false
+                val profileId = MinecraftLauncher.getStorageProfileId(version)
+                val expected = calculateNativeExtractionVersion()
+                val dir = MinecraftLauncher.getRuntimeLibDir(context, profileId)
+                val abis = listOf("arm64", "arm", "x86_64", "x86")
+                for (abi in abis) {
+                    val versionFile = File(File(dir, abi), "native_extraction_version")
+                    if (versionFile.isFile && versionFile.readText().trim() == expected.toString()) {
+                        return true
+                    }
+                }
+                false
+            } catch (_: Exception) {
+                false
+            }
+        }
+
+        /** Removes the extraction version marker so the next launch re-extracts native libs. */
+        @JvmStatic
+        fun invalidateExtractionCache(context: Context, version: GameVersion?) {
+            try {
+                if (version == null) return
+                val profileId = MinecraftLauncher.getStorageProfileId(version)
+                val dir = MinecraftLauncher.getRuntimeLibDir(context, profileId)
+                val abis = listOf("arm64", "arm", "x86_64", "x86")
+                for (abi in abis) {
+                    val abiDir = File(dir, abi)
+                    val versionFile = File(abiDir, "native_extraction_version")
+                    val manifestFile = File(abiDir, ".extraction_manifest")
+                    if (versionFile.exists() && !versionFile.delete()) {
+                        Log.w(TAG, "Failed to remove extraction version marker: ${versionFile.absolutePath}")
+                    }
+                    if (manifestFile.exists() && !manifestFile.delete()) {
+                        Log.w(TAG, "Failed to remove extraction manifest: ${manifestFile.absolutePath}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to invalidate extraction cache: ${e.message}")
+            }
+        }
     }
 }

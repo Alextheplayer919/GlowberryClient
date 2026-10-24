@@ -37,6 +37,7 @@ import org.chimeramc.client.preloader.PreloaderSignatureRulesManager;
 import org.chimeramc.client.settings.FeatureSettings;
 import org.chimeramc.client.settings.LowLatencyNetworkManager;
 import org.chimeramc.client.settings.PerformancePresetManager;
+import org.chimeramc.client.launcher.ui.activities.DiagnosticsActivity;
 import org.chimeramc.client.ui.animation.DynamicAnim;
 import org.chimeramc.client.ui.dialogs.LogcatOverlayManager;
 import org.chimeramc.client.util.GithubReleaseUpdater;
@@ -47,6 +48,9 @@ import org.chimeramc.client.util.LauncherStorage;
 import org.chimeramc.client.util.PermissionsHandler;
 import org.chimeramc.client.util.PersonalizationManager;
 import org.chimeramc.client.util.ThemeManager;
+import org.chimeramc.client.util.WorldBackupConfig;
+import org.chimeramc.client.util.WorldBackupScheduler;
+import org.chimeramc.client.util.WorldBackupStore;
 
 import java.text.DateFormat;
 import java.util.Date;
@@ -81,15 +85,13 @@ public class SettingsActivity extends BaseActivity {
     private int selectedTabIndex = 0;
 
     private PersonalizationManager personalizationManager;
-    private LinearLayout colorGridContainer;
-    private LinearLayout moreColorsContainer;
     private TextView bgImageStatus;
     private TextView bgImageBlurValue;
     private TextView bgImageBrightnessValue;
     private ImageView bgImagePreview;
     private TextView migrationCleanupStatus;
 
-    /** Drives the Bedrock Optifine Mode section; rebuilt on each bind. */
+    /** Drives the Game Performance Mode section; rebuilt on each bind. */
     private org.chimeramc.client.core.minecraft.OptifineSettingsController optifineController;
     private Button migrationCleanupButton;
     private SwitchMaterial switchSharedStorageLayout;
@@ -104,10 +106,16 @@ public class SettingsActivity extends BaseActivity {
     private TextView iconSizeValue;
     private TextView fontScaleValue;
     private TextView blurIntensityValue;
-    private SwitchMaterial switchShowAnimations;
-    private SwitchMaterial switchEnableGlow;
-    private SwitchMaterial switchCompactMode;
+    private SwitchMaterial switchReduceMotion;
     private Button btnResetCustomizations;
+
+    // Scheduled world backups (G13)
+    private ActivityResultLauncher<Uri> worldBackupFolderLauncher;
+    private SwitchMaterial switchWorldBackupEnabled;
+    private Spinner spinnerWorldBackupInterval;
+    private TextView worldBackupDestinationStatus;
+    private TextView worldBackupStatus;
+    private WorldBackupConfig worldBackupConfig;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -160,6 +168,13 @@ public class SettingsActivity extends BaseActivity {
                 new ActivityResultContracts.OpenDocument(),
                 uri -> {
                     if (uri != null) importSettingsBackup(uri);
+                }
+        );
+
+        worldBackupFolderLauncher = registerForActivityResult(
+                new ActivityResultContracts.OpenDocumentTree(),
+                uri -> {
+                    if (uri != null) onWorldBackupFolderPicked(uri);
                 }
         );
 
@@ -248,6 +263,29 @@ public class SettingsActivity extends BaseActivity {
         LanguageManager languageManager = new LanguageManager(this);
         FeatureSettings fs = FeatureSettings.getInstance();
         setupPerformancePreset();
+
+        View openDiagnostics = findViewById(R.id.settings_open_diagnostics);
+        if (openDiagnostics != null) {
+            openDiagnostics.setOnClickListener(v ->
+                    startActivity(new Intent(this, DiagnosticsActivity.class)));
+            DynamicAnim.applyPressScale(openDiagnostics);
+        }
+
+        // Voice and Controller are configuration, so Settings is their launcher-side home (U3).
+        // Voice keeps its in-game home in the Mod Menu's own Voice section; this entry is the
+        // launcher-side route to the same state, not a second source of truth.
+        View openVoice = findViewById(R.id.settings_open_voice);
+        if (openVoice != null) {
+            openVoice.setOnClickListener(v -> startActivity(
+                    new Intent(this, org.chimeramc.client.ui.activities.VoiceChatActivity.class)));
+            DynamicAnim.applyPressScale(openVoice);
+        }
+        View openController = findViewById(R.id.settings_open_controller);
+        if (openController != null) {
+            openController.setOnClickListener(v -> openCustomizeTab(
+                    org.chimeramc.client.ui.activities.CustomizeActivity.TAB_CONTROLLER));
+            DynamicAnim.applyPressScale(openController);
+        }
 
         // Keep English at the top (default language).
         // Sort all other languages alphabetically by their display name.
@@ -427,7 +465,7 @@ public class SettingsActivity extends BaseActivity {
     }
 
     /**
-     * Wires the Bedrock Optifine Mode card.
+     * Wires the Game Performance Mode card.
      *
      * <p>The master switch gates the whole section; the per-item rows are built by
      * {@code OptifineSettingsController} so the item list comes from one source. Applying pushes
@@ -580,7 +618,6 @@ public class SettingsActivity extends BaseActivity {
             itemDark.setOnClickListener(v -> { themeManager.setThemeMode(2); });
         }
 
-        setupColorPicker();
         setupBackgroundImagePicker();
     }
 
@@ -592,9 +629,7 @@ public class SettingsActivity extends BaseActivity {
         iconSizeValue = findViewById(R.id.icon_size_value);
         fontScaleValue = findViewById(R.id.font_scale_value);
         blurIntensityValue = findViewById(R.id.blur_intensity_value);
-        switchShowAnimations = findViewById(R.id.switch_show_animations);
-        switchEnableGlow = findViewById(R.id.switch_enable_glow);
-        switchCompactMode = findViewById(R.id.switch_compact_mode);
+        switchReduceMotion = findViewById(R.id.switch_reduce_motion);
         btnResetCustomizations = findViewById(R.id.btn_reset_customizations);
         // Animation Speed SeekBar
         SeekBar seekAnimationSpeed = findViewById(R.id.seek_animation_speed);
@@ -740,73 +775,11 @@ public class SettingsActivity extends BaseActivity {
             });
         }
 
-        // Show Animations Toggle
-        if (switchShowAnimations != null) {
-            switchShowAnimations.setChecked(personalizationManager.isShowAnimations());
-            switchShowAnimations.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                personalizationManager.setShowAnimations(isChecked);
-            });
-        }
-
-        // Enable Glow Effects Toggle
-        if (switchEnableGlow != null) {
-            switchEnableGlow.setChecked(personalizationManager.isEnableGlowEffects());
-            switchEnableGlow.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                personalizationManager.setEnableGlowEffects(isChecked);
-            });
-        }
-
-        // Compact Mode Toggle
-        if (switchCompactMode != null) {
-            switchCompactMode.setChecked(personalizationManager.isCompactMode());
-            switchCompactMode.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                personalizationManager.setCompactMode(isChecked);
-            });
-        }
-
-        // Firework touch effect
-        SwitchMaterial switchFirework = findViewById(R.id.switch_firework_touch);
-        SwitchMaterial switchFireworkAccent = findViewById(R.id.switch_firework_accent);
-        Spinner spinnerFirework = findViewById(R.id.spinner_firework_intensity);
-        View rowFireworkIntensity = findViewById(R.id.row_firework_intensity);
-        View rowFireworkAccent = findViewById(R.id.row_firework_accent);
-        if (switchFirework != null) {
-            switchFirework.setChecked(personalizationManager.isFireworkTouchEnabled());
-            applyFireworkEnabledState(rowFireworkIntensity, rowFireworkAccent, switchFirework.isChecked());
-            switchFirework.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                personalizationManager.setFireworkTouchEnabled(isChecked);
-                applyFireworkEnabledState(rowFireworkIntensity, rowFireworkAccent, isChecked);
-                refreshFireworkLayer();
-            });
-        }
-        if (spinnerFirework != null) {
-            String[] levels = {
-                    getString(R.string.firework_low),
-                    getString(R.string.firework_medium),
-                    getString(R.string.firework_high),
-            };
-            ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
-                    android.R.layout.simple_spinner_item, levels);
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            spinnerFirework.setAdapter(adapter);
-            spinnerFirework.setSelection(personalizationManager.getFireworkIntensity());
-            spinnerFirework.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                    personalizationManager.setFireworkIntensity(position);
-                    refreshFireworkLayer();
-                }
-
-                @Override
-                public void onNothingSelected(AdapterView<?> parent) {
-                }
-            });
-        }
-        if (switchFireworkAccent != null) {
-            switchFireworkAccent.setChecked(personalizationManager.isFireworkFollowAccent());
-            switchFireworkAccent.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                personalizationManager.setFireworkFollowAccent(isChecked);
-                refreshFireworkLayer();
+        // Reduce motion / transparency: the single accessibility switch (U11).
+        if (switchReduceMotion != null) {
+            switchReduceMotion.setChecked(personalizationManager.isReduceMotion());
+            switchReduceMotion.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                personalizationManager.setReduceMotion(isChecked);
             });
         }
 
@@ -933,265 +906,6 @@ public class SettingsActivity extends BaseActivity {
         if (iconSystem != null) iconSystem.setImageTintList(android.content.res.ColorStateList.valueOf(currentMode == 0 ? selectedColor : unselectedColor));
         if (iconLight != null) iconLight.setImageTintList(android.content.res.ColorStateList.valueOf(currentMode == 1 ? selectedColor : unselectedColor));
         if (iconDark != null) iconDark.setImageTintList(android.content.res.ColorStateList.valueOf(currentMode == 2 ? selectedColor : unselectedColor));
-    }
-
-    /**
-     * Greys out the intensity/accent rows while the effect is off, so the dependency is obvious.
-     */
-    private void applyFireworkEnabledState(View intensityRow, View accentRow, boolean enabled) {
-        float alpha = enabled ? 1f : 0.4f;
-        if (intensityRow != null) {
-            intensityRow.setAlpha(alpha);
-            intensityRow.setEnabled(enabled);
-        }
-        if (accentRow != null) {
-            accentRow.setAlpha(alpha);
-            accentRow.setEnabled(enabled);
-        }
-    }
-
-    /** Pushes a changed firework setting to the live layer without recreating the activity. */
-    private void refreshFireworkLayer() {
-        View root = findViewById(android.R.id.content);
-        if (root instanceof ViewGroup) {
-            org.chimeramc.client.ui.views.FireworkTouchLayer layer =
-                    findFireworkLayer((ViewGroup) root);
-            if (layer != null) layer.refresh(this);
-        }
-    }
-
-    /** Finds the shared firework layer in a view tree, or null. */
-    private static org.chimeramc.client.ui.views.FireworkTouchLayer findFireworkLayer(ViewGroup group) {
-        for (int i = 0; i < group.getChildCount(); i++) {
-            View child = group.getChildAt(i);
-            if (child instanceof org.chimeramc.client.ui.views.FireworkTouchLayer) {
-                return (org.chimeramc.client.ui.views.FireworkTouchLayer) child;
-            }
-            if (child instanceof ViewGroup) {
-                org.chimeramc.client.ui.views.FireworkTouchLayer found =
-                        findFireworkLayer((ViewGroup) child);
-                if (found != null) return found;
-            }
-        }
-        return null;
-    }
-
-    private void setupColorPicker() {
-        colorGridContainer = findViewById(R.id.color_preset_grid);
-        moreColorsContainer = findViewById(R.id.color_more_grid);
-
-        if (colorGridContainer != null && moreColorsContainer != null) {
-            int currentAccent = personalizationManager.getAccentColor();
-            buildColorGrid(colorGridContainer, PersonalizationManager.PRESET_COLORS, currentAccent);
-            buildColorGrid(moreColorsContainer, PersonalizationManager.MORE_COLORS, currentAccent);
-        }
-
-        android.widget.EditText inputCustomColor = findViewById(R.id.input_custom_color);
-        Button btnApplyColor = findViewById(R.id.btn_apply_color);
-        if (inputCustomColor != null && btnApplyColor != null) {
-            btnApplyColor.setOnClickListener(v -> {
-                String input = inputCustomColor.getText().toString().trim();
-                try {
-                    int color;
-                    if (input.startsWith("#")) {
-                        color = Color.parseColor(input);
-                    } else if (input.contains(",")) {
-                        String[] parts = input.split(",");
-                        if (parts.length == 3) {
-                            color = Color.rgb(Integer.parseInt(parts[0].trim()),
-                                    Integer.parseInt(parts[1].trim()),
-                                    Integer.parseInt(parts[2].trim()));
-                        } else {
-                            throw new IllegalArgumentException("Invalid RGB format");
-                        }
-                    } else {
-                        color = Color.parseColor("#" + input);
-                    }
-                    personalizationManager.setAccentColor(color);
-                    refreshColorPickerInPlace();
-                } catch (Exception e) {
-                    Toast.makeText(this, R.string.invalid_color_format, Toast.LENGTH_SHORT).show();
-                }
-            });
-        }
-    }
-
-    private void buildColorGrid(LinearLayout container, int[] colors, int selectedColor) {
-        container.removeAllViews();
-
-        float density = getResources().getDisplayMetrics().density;
-        int circleSize = (int) (32 * density);
-        int margin = (int) (4 * density);
-        int checkSize = (int) (14 * density);
-
-        int columns = 15;
-        int index = 0;
-        while (index < colors.length) {
-            LinearLayout row = new LinearLayout(this);
-            row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setLayoutParams(new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT));
-
-            for (int col = 0; col < columns && index < colors.length; col++, index++) {
-                int color = colors[index];
-
-                FrameLayout wrapper = new FrameLayout(this);
-                LinearLayout.LayoutParams wrapParams = new LinearLayout.LayoutParams(circleSize, circleSize);
-                wrapParams.setMargins(margin, margin, margin, margin);
-                wrapper.setLayoutParams(wrapParams);
-
-                View circle = new View(this);
-                circle.setLayoutParams(new FrameLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT));
-                GradientDrawable circleDrawable = new GradientDrawable();
-                circleDrawable.setShape(GradientDrawable.OVAL);
-                circleDrawable.setColor(color);
-                if (color == selectedColor) {
-                    circleDrawable.setStroke((int) (2 * density), Color.WHITE);
-                }
-                circle.setBackground(circleDrawable);
-                wrapper.addView(circle);
-
-                if (color == selectedColor) {
-                    ImageView check = new ImageView(this);
-                    FrameLayout.LayoutParams checkParams = new FrameLayout.LayoutParams(checkSize, checkSize);
-                    checkParams.gravity = Gravity.CENTER;
-                    check.setLayoutParams(checkParams);
-                    check.setImageResource(R.drawable.ic_check);
-                    check.setColorFilter(Color.WHITE);
-                    wrapper.addView(check);
-                }
-
-                wrapper.setClickable(true);
-                wrapper.setFocusable(true);
-                final int finalColor = color;
-                wrapper.setOnClickListener(v -> {
-                    personalizationManager.setAccentColor(finalColor);
-                    refreshColorPickerInPlace();
-                });
-                DynamicAnim.applyPressScale(wrapper);
-
-                row.addView(wrapper);
-            }
-
-            container.addView(row);
-        }
-
-    }
-
-    private void refreshColorPickerInPlace() {
-        setupColorPicker();
-        PersonalizationManager pm = new PersonalizationManager(this);
-        int accent = pm.getAccentColor();
-        
-        pm.applyToActivity(this);
-
-        refreshThemeSelectionUI();
-        
-        TextView[] tabs = getSettingsTabs();
-        selectTab(tabs[selectedTabIndex]);
-        
-        View settingsTitle = findViewById(R.id.settings_title);
-        if (settingsTitle instanceof TextView && accent != 0) {
-            ((TextView) settingsTitle).setTextColor(accent);
-        }
-        
-        Button btnSelectImage = findViewById(R.id.btn_select_bg_image);
-        if (btnSelectImage != null && accent != 0) {
-            btnSelectImage.setBackgroundTintList(ColorStateList.valueOf(accent));
-            btnSelectImage.setTextColor(Color.WHITE);
-        }
-        
-        Button btnCheckUpdate = findViewById(R.id.btn_check_update);
-        if (btnCheckUpdate != null && accent != 0) {
-            btnCheckUpdate.setBackgroundTintList(ColorStateList.valueOf(accent));
-            btnCheckUpdate.setTextColor(Color.WHITE);
-        }
-
-        Button btnUpdatePreloaderSigs = findViewById(R.id.btn_update_preloader_sigs);
-        if (btnUpdatePreloaderSigs != null && accent != 0) {
-            btnUpdatePreloaderSigs.setBackgroundTintList(ColorStateList.valueOf(accent));
-            btnUpdatePreloaderSigs.setTextColor(Color.WHITE);
-        }
-        
-        SwitchMaterial switchLogcat = findViewById(R.id.switch_logcat);
-        if (switchLogcat != null && accent != 0) {
-            int[][] states = {{android.R.attr.state_checked}, {}};
-            switchLogcat.setThumbTintList(new ColorStateList(states, new int[]{accent, 0xFFAAAAAA}));
-            int trackChecked = Color.argb(100, Color.red(accent), Color.green(accent), Color.blue(accent));
-            switchLogcat.setTrackTintList(new ColorStateList(states, new int[]{trackChecked, 0xFF555555}));
-        }
-        
-        SwitchMaterial switchManagedLogin = findViewById(R.id.switch_managed_login);
-        if (switchManagedLogin != null && accent != 0) {
-            int[][] states = {{android.R.attr.state_checked}, {}};
-            switchManagedLogin.setThumbTintList(new ColorStateList(states, new int[]{accent, 0xFFAAAAAA}));
-            int trackChecked = Color.argb(100, Color.red(accent), Color.green(accent), Color.blue(accent));
-            switchManagedLogin.setTrackTintList(new ColorStateList(states, new int[]{trackChecked, 0xFF555555}));
-        }
-
-        SwitchMaterial switchCrashUpload = findViewById(R.id.switch_crash_upload);
-        if (switchCrashUpload != null && accent != 0) {
-            int[][] states = {{android.R.attr.state_checked}, {}};
-            switchCrashUpload.setThumbTintList(new ColorStateList(states, new int[]{accent, 0xFFAAAAAA}));
-            int trackChecked = Color.argb(100, Color.red(accent), Color.green(accent), Color.blue(accent));
-            switchCrashUpload.setTrackTintList(new ColorStateList(states, new int[]{trackChecked, 0xFF555555}));
-        }
-        
-        SwitchMaterial switchLowInputDelay = findViewById(R.id.switch_low_input_delay);
-        if (switchLowInputDelay != null && accent != 0) {
-            int[][] states = {{android.R.attr.state_checked}, {}};
-            switchLowInputDelay.setThumbTintList(new ColorStateList(states, new int[]{accent, 0xFFAAAAAA}));
-            int trackChecked = Color.argb(100, Color.red(accent), Color.green(accent), Color.blue(accent));
-            switchLowInputDelay.setTrackTintList(new ColorStateList(states, new int[]{trackChecked, 0xFF555555}));
-        }
-
-        SwitchMaterial switchGxCore = findViewById(R.id.switch_gxcore);
-        if (switchGxCore != null && accent != 0) {
-            int[][] states = {{android.R.attr.state_checked}, {}};
-            switchGxCore.setThumbTintList(new ColorStateList(states, new int[]{accent, 0xFFAAAAAA}));
-            int trackChecked = Color.argb(100, Color.red(accent), Color.green(accent), Color.blue(accent));
-            switchGxCore.setTrackTintList(new ColorStateList(states, new int[]{trackChecked, 0xFF555555}));
-        }
-
-        SwitchMaterial switchReduceNetworkLatency = findViewById(R.id.switch_reduce_network_latency);
-        if (switchReduceNetworkLatency != null && accent != 0) {
-            int[][] states = {{android.R.attr.state_checked}, {}};
-            switchReduceNetworkLatency.setThumbTintList(new ColorStateList(states, new int[]{accent, 0xFFAAAAAA}));
-            int trackChecked = Color.argb(100, Color.red(accent), Color.green(accent), Color.blue(accent));
-            switchReduceNetworkLatency.setTrackTintList(new ColorStateList(states, new int[]{trackChecked, 0xFF555555}));
-        }
-
-        SwitchMaterial switchFpsOptimizer = findViewById(R.id.switch_fps_optimizer);
-        if (switchFpsOptimizer != null && accent != 0) {
-            int[][] states = {{android.R.attr.state_checked}, {}};
-            switchFpsOptimizer.setThumbTintList(new ColorStateList(states, new int[]{accent, 0xFFAAAAAA}));
-            int trackChecked = Color.argb(100, Color.red(accent), Color.green(accent), Color.blue(accent));
-            switchFpsOptimizer.setTrackTintList(new ColorStateList(states, new int[]{trackChecked, 0xFF555555}));
-        }
-
-        TextView navAppName = findViewById(R.id.nav_app_name);
-        if (navAppName != null && accent != 0) {
-            pm.applySolidAccentText(navAppName, accent);
-        }
-        
-        Button navSignInBtn = findViewById(R.id.nav_sign_in_button);
-        if (navSignInBtn != null && accent != 0) {
-            navSignInBtn.setBackgroundTintList(ColorStateList.valueOf(accent));
-            navSignInBtn.setTextColor(Color.WHITE);
-        }
-        
-        int[] navTabIds = {R.id.nav_tab_launch, R.id.nav_tab_instances, R.id.nav_tab_customize, R.id.nav_tab_settings};
-        for (int id : navTabIds) {
-            TextView navTab = findViewById(id);
-            if (navTab != null && id == R.id.nav_tab_settings && accent != 0) {
-                navTab.setTextColor(accent);
-                navTab.setTypeface(navTab.getTypeface(), android.graphics.Typeface.BOLD);
-                androidx.core.widget.TextViewCompat.setCompoundDrawableTintList(navTab, ColorStateList.valueOf(accent));
-            }
-        }
     }
 
     private void setupBackgroundImagePicker() {
@@ -1432,6 +1146,145 @@ public class SettingsActivity extends BaseActivity {
             migrationCleanupButton.setOnClickListener(v -> confirmCleanupLegacyDir());
         }
         refreshMigrationCleanupUi();
+        setupWorldBackupSection();
+    }
+
+    /**
+     * Scheduled world backups (G13): toggle + interval spinner + SAF destination + run-now.
+     */
+    private void setupWorldBackupSection() {
+        worldBackupConfig = new WorldBackupConfig(this);
+        switchWorldBackupEnabled = findViewById(R.id.switch_world_backup_enabled);
+        spinnerWorldBackupInterval = findViewById(R.id.spinner_world_backup_interval);
+        worldBackupDestinationStatus = findViewById(R.id.world_backup_destination_status);
+        worldBackupStatus = findViewById(R.id.world_backup_status);
+        Button pickFolder = findViewById(R.id.btn_world_backup_pick_folder);
+        Button backUpNow = findViewById(R.id.btn_world_backup_now);
+
+        if (switchWorldBackupEnabled != null) {
+            switchWorldBackupEnabled.setChecked(worldBackupConfig.isEnabled());
+            switchWorldBackupEnabled.setOnCheckedChangeListener((v, checked) -> {
+                worldBackupConfig.setEnabled(checked);
+                WorldBackupScheduler.reschedule(this);
+                refreshWorldBackupUi();
+            });
+        }
+
+        if (spinnerWorldBackupInterval != null) {
+            String[] labels = {
+                    getString(R.string.settings_world_backup_interval_daily),
+                    getString(R.string.settings_world_backup_interval_3_days),
+                    getString(R.string.settings_world_backup_interval_weekly),
+            };
+            ArrayAdapter<String> adapter = new ArrayAdapter<>(this, R.layout.spinner_item, labels);
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            spinnerWorldBackupInterval.setAdapter(adapter);
+
+            int index = indexOfInterval(worldBackupConfig.getIntervalHours());
+            spinnerWorldBackupInterval.setSelection(index);
+            spinnerWorldBackupInterval.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(AdapterView<?> parent, android.view.View view, int position, long id) {
+                    worldBackupConfig.setIntervalHours(intervalForIndex(position));
+                    WorldBackupScheduler.reschedule(SettingsActivity.this);
+                    refreshWorldBackupUi();
+                }
+
+                @Override
+                public void onNothingSelected(AdapterView<?> parent) {
+                }
+            });
+        }
+
+        if (pickFolder != null) {
+            pickFolder.setOnClickListener(v -> {
+                if (worldBackupFolderLauncher != null) {
+                    worldBackupFolderLauncher.launch(null);
+                }
+            });
+            DynamicAnim.applyPressScale(pickFolder);
+        }
+
+        if (backUpNow != null) {
+            backUpNow.setOnClickListener(v -> WorldBackupScheduler.runNow(this));
+            DynamicAnim.applyPressScale(backUpNow);
+        }
+
+        refreshWorldBackupUi();
+    }
+
+    private void onWorldBackupFolderPicked(Uri uri) {
+        try {
+            getContentResolver().takePersistableUriPermission(uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        } catch (SecurityException e) {
+            // Permission not persistable is fine — the run still checks access each time.
+        }
+        worldBackupConfig.setFolderUri(uri);
+        worldBackupConfig.setEnabled(true);
+        if (switchWorldBackupEnabled != null) {
+            switchWorldBackupEnabled.setChecked(true);
+        }
+        WorldBackupScheduler.reschedule(this);
+        refreshWorldBackupUi();
+    }
+
+    private void refreshWorldBackupUi() {
+        if (worldBackupConfig == null) return;
+        if (worldBackupDestinationStatus != null) {
+            if (worldBackupConfig.hasDestinationPermission()) {
+                Uri uri = worldBackupConfig.getFolderUri();
+                worldBackupDestinationStatus.setText(getString(
+                        R.string.settings_world_backup_destination_picked,
+                        uri == null ? getString(R.string.settings_world_backup_destination_missing)
+                                : WorldBackupStore.displayNameFromTreeUri(this, uri)));
+            } else {
+                worldBackupDestinationStatus.setText(
+                        R.string.settings_world_backup_destination_missing);
+            }
+        }
+        if (worldBackupStatus != null) {
+            refreshBackupRunStatus();
+        }
+    }
+
+    private void refreshBackupRunStatus() {
+        if (worldBackupStatus == null || worldBackupConfig == null) return;
+        if (!worldBackupConfig.isEnabled()) {
+            worldBackupStatus.setText(R.string.settings_world_backup_disabled);
+            return;
+        }
+        if (!worldBackupConfig.hasDestinationPermission()) {
+            worldBackupStatus.setText(R.string.settings_world_backup_next_run_pending);
+            return;
+        }
+        long next = WorldBackupConfig.nextRunAfter(worldBackupConfig.getLastRunAt(),
+                worldBackupConfig.getIntervalHours());
+        long now = System.currentTimeMillis();
+        String lastResult = worldBackupConfig.getLastResult();
+        if (worldBackupConfig.getLastRunAt() > 0L && next > now) {
+            String when = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT,
+                    Locale.getDefault()).format(new Date(next));
+            String base = getString(R.string.settings_world_backup_next_run, when);
+            worldBackupStatus.setText(lastResult != null && !lastResult.isEmpty()
+                    ? lastResult + "\n" + base : base);
+        } else {
+            worldBackupStatus.setText(R.string.settings_world_backup_next_run_pending);
+        }
+    }
+
+    private static int intervalForIndex(int position) {
+        switch (position) {
+            case 1: return 72;
+            case 2: return 168;
+            default: return 24;
+        }
+    }
+
+    private static int indexOfInterval(int hours) {
+        if (hours <= 24) return 0;
+        if (hours <= 72) return 1;
+        return 2;
     }
 
     private void refreshSharedStorageLayoutUi() {
@@ -1502,9 +1355,18 @@ public class SettingsActivity extends BaseActivity {
         });
     }
 
+    /** Opens the Customize host on a specific inner tab (Controller). */
+    private void openCustomizeTab(int tab) {
+        Intent intent = new Intent(this,
+                org.chimeramc.client.ui.activities.CustomizeActivity.class);
+        intent.putExtra(org.chimeramc.client.ui.activities.CustomizeActivity.EXTRA_INITIAL_TAB,
+                tab);
+        startActivity(intent);
+    }
+
     private void setupAboutSection() {
         findViewById(R.id.settings_btn_github).setOnClickListener(v ->
-                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/ChimeraAnt-DEV/ChimeraLauncher"))));
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/ChimeraAnt-DEV/GlowberryClient"))));
 
         findViewById(R.id.settings_btn_discord).setOnClickListener(v ->
                 startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://discord.gg/jsnzw4ueAt"))));

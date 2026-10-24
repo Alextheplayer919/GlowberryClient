@@ -49,3 +49,6 @@ local.properties
 # System
 .DS_Store
 Thumbs.db
+
+# Docs build output (Vitepress)
+docs/.vitepress/dist/

@@ -1,5 +1,7 @@
 {
   "schemaVersion": 1,
+  "releasedAt": "2026-10-23T00:00:00Z",
+  "supportUntil": "2027-04-23T00:00:00Z",
   "headline": "GlowberryClient BETA3 — Module Data Fixes, Blueberry UI & Native Route Cleanup",
   "summary": "The module catalogue entries that were disabled, or enabled but doing nothing, purely because they were refused for lack of a live native game feed now work wherever this build actually has a route to their data. Every entry is classified by the route it needs, and only the entries that genuinely require a feed this build does not expose stay badged, with the reason they are badged.",
   "sections": [

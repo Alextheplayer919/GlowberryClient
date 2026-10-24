@@ -301,4 +301,52 @@ public class CosmeticsDiagnosticsReportTest {
         hitching.framePacingJittering = true;
         assertTrue(CosmeticsDiagnosticsReport.format(hitching).contains("a recent frame was late"));
     }
+
+    @Test
+    public void theLayerBreakdownNamesAllThreeLayers() {
+        CosmeticsDiagnosticsReport.Inputs in = fullInputs();
+        in.sessionActive = true;
+        in.inWorld = true;
+        String report = CosmeticsDiagnosticsReport.format(in);
+        assertTrue(report.contains("Layers (item G9):"));
+        assertTrue(report.contains("render hook: live"));
+        assertTrue(report.contains("skin data:"));
+        assertTrue(report.contains("session: in-world"));
+    }
+
+    @Test
+    public void theRenderHookLayerIsHonestWhenWaitingNotInstalled() {
+        CosmeticsDiagnosticsReport.Inputs waiting = fullInputs();
+        waiting.hookInstalled = false;
+        waiting.hookInstallPending = true;
+        assertTrue(CosmeticsDiagnosticsReport.format(waiting)
+                .contains("render hook: waiting for the render context"));
+
+        CosmeticsDiagnosticsReport.Inputs refused = fullInputs();
+        refused.hookInstalled = false;
+        refused.hookInstallPending = false;
+        refused.renderHookFailureReason = 1;
+        assertTrue(CosmeticsDiagnosticsReport.format(refused)
+                .contains("render hook: not live (build outside the verified version range)"));
+    }
+
+    @Test
+    public void theSkinDataLayerSemantics() {
+        CosmeticsDiagnosticsReport.Inputs noSeam = fullInputs();
+        noSeam.skinSeamStage = -1;
+        noSeam.skinFeedInstalled = false;
+        noSeam.skinCaptured = false;
+        assertTrue(CosmeticsDiagnosticsReport.format(noSeam)
+                .contains("skin data: unknown (native skin seam absent)"));
+
+        CosmeticsDiagnosticsReport.Inputs captured = fullInputs();
+        captured.skinSeamStage = 2;
+        captured.skinJoinCalls = 3;
+        captured.skinTextureCalls = 5;
+        captured.skinSeamNote = "joins observed";
+        captured.skinCaptured = true;
+        captured.skinFeedInstalled = true;
+        String text = CosmeticsDiagnosticsReport.format(captured);
+        assertTrue(text, text.contains("skin data: captured (game-skin feed installed); joins observed"));
+    }
 }

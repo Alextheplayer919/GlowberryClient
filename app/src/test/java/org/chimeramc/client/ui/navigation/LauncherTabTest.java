@@ -8,45 +8,61 @@ import static org.junit.Assert.assertTrue;
 
 import android.view.KeyEvent;
 
-import org.chimeramc.client.ui.activities.InstallationsActivity;
-import org.chimeramc.client.ui.activities.CustomizeActivity;
-import org.chimeramc.client.ui.activities.InstancesActivity;
+import org.chimeramc.client.ui.activities.LibraryActivity;
 import org.chimeramc.client.ui.activities.MainActivity;
 import org.chimeramc.client.ui.activities.ModsFullscreenActivity;
+import org.chimeramc.client.ui.activities.SettingsActivity;
 import org.junit.Test;
 
+/**
+ * The four-destination navigation contract (U1).
+ *
+ * <p>Instances, Install and Replay are one {@link LibraryActivity}; Cosmetics is a profile sheet on
+ * Play; Voice, Controller and Skins live under Settings. These tests pin the destination list, its
+ * order (which is also the bumper cycle order) and the two guards that stop a bumper press from
+ * navigating away from a running game.
+ */
 public class LauncherTabTest {
 
     @Test
     public void tabOrderMatchesConsoleLayout() {
         LauncherTab[] tabs = LauncherTab.values();
         assertSame(LauncherTab.LAUNCH, tabs[0]);
-        assertSame(LauncherTab.VERSIONS, tabs[1]);
-        assertSame(LauncherTab.INSTALLATIONS, tabs[2]);
-        assertSame(LauncherTab.MODS, tabs[3]);
-        assertSame(LauncherTab.CUSTOMIZE, tabs[4]);
-        assertSame(LauncherTab.SETTINGS, tabs[5]);
-        // Six tabs fit the HorizontalScrollView. About lives inside Settings,
-        // Controller/Skins inside Customize, and Voice is an in-game Mod Menu section
-        // rather than a launcher destination, so it is deliberately not here.
-        assertEquals(6, tabs.length);
+        assertSame(LauncherTab.LIBRARY, tabs[1]);
+        assertSame(LauncherTab.MODS, tabs[2]);
+        assertSame(LauncherTab.SETTINGS, tabs[3]);
+        // Four destinations fit a phone without a scroll. About/Controller/Skins/Voice live inside
+        // Settings, Cosmetics is a profile sheet on Play, and Instances/Install/Replay are the
+        // Library's inner tabs, so none of them is a destination of its own.
+        assertEquals(4, tabs.length);
     }
 
     @Test
     public void tabsMapToTheirActivities() {
         assertSame(MainActivity.class, LauncherTab.LAUNCH.activity());
-        assertSame(InstancesActivity.class, LauncherTab.VERSIONS.activity());
-        assertSame(InstallationsActivity.class, LauncherTab.INSTALLATIONS.activity());
+        assertSame(LibraryActivity.class, LauncherTab.LIBRARY.activity());
         assertSame(ModsFullscreenActivity.class, LauncherTab.MODS.activity());
-        assertSame(CustomizeActivity.class, LauncherTab.CUSTOMIZE.activity());
+        assertSame(SettingsActivity.class, LauncherTab.SETTINGS.activity());
     }
 
     @Test
     public void forActivityResolvesKnownTabs() {
         assertSame(LauncherTab.LAUNCH, LauncherTab.forActivity(MainActivity.class));
-        assertSame(LauncherTab.VERSIONS, LauncherTab.forActivity(InstancesActivity.class));
-        assertSame(LauncherTab.INSTALLATIONS, LauncherTab.forActivity(InstallationsActivity.class));
+        assertSame(LauncherTab.LIBRARY, LauncherTab.forActivity(LibraryActivity.class));
+        assertSame(LauncherTab.MODS, LauncherTab.forActivity(ModsFullscreenActivity.class));
+        assertSame(LauncherTab.SETTINGS, LauncherTab.forActivity(SettingsActivity.class));
         assertNull(LauncherTab.forActivity(String.class));
+    }
+
+    @Test
+    public void everyTabHasADistinctActivity() {
+        LauncherTab[] tabs = LauncherTab.values();
+        for (int i = 0; i < tabs.length; i++) {
+            for (int j = i + 1; j < tabs.length; j++) {
+                assertFalse("duplicate activity for " + tabs[i] + " / " + tabs[j],
+                        tabs[i].activity() == tabs[j].activity());
+            }
+        }
     }
 
     @Test
@@ -61,9 +77,16 @@ public class LauncherTabTest {
 
     @Test
     public void offsetMovesWithinBounds() {
-        assertSame(LauncherTab.VERSIONS, LauncherTab.LAUNCH.offset(1));
-        assertSame(LauncherTab.LAUNCH, LauncherTab.VERSIONS.offset(-1));
+        assertSame(LauncherTab.LIBRARY, LauncherTab.LAUNCH.offset(1));
+        assertSame(LauncherTab.LAUNCH, LauncherTab.LIBRARY.offset(-1));
         assertSame(LauncherTab.LAUNCH, LauncherTab.LAUNCH.offset(0));
+    }
+
+    @Test
+    public void indexIsTheDeclarationOrder() {
+        for (LauncherTab tab : LauncherTab.values()) {
+            assertSame(tab, LauncherTab.values()[tab.index()]);
+        }
     }
 
     @Test
@@ -77,8 +100,6 @@ public class LauncherTabTest {
         assertEquals(0, LauncherTab.directionForKey(KeyEvent.KEYCODE_BUTTON_A));
         assertEquals(0, LauncherTab.directionForKey(KeyEvent.KEYCODE_DPAD_UP));
     }
-
-    /** A bumper press must never navigate away from a running game. */
 
     @Test
     public void gameSessionSuppressesTabSwitching() {

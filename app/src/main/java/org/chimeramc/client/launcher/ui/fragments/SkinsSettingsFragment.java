@@ -89,8 +89,9 @@ public class SkinsSettingsFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
         ioExecutor = Executors.newSingleThreadExecutor();
         PersonalizationManager pm = new PersonalizationManager(requireContext());
-        view.setPadding(0, (int) ((pm.isCompactMode() ? 8 : 16) * getResources().getDisplayMetrics().density),
-                0, (int) ((pm.isCompactMode() ? 8 : 16) * getResources().getDisplayMetrics().density));
+        int pad = (int) (org.chimeramc.client.ui.components.UiTokens.SPACE_4
+                * getResources().getDisplayMetrics().density);
+        view.setPadding(0, pad, 0, pad);
 
         recycler = view.findViewById(R.id.skins_recycler);
         loadingOverlay = view.findViewById(R.id.skins_loading_overlay);

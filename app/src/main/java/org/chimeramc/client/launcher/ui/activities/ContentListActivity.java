@@ -4,6 +4,8 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
@@ -26,7 +28,9 @@ import org.chimeramc.client.R;
 import org.chimeramc.client.core.content.ContentManager;
 import org.chimeramc.client.core.content.ResourcePackItem;
 import org.chimeramc.client.core.content.ResourcePackManager;
+import org.chimeramc.client.core.content.RakNetPing;
 import org.chimeramc.client.core.content.ServerItem;
+import org.chimeramc.client.core.content.ServerPongInfo;
 import org.chimeramc.client.core.content.StructureExtractor;
 import org.chimeramc.client.core.content.WorldItem;
 import org.chimeramc.client.core.content.WorldManager;
@@ -49,6 +53,8 @@ import java.io.OutputStream;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 public class ContentListActivity extends BaseActivity {
@@ -90,6 +96,11 @@ public class ContentListActivity extends BaseActivity {
     private List<ServerItem> allServers = new ArrayList<>();
     
     private org.chimeramc.client.ui.dialogs.LoadingDialog progressDialog;
+
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private ExecutorService pingExecutor;
+    /** Server addresses ("ip:port") that already answered; they are not re-pinged every refresh. */
+    private final java.util.Set<String> pingedServerKeys = new java.util.HashSet<>();
 
     private void showProgressDialog(String message) {
         if (progressDialog == null) {
@@ -432,9 +443,45 @@ public class ContentListActivity extends BaseActivity {
 
     private void setupServersRecyclerView() {
         serversAdapter = new org.chimeramc.client.ui.adapter.ServersAdapter(new ArrayList<>(), server -> showDeleteServerDialog(server));
+        GameVersion currentVersion = versionManager.getSelectedVersion();
+        serversAdapter.setSelectedVersionCode(
+                currentVersion == null ? null : currentVersion.versionCode);
         binding.contentRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         binding.contentRecyclerView.setAdapter(serversAdapter);
         binding.contentRecyclerView.post(() -> DynamicAnim.staggerRecyclerChildren(binding.contentRecyclerView));
+    }
+
+    /**
+     * Pings every listed server on a small background executor and posts the result back. The
+     * executor is created lazily so the servers tab pays nothing while it is not visible.
+     */
+    private void startServerPings(List<org.chimeramc.client.core.content.ServerItem> servers) {
+        if (servers == null || servers.isEmpty()) return;
+        List<org.chimeramc.client.core.content.ServerItem> toPing = new ArrayList<>();
+        for (org.chimeramc.client.core.content.ServerItem server : servers) {
+            String key = org.chimeramc.client.ui.adapter.ServersAdapter.keyFor(server);
+            if (pingedServerKeys.contains(key)) continue;
+            toPing.add(server);
+            pingedServerKeys.add(key);
+        }
+        if (toPing.isEmpty()) return;
+        synchronized (this) {
+            if (pingExecutor == null) {
+                pingExecutor = Executors.newFixedThreadPool(3);
+            }
+        }
+        ExecutorService executor = pingExecutor;
+        for (org.chimeramc.client.core.content.ServerItem server : toPing) {
+            executor.execute(() -> {
+                ServerPongInfo pong = RakNetPing.ping(server.ip, server.port, 3000);
+                boolean failed = pong == null;
+                mainHandler.post(() -> {
+                    if (serversAdapter != null) {
+                        serversAdapter.onPingResult(server, pong, failed);
+                    }
+                });
+            });
+        }
     }
 
     private void setupObservers() {
@@ -488,6 +535,7 @@ public class ContentListActivity extends BaseActivity {
                     allServers = servers != null ? servers : new ArrayList<>();
                     if (serversAdapter != null) {
                         filterContent(binding.searchEditText.getText().toString());
+                        startServerPings(allServers);
                     }
                     showLoading(false);
                 });
@@ -1181,6 +1229,10 @@ public class ContentListActivity extends BaseActivity {
         super.onDestroy();
         if (structureExtractor != null) {
             structureExtractor.shutdown();
+        }
+        if (pingExecutor != null) {
+            pingExecutor.shutdownNow();
+            pingExecutor = null;
         }
     }
 }

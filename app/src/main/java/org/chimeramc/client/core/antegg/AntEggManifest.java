@@ -39,10 +39,27 @@ public final class AntEggManifest {
     public final String originMod;
     /** The original Java mod's author, kept separate from the porter's byline. "" if none. */
     public final String originAuthor;
+    /**
+     * The declared lowercase hex SHA-256 of the entry-point bytes (the .so or .lua inside the
+     * archive), or "" when the author did not pin one. A pinned hash makes a mod verifiable
+     * byte-for-byte (item G12): both loaders refuse a mod whose actual entry digest differs from
+     * the pin. Verifying the entry file is deliberately not the whole archive: the manifest
+     * lives inside the archive, so a whole-package pin would be circular. Empty is the honest
+     * "no pin", never a fabricated digest.
+     */
+    public final String sha256;
+    /**
+     * The capabilities the script asks for, as a JSON array of strings (item C3). Always written
+     * to the schema now — even when empty — so the script-API surface is reserved. The sandbox
+     * does not grant host access based on this list today; it is the declaration an author signs
+     * up to.
+     */
+    public final List<String> permissions;
 
     private AntEggManifest(String name, String version, String author, String type,
                            String entryPoint, List<String> dependencies, String description,
-                           boolean aiPorted, String originMod, String originAuthor) {
+                           boolean aiPorted, String originMod, String originAuthor,
+                           String sha256, List<String> permissions) {
         this.name = name;
         this.version = version;
         this.author = author;
@@ -53,6 +70,10 @@ public final class AntEggManifest {
         this.aiPorted = aiPorted;
         this.originMod = originMod;
         this.originAuthor = originAuthor;
+        this.sha256 = sha256 == null ? "" : sha256;
+        this.permissions = permissions == null
+                ? Collections.emptyList()
+                : Collections.unmodifiableList(new ArrayList<>(permissions));
     }
 
     /** A stable id derived from the manifest name, used for the sandbox and instance folders. */
@@ -73,7 +94,18 @@ public final class AntEggManifest {
                                         String entryPoint, String description,
                                         String originMod, String originAuthor) {
         return new AntEggManifest(name, version, author, type, entryPoint,
-                Collections.emptyList(), description, true, originMod, originAuthor);
+                Collections.emptyList(), description, true, originMod, originAuthor,
+                "", Collections.emptyList());
+    }
+
+    /** A copy of this manifest with the SHA-256 pin replaced. Used by packagers after hashing the bytes. */
+    public AntEggManifest withSha256(String sha256) {
+        String pin = sha256 == null ? "" : sha256.trim().toLowerCase(java.util.Locale.ROOT);
+        if (!pin.isEmpty() && !ModHash.isValidDigest(pin)) {
+            throw new IllegalArgumentException("sha256 must be a 64-character hex SHA-256 digest");
+        }
+        return new AntEggManifest(name, version, author, type, entryPoint, dependencies, description,
+                aiPorted, originMod, originAuthor, pin, permissions);
     }
 
     public boolean isNative() {
@@ -155,6 +187,32 @@ public final class AntEggManifest {
             }
         }
 
+        // Item G12: an optional SHA-256 pin of the whole package. When present it must be a
+        // well-formed 64-hex SHA-256; the loader checks the actual package against it. A manifest
+        // that claims a pin but writes garbage is refused — it could not be verified even if it
+        // wanted to be.
+        String sha256 = obj.getString("sha256");
+        if (sha256 != null && !sha256.trim().isEmpty() && !ModHash.isValidDigest(sha256)) {
+            return error("sha256 must be a 64-character hex SHA-256 digest");
+        }
+
+        // Item C3: the capabilities the script declares. Always parsed so the schema keeps the
+        // slot; an absent key is an empty list, a non-array is refused rather than guessed.
+        List<String> permissions = new ArrayList<>();
+        JsonValue perms = obj.get("permissions");
+        if (perms != null) {
+            if (!(perms instanceof JsonValue.Array)) {
+                return error("permissions must be an array of capability names");
+            }
+            for (JsonValue item : ((JsonValue.Array) perms).items) {
+                if (!(item instanceof JsonValue.String)) {
+                    return error("each permission must be a string");
+                }
+                String permission = ((JsonValue.String) item).value.trim();
+                if (!permission.isEmpty()) permissions.add(permission);
+            }
+        }
+
         if (name == null || name.trim().isEmpty()) {
             return error("missing required field: name");
         }
@@ -186,7 +244,9 @@ public final class AntEggManifest {
                 normalizedEntry, dependencies, description == null ? "" : description.trim(),
                 aiPorted,
                 originMod == null ? "" : originMod.trim(),
-                originAuthor == null ? "" : originAuthor.trim()), null);
+                originAuthor == null ? "" : originAuthor.trim(),
+                sha256 == null ? "" : sha256.trim().toLowerCase(java.util.Locale.ROOT),
+                permissions), null);
     }
 
     /** True for {@code major.minor.patch}, optionally with a pre-release/build suffix. */

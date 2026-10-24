@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- One Bedrock Optifine Mode item row: title + status line + its own toggle. Inflated by
+<!-- One Game Performance Mode item row: title + status line + its own toggle. Inflated by
      OptifineSettingsController so adding an item is a code change, not a layout change. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"

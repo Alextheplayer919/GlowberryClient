@@ -52,6 +52,35 @@ static def getVersionCodeByTimestamp() {
     return diff.toInteger()
 }
 
+// G6: stale-stub trap guard. The native build compiles the preloader and libHttpClient git
+// submodules. If they were never checked out (a shallow clone / a zip download), the extracted
+// directory is empty or holds a leftover stub, and CMake either fails with a confusing error or
+// silently builds against a stale libgxcore.so. Fail fast here with the fix instead of letting a
+// broken assembly reach the APK.
+def requiredSubmoduleCmake = [
+        new File("${projectDir}/src/main/cpp/preloader/CMakeLists.txt"),
+        new File("${projectDir}/src/main/cpp/libHttpClient/Build/libHttpClient.Android/CMakeLists.txt"),
+]
+
+def verifySubmodules = tasks.register("verifyNativeSubmodules") {
+    doFirst {
+        def missing = requiredSubmoduleCmake.findAll { !it.isFile() }
+        if (!missing.isEmpty()) {
+            throw new GradleException(
+                    "Native build submodules are not checked out. Missing: ${missing.collect { it.path }}.\n" +
+                            "Run: git submodule sync && git submodule update --init --recursive, then ./gradlew clean\n" +
+                            "(a stale stub libgxcore.so can persist otherwise)."
+            )
+        }
+    }
+}
+tasks.named('preBuild') {
+    dependsOn verifySubmodules
+}
+tasks.matching { it.name.startsWith('merge') || it.name.startsWith('compile') || it.name == 'externalNativeBuildDebug' || it.name == 'externalNativeBuildRelease' }.configureEach {
+    dependsOn verifySubmodules
+}
+
 android {
     namespace 'org.chimeramc.client'
     compileSdkVersion 36

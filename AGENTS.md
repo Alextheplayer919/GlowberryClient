@@ -44,6 +44,35 @@
 - `ModIds.isPvpModule(id)` is the single source of truth for what counts as PvP (`aim_settings`, `cps_display`, `snaplook`). The filter predicate and the provider's grouping both call it so they cannot drift.
 - **PvP modules must stay contiguous in the provider's list.** `ModMenuAdapter` emits one group header per contiguous run of `groupId`, so `InbuiltModuleProvider.groupPvpLast(...)` moves them to the end. Reordering them apart renders the PvP header more than once. `PvpModuleGroupingTest` pins this.
 - PvP modules remain `Source.INBUILT`, so the Inbuilt filter/grouping still finds them тАФ do not move them into a separate store.
+- **`armor_hud` is a PvP module and is in `ModIds.PVP_MODULES`.** It was documented as one in the README and filed in `GROUP_PVP` by the provider, but it was missing from the set, so the PvP filter and the section header disagreed about it. `PvpSectionPolicyTest.everyShippedPvpModuleIsAccountedForByThePolicy` is the gate that caught it and keeps the two in step.
+- **The PvP positioning decision is code, not prose: `PvpSectionPolicy` (B9).** The decision is *reposition, not split and not remove*. `ShippedModule` lists the client-side modules with a boundary sentence each; `advertisableIds()` / `mayBeAdvertisedAsWorking(id)` are exactly what release notes and store copy may name. `isServerArbitrated(id)` reads `PvpModuleScopes.scopeOf` so a catalogue entry whose outcome the server decides can never be promoted into the advertisable set. `positioning()` is the one statement the Mod Menu's PvP empty state renders, so the screen and the policy cannot describe the section differently. `PvpSectionPolicyTest` pins all of it, including that every boundary sentence contains a limiting clause (a boundary that only describes the feature is marketing copy).
+
+## Per-instance account binding (F2)
+- **Accounts are global; a binding is per instance.** `MsftAccountStore` keeps one active account and `XalExporter.exportActiveAccount` writes that account's tokens into the game's XAL directory. `GameVersion.boundAccountId` (persisted in `VersionProfileMetadata`, set through `VersionManager.setInstanceBoundAccount`) overrides that for one instance, so an alt account can live beside a main one.
+- **`InstanceAccountBinding` owns the choice and is pure** (no Context, no prefs), so the fallback rules are unit-tested. The rules are deliberately conservative and each one is pinned by `InstanceAccountBindingTest`:
+  - an unbound instance uses the active account — an existing setup is never changed;
+  - a live binding **wins over** the active account;
+  - a binding whose account was deleted, or whose account has no `serializedAuthManager`, **falls back to the active account and reports `bindingStale`** — a deleted account must not make an instance unlaunchable, but the user is told rather than silently launched as someone else;
+  - a stale binding is **never silently re-pointed**: the dead id stays in the metadata and only the user changes it, which is what keeps "this instance is account X" honest;
+  - a blank/whitespace id is *unbound*, not a lookup for an empty id.
+- **The launch exports the bound account, not the active one.** `MinecraftRuntimePreparer.prepare` resolves the binding and calls `XalExporter.exportAccount(context, id)` before the game starts. `exportAccount` deliberately does **not** change which account is marked active, so choosing an account for one instance does not re-point the launcher UI everywhere else, and a failure does **not** clear the XAL directory (the previous account's data is still the best available; wiping it would sign the user out mid-session). An account problem is logged and the launch continues — it must never block a launch.
+- The Instance Settings row is a **button, not a switch**, because it opens a picker (any signed-in account, or "use the active account" as the first entry so clearing a binding is as easy as setting one). The row shows the bound gamertag, or the stale-binding warning when the account is gone.
+
+## Share-sheet and link import for `.AntEgg` (F1)
+- **A link import is a staging step, never a second path into the loader.** `AntEggLinkDownloader` fetches the package into the cache and `AntEggLoader.loadMod` imports it, so a link import gets the same validation, sandbox resolution and atomic install as a picked file. Do not add a loader entry that skips the archive check because the source "looked like a package".
+- **`AntEggLink` owns every accept/refuse decision and is pure.** Only `http`/`https` is fetched (a pasted `file://`, `content://` or `javascript:` must not become a request or reach the downloader), and a link must name an `.antegg` — the URL's last path segment, query and fragment stripped. A generic "download any URL" path is what turns a share-sheet entry into remote code loading, because the archive validation only holds if the thing fetched is the package. `AntEggLinkTest` pins each refusal.
+- **Shared text is scraped, not trusted.** A share sheet usually sends a whole message, so `firstImportableUrl` takes the first `http(s)` token that names a package, skips ones that do not, and strips trailing sentence punctuation. The scan is bounded by `MAX_TEXT_LENGTH`.
+- **The download is size-capped twice.** `Content-Length` is checked when present and the running byte count is checked while reading, because a chunked response declares no length. An uncapped download from a share sheet is a way to fill a device's storage.
+- The `ACTION_SEND`/`text/plain` filter on `MainActivity` is deliberately broad — the payload is filtered in `FileHandler.sharedPackageLink`, which reads `EXTRA_TEXT`/`EXTRA_TITLE`/`EXTRA_SUBJECT` so a share of unrelated text is not swallowed. `ModsFullscreenActivity`'s "Add Mod" is a chooser (file or link) so the link path is discoverable without a fourth header button.
+
+## Screenshot honesty (B7) and the LeviLaunchroid credit (B4/B14)
+- **Every image in `docs/assets/mockups/` is generated by `scripts/gen_readme_mockups.py`, not captured.** The README says so in the Screenshots section and `docs/assets/screenshots/README.md` holds the placeholder for real captures. Do not caption a mockup with a device name, and do not describe a screen as working on a device until `docs/UI_CHECKLIST.md` section 9 has been run. This is a correctness rule about claims, not a nicety: a mockup that reads as a capture is the same class of over-claim as a fabricated benchmark.
+- **`LeviLaunchroid` is a live runtime dependency and must stay credited.** `PreloaderSignatureRulesManager` resolves signature rules host-copy-first, then `raw.githubusercontent.com/LiteLDev/LeviLaunchroid/...`, then the bundled offline snapshot. The README's "not a fork" line names it alongside the LeviLamina mod-template conventions; the XERJ corpus tag `levilaunchroid` describes that interoperability, not authorship. Removing the credit while keeping the fetch would be a licence-honesty regression.
+- The XERJ badge is live (the hub page shows the corpus, the pinned commit and `Licence: Apache-2.0`), so the README badge no longer says "in review".
+
+## One package format name (`.antegg`)
+- **`.chimerapack` and `.levipack` are gone from the code, not just the docs.** B5 changed the docs but left `FileHandler.isZipModPackageFile` accepting `.chimerapack`, the manifest's intent filters listing it, and the `invalid_mod_file_reason` string naming it in every locale — so a file the docs no longer describe was still accepted, and the error message advertised a name that does not exist. Now the only named package format is `.antegg`; a bare `.zip` stays because it is the unpacked-layout import, not a package format. `grep -rn chimerapack app/src/main` must return only the explanatory comment in `FileHandler`.
+- Adding a format back means touching `FileHandler`, the manifest filters, and every locale's string. Do not re-add a name to one place only.
 
 ## JNI/native packaging (org.levimc vs org.chimeramc)
 - **Prebuilt** `libgxcore.so` and `libinbuiltmods.so` (in `app/src/main/jniLibs/arm64-v8a/`) still export symbols under the **upstream** `org.levimc.*` package names. Do NOT move their Java-bound classes too `org.chimeramc.*` or you get `UnsatisfiedLinkError: No implementation found.`:
@@ -115,6 +144,47 @@
 - **Do not add a recursive "apply card rounding to every GradientDrawable" walk.** `MainActivity.applyCardRounding` deliberately touches only the launch/select buttons; a full-tree radius rewrite also flattens pills (`bg_filter_chip` 20dp), tags (4dp) and accent bars (1.5dp).
 
 ## Top-level navigation (org.chimeramc.client.ui.navigation.LauncherTab + BaseActivity)
+- **The navigation shape is adaptive (U5), chosen at runtime from the window width.** `NavLayoutMode`
+  (in `ui.navigation`) is the pure rule: `< 600dp` → `BOTTOM_NAV` (the top bar, `nav_bar.xml`),
+  `600–839dp` → `NAV_RAIL` (a vertical icon rail, `nav_rail.xml`), `>= 840dp` → `EXPANDED_RAIL` (the
+  same rail with every label). `BaseActivity.wrapWithNavBar` reads it once, picks the layout and the
+  wrapper orientation (`VERTICAL` for the bar, `HORIZONTAL` for the rail), and the content's enter
+  animation axis with it. **Both layouts declare the same ids**, so nothing downstream branches on
+  which one inflated — only `navLayoutMode` does, for labels and the indicator axis.
+- **The breakpoint is read from `smallestScreenWidthDp`, not `screenWidthDp`.** A rotation flips the
+  latter, which would swap a rail for a bar (or the reverse) under the user mid-turn. A window that
+  does cross a breakpoint (a foldable unfolding, split screen) recreates in
+  `onConfigurationChanged` — that is the one place the shape may change.
+- **The rail indicator slides on Y and its length tracks the row height**, via
+  `placeIndicator(view, x, y, vertical)`; the bar's slides on X. Both share the first-placement fade
+  and the reduced-motion snap, so the two layouts cannot drift.
+- `values/bools.xml` (`nav_show_app_name`, `nav_compact_tabs`) and `values-w600dp/{bools,dimens}.xml`
+  are **deleted**: the label rule is now a function of `NavLayoutMode`, and a resource qualifier could
+  only ever half-apply against a runtime choice. Do not reintroduce them.
+
+## Material 3 Expressive primitives (U6): variable-font roles and shape morphing
+- **`UiType` is the one type system (U8 enforced).** The five `Role`s map to the five
+  `UiTokens.TEXT_*` sizes and weights, and `apply(view, role)` sets family + size + weight together —
+  a screen asks for a role, never a raw sp. The family is the **variable** `dmsans`
+  (`UiType.FAMILY`), so a weight is a real axis value: `UiType.weightAxis(w)` builds the platform's
+  `"'wght' 600"` string (pure and pinned by `UiTypeTest`), `applyWeight` sets it, and the coarse
+  `BOLD`/`NORMAL` flag stays only as a fallback for a device that ignores the axis. `dmsans` **is**
+  variable (`wght` 100–1000, plus `opsz`), which is why it is the family; check a font's `fvar` table
+  for a `wght` axis before using it as a role family — `misans`/`poppins`/`lato` are static and a
+  weight axis on one of those does nothing.
+- **`UiShape` is the Expressive shape scale plus its morph.** The stops are a closed set
+  (`EXTRA_SMALL 4` … `FULL`), a superset of the token radii, exposed as `Role`s (INDICATOR/CHIP/
+  FIELD/CARD/WINDOW/PILL). `morph(from, to, t)` is a pure interpolation with one rule worth knowing:
+  a `FULL` end is a sentinel, not a length, so a morph to or from a pill keeps the *other* end's
+  radius (the corner is already a stadium; size is what reads as "became a pill"). `clampToBox`
+  stops a large radius eating a small box. All pure, pinned by `UiShapeTest`.
+- **The rail uses both.** The selected rail row is an accent-wash surface whose corners animate
+  between CHIP and CARD (`BaseActivity.applyRailTabShape`), and the active destination's label is
+  heavier through the weight axis, not just a different colour. The fill is
+  `UiTokens.withAlpha(accent, …)` — the accent still comes from the theme (U7); do not add a second
+  accent source for the morph.
+
+
 - **The nav bar is the original horizontal top bar.** `BaseActivity.wrapWithNavBar` inflates `layout/nav_bar.xml` into a **vertical** wrapper (bar above content, content weighted 1). `nav_bar.xml` is a `LinearLayout` root holding a single 48dp `FrameLayout` row тАФ brand/back on the start, six tabs in a `HorizontalScrollView` in the centre, news/account controls on the end тАФ above a 1dp `nav_divider`. Do NOT add a second bar or a fragment-based tab host.
 - **A vertical side rail was tried and reverted. Do not reintroduce it.** The rail put the tabs in a column beside the content; because the app is landscape-only (`sensorLandscape` on ~29 activities) the column gets only ~360dp of height, and the fixed chrome (brand header, dividers, stacked footer) left room for barely two of six rows. Since `nav_item_launch` was first, Launch was the only reachable tab, which reads as "the other tabs are gone". A top bar has the whole screen *width* for its tabs, and `HorizontalScrollView` already handles six labelled entries, so the height pressure never arises. Restoring the bar also means restoring the wrapper orientation (`VERTICAL`), the content params (`MATCH_PARENT, 0, 1f`) and the enter animation axis (`springTranslationYTo`) тАФ flipping only some of these leaves the content mis-measured.
 - **Each tab is one `TextView` with an icon, not icon+label pair.** The original bar puts the icon on the `TextView` itself via `android:drawableStart` and tints it with `TextViewCompat.setCompoundDrawableTintList`. Only `nav_tab_*` exists тАФ there are no `nav_item_*`, `nav_label_*` or `nav_indicator_*` ids; an earlier rail had four parallel arrays and removing the rail means those ids are gone from the layout, so any leftover `findViewById(R.id.nav_item_*)` is a compile error. `R.id.nav_tab_*` is the click target.
@@ -955,42 +1025,50 @@ Do not re-run this RE from scratch; these are the conclusions.
   pack changer with no reloader whenever the voice module happened to be off).
 
 
-## VIP Mod Menu (Screen B) vs the touch Mod Menu (Screen A)
-- **Two screens, not two versions of one.** Screen A is the existing touch Mod Menu (`ModMenuOverlay`), opened from the
-  launcher nav bar's Controller tab; it stays exactly as it was. Screen B is the premium VIP Mod Menu
-  (`org.chimeramc.client.core.mods.inbuilt.vip.VipModMenuOverlay`), opened **only** by the in-game bind
-  (`InbuiltOverlayManager.handleKeyEvent` тЖТ `ModMenuButton.toggleMenuFromBind`). A bind press must never open Screen A, and the
-  nav bar must keep the Controller tab. Do not merge them or ship one as a "version" of the other.
-- **Screen B is bind-driven, so it selects its own sub-mode from the input family.** `VipInputMode.forGamepad(hasGamepad)` (pure)
-  returns CONTROLLER or KEYBOARD, and `VipTab.defaultFor(mode)` opens the matching surface; the shared module list is
-  one shoulder press away. Touch is deliberately not a VIP mode тАФ the touch surface is Screen A.
-- `VipTab` declaration order is both the tab order and the L1/R1 cycle order (`next()`/`previous()` wrap), exactly like
-  `LauncherTab`. `MODULES` is the grid; `CONTROLLER`/`KEYBOARD` are the two sub-modes of the same screen.
-- **`VipKeyLayout` owns the keyboard geometry** (a 7-row board including the arrow cluster), so `KeyboardIllustrationView`
-  only paints. `VipMenuLogicTest` pins the invariants тАФ every letter row sums to the board width, no two caps on a row
-  overlap, every cap stays inside the board тАФ and it already caught a real arrow-cluster overlap. Rounded/extent-bearing
-  caps must be tested with their real extents, not as circles.
-- **The VIP overlay is the one that wins controller input while open.** `InbuiltOverlayManager.handleMenuControllerKey`
-  and `handleMenuControllerMotion` check the open VIP overlay before Screen A's `ModMenuOverlay`, so a pad drives whichever
-  screen is showing and never both. `ModMenuButton.isMenuShowing()` covers both screens so the HUD-visibility tick does not
-  leave a VIP overlay stranded when the pause menu closes.
-- **`MenuBindRelay` is the single in-game bind-capture sink** (`set`/`clear`/`deliver`/`isCapturing`), shared by Screen A's
-  bind picker and the VIP keyboard tab, replacing the two separate capture paths that had drifted.
-- `VipTheme` holds the 3-4 tier VIP palette and glass/elevation tokens as named constants; `bg_vip_*` drawables and
-  `ic_vip_*` icons are the premium surface. Do not add raw ARGB literals in the VIP layouts тАФ add a token.
-- **The "clicking Modules crashes" bug was a `GradientDrawable` cast on a raw-colour background.** `item_vip_module_card.xml`
-  sets the accent strip's `android:background="#7C5CFF"`, which inflates as a `ColorDrawable`, and
-  `item_vip_group_header.xml` does the same for the group bar. `VipModuleAdapter.bindAccent`/`onBindViewHolder` did
-  `((GradientDrawable) view.getBackground().mutate()).setColor(...)`, so the very first bind threw `ClassCastException`
-  and the grid died the moment the General tab populated. The fix builds a fresh `GradientDrawable` and calls
-  `setBackground(...)` instead of casting whatever the layout happened to set тАФ do not reintroduce the cast.
-- **Availability must be passed into `bindAccent`, not read from `itemView.isEnabled()`.** `isEnabled()` is set *after*
-  `bindAccent` in `onBindViewHolder`, so reading it there painted a recycled card with the previous item's availability
-  (an unavailable module looked available and vice versa). `bindAccent(holder, groupId, isEnabled, isAvailable)` takes it
-  as a parameter.
-- **`show()` detaches a half-built tree before the fallback.** `showInternal` may throw *after* `addView`, so the catch
-  calls `detachWindowViewQuietly()` before `showFallback()`, or the fallback's `addView` layers a second copy (and a
-  second set of listeners) over the broken one.
+## One Mod Menu (U4): the touch screen and the VIP screen were merged
+- **There is one Mod Menu.** `ModMenuOverlay` is the only menu. The VIP window
+  (`VipModMenuOverlay`, `VipModuleAdapter`, `VipInputMode`, `overlay_vip_mod_menu.xml`, the VIP card
+  layouts) is **deleted** — do not reintroduce a second menu, a second page list, or a "premium
+  version" of the same screen. A module or a destination that exists in one and not the other is
+  exactly the class of bug the merge removes.
+- **`ModMenuPage` is the one page registry.** `pages()` returns every page in rail/cycle order;
+  `next()`/`previous()` wrap; `defaultForInput(hasGamepad)` picks the opening page. The pages that
+  used to be premium-only (`CONTROLLER`, `KEYBOARD`) are ordinary entries flagged `isSupporter()`,
+  and `supporterPages()` returns them. `ModMenuPageTest` pins all of it. Do **not** add a
+  `vipPages()`/`sharedPages()` split again — the badge marks a page, the list does not exclude it.
+- **The Supporter badge is a small accent dot on the rail tile** (`ModMenuRail.build`, from
+  `page.isSupporter()`). It is presentation only: the page behaves like every other page.
+- **The launcher's Mods screen and the in-game bind open the same menu.** `ModMenuButton` no longer
+  holds a second overlay; `openMenuSection(page)` creates the one `ModMenuOverlay` and calls
+  `showPage(page)`. `showPage` records `pendingPage` when the menu is not open yet, and `setupViews`
+  consumes it after the views exist, so the radial wheel's sectors land on the right page.
+- **`activePage` is set in `selectPage`, not only in `updateNavigationItems`.** Controller and
+  Keyboard pass all-false navigation booleans, so the shoulder cycle and the controller-input
+  routing would otherwise not know which page is showing. `selectPage` also paints the rail tile and
+  the top-bar title.
+- **The Supporter pages are ported, not stubbed.** `ModMenuControllerSection` (profiles, dead zone,
+  sensitivity, rumble, the shared `ControllerProfileEditor`) and `ModMenuKeyboardSection` (the
+  `KeyboardIllustrationView` board, the rebindable actions via `MenuBindRelay`, the pointer slider)
+  are real pages of the one menu, hosted in `controller_container` / `keyboard_container` in
+  `overlay_mod_menu.xml`. Each step is isolated through `ModMenuGuard`, because a page built over a
+  running game must not take the session down.
+- **`hideAllContentExcept(keep)` is the one page-hiding path**, and it runs the panels' own
+  `onHidden()` side effects (a Cosmetics spinner list is a separate window; a Replay panel owns a
+  live recorder listener). Pages that hide their siblings by hand call `hideSupporterPages()`. Add a
+  new host to both places, or a page switch will leave the previous host visible.
+- **The Visuals/Misc filters are the VIP window's category split, kept.** They live in
+  `ModuleFilter` and their predicates come from the tested `ModCategory` (`vip_category_visuals` /
+  `vip_category_misc`), so there is one classification rule, not two. `ModCategory` stays in the
+  `vip` package.
+- **The VIP overlay's controller-input priority is gone with it.** `InbuiltOverlayManager` hands
+  controller keys/motion to the one `ModMenuOverlay`; the radial wheel still takes the stick first
+  while it is open. `ModMenuButton.isMenuShowing()` now covers the menu and the wheel.
+- `VipTheme` and `bg_vip_*` / `ic_vip_*` survive only where the ported pages use them
+  (`bg_vip_topbar`, `bg_vip_surface`, `bg_vip_icon_tile`, `bg_vip_icon_button`, `bg_vip_status_off`).
+  The VIP-only shimmer/skeleton/empty/indicator drawables and the VIP module cards were deleted with
+  the window; do not re-add a VIP card layout.
+- **`MenuBindRelay` remains the single bind-capture sink**, now shared by the Settings tab's bind
+  rows and the Keyboard page's rows.
 
 ## Mod Menu focus highlight (the "50% white overlay")
 - **The white wash is the platform's default focus highlight.** A clickable View is implicitly
@@ -1075,23 +1153,35 @@ Do not re-run this RE from scratch; these are the conclusions.
   Format is the one the game reads: `id:name:ip:port:timestamp`, id one past the current maximum;
   an existing name+ip+port is refused so the row cannot duplicate.
 
-## Blue firework touch layer (FireworkTouchLayer + BaseActivity)
-- One shared `FireworkTouchLayer` is attached by `BaseActivity.wrapWithNavBar` as a sibling drawn
-  over the whole screen (a `FrameLayout` holds the nav wrapper and the layer). It is only attached
-  where the nav bar is attached, so it never appears over Minecraft. `onTouchEvent` always returns
-  false тАФ it observes the gesture and never consumes it, so a tap still reaches the screen below.
-- The effect is **pooled and single-`onDraw`**: a fixed `Spark[256]` array, no per-particle Views,
-  no allocation during a burst, additive blending (`BlendMode.PLUS` on Q+), capped at
-  `MAX_BURSTS = 6`, and the driver `ValueAnimator` cancels itself when nothing is alive so an idle
-  screen burns no frames. Intensity Low/Med/High sets the spark count (14/17/20).
-- It auto-disables under Battery Saver (`PowerManager.isPowerSaveMode`), Android's "remove
-  animations" (`ANIMATOR_DURATION_SCALE == 0`), and the personalization `isShowAnimations` gate.
-  `refresh(context)` re-reads all of them; `BaseActivity.onResume` calls it so a toggle applied
-  while backgrounded takes effect. Settings changes call `refreshFireworkLayer()` (a walk for the
-  layer in the view tree) so no recreate is needed.
-- Prefs live in `PersonalizationManager`: `isFireworkTouchEnabled` (default **off** тАФ a flourish,
-  not chrome), `getFireworkIntensity`, `isFireworkFollowAccent` (off = blue palette). `resetAllCustomizations`
-  clears all three.
+## Blue firework touch layer тАФ REMOVED (U12)
+- `FireworkTouchLayer`, its three `PersonalizationManager` prefs (`firework_touch_enabled`,
+  `firework_intensity`, `firework_follow_accent`), the Settings switches and the eight
+  `firework_*` strings were deleted. It was a flourish no one asked for, and it drew over every
+  launcher screen. Do not reintroduce a decorative touch layer over the nav wrapper.
+
+## One design system: colour, type, spacing, radius, motion (U7–U11)
+- **`UiTokens` is the single source of truth and every scale is closed.** `RADIUS_SMALL/MEDIUM/
+  LARGE/XLARGE` = 8/12/16/28dp and the named surface radii (`RADIUS_WINDOW/CARD/CHIP/BUTTON`) are
+  aliases of those four, never literals. `SPACE_1/2/3/4/6/8` = 4/8/12/16/24/32dp.
+  `TEXT_DISPLAY/TITLE_ROLE/BODY/LABEL/CAPTION` are the five type roles. `UiTokensTest` pins all
+  four scales, so adding a bespoke value fails the build rather than drifting.
+- **One accent, resolved from the theme (U7).** `PersonalizationManager.getAccentColor()` now reads
+  the theme's `colorPrimary` through `resolveThemeColor` — so Material You's wallpaper palette wins
+  when dynamic colour is on and the brand colour is the fallback. The stored accent pref, the two
+  preset swatch arrays (`PRESET_COLORS`/`MORE_COLORS`), `setAccentColor`/`clearAccentColor`/
+  `hasCustomAccent` and the whole Settings colour-picker card were deleted. **Do not add a second
+  accent source**: a stored swatch and a theme attribute fight over every tinted view, which is the
+  bug this removed. `BRAND_ACCENT` is the no-theme fallback.
+- **One accessibility switch (U11).** `PersonalizationManager.isReduceMotion()`/`setReduceMotion()`
+  derive from and write both `show_animations` and `enable_glow_effects`, so the old three toggles
+  (Show Animations / Enable Glow / Compact Mode) are one `switch_reduce_motion`. The OS "remove
+  animations" setting still wins: `UiTokens.motionScheme(reduceMotion, platformAnimationsOff)`
+  returns `Motion.REDUCED` (120ms linear, no overshoot) or `Motion.EXPRESSIVE` (spring), and every
+  animated surface reads its duration/easing from that scheme instead of a hard-coded spring.
+- **App-level compact mode is gone.** `PersonalizationManager.isCompactMode`/`setCompactMode`,
+  `KEY_COMPACT_MODE`, `MainActivity.applyCompactMode` and the two fragment padding branches were
+  deleted; those paddings are now `UiTokens.SPACE_4`. The in-game Mod Menu's own compact mode
+  (`ModMenuOverlay.setCompactMode`, a width/span decision) is a different thing and stays.
 
 ## Cosmetics status diagnostic тАФ REMOVED
 - `CosmeticsDiagnostics` + `CosmeticsStatusActivity` (and the Skins-screen "Cosmetics status"
@@ -1191,28 +1281,25 @@ Do not re-run this RE from scratch; these are the conclusions.
   repeat delay so a held stick does not race through the list.
 
 
-## Replay system (core.replay + ReplayPanel in both Mod Menu screens)
-- **One backend, two hosts.** `core.replay` (`ReplayManager`, `ReplayCaptureService`,
+## Replay system (core.replay + ReplayPanel in the Mod Menu and the launcher screen)
+- **One backend, several hosts.** `core.replay` (`ReplayManager`, `ReplayCaptureService`,
   `ReplayClipRepository`, `ReplayLibrary`, `ReplayStorage`, `ReplaySidecar`, `ReplayExporter`,
   `ReplayTrim`, `ReplayFormat`, `ReplayMetadata`, `ReplayQuality`) owns capture, the on-disk clip
   library, trimming and export. The UI is `ReplayPanel`, and the *same* instance type is hosted by
-  both screens: Screen A (`ModMenuOverlay`, the touch menu) puts it in `replay_container` and Screen
-  B (`VipModMenuOverlay`, the in-game bind menu) in `vip_replay_view`. Neither screen has its own
-  clip list, sort, filter or export code - that is the point of the shared panel.
-- **Two screens, two navigation homes.** In Screen A Replay is a top-bar entry
-  (`nav_replay` / `R.id.nav_replay`) alongside General/Cosmetics/Packs/Voice/Settings. In Screen B
-  Replay is a `VipTab` (`MODULES, REPLAY, CONTROLLER, KEYBOARD`), so the shoulder cycle and the tab
-  indicator cover it. `VipMenuLogicTest.declarationOrderIsTheTabOrder` /
-  `shouldersWrapInBothDirections` pin that order - adding or moving a tab must update both.
-- **Screen B re-inflates its overlay tree on every `show()`**, so `setupViews()` resets
-  `replayPanel = null` and `hide()` calls `replayPanel.dispose()`. A panel carried across a
-  re-inflate would draw into a detached tree. Screen A keeps its panel alive between opens (it owns
-  a background executor and a live recorder listener) and only calls `onHidden()`.
+  the Mod Menu (page `REPLAY`, in `replay_container`) and by the launcher's `ReplayActivity`. No
+  host has its own clip list, sort, filter or export code - that is the point of the shared panel.
+- **One menu, one navigation home.** Replay is a `ModMenuPage` (the `REPLAY` page), so the rail and
+  the shoulder cycle cover it like every other page; the launcher reaches the same panel through
+  `ReplayActivity`. `ModMenuPageTest` pins the page order - moving a page must not leave a stale
+  hard-coded cycle behind.
+- **The Mod Menu keeps its panel alive between opens** (it owns a background executor and a live
+  recorder listener) and calls `onHidden()` when the page is left; `hide()` also calls `onHidden()`.
+  A host that re-inflates its tree must instead drop the panel, or it would draw into a detached
+  tree.
 - **Controller binds match the on-screen hint.** The hint (`replay_controller_hint` vs
-  `replay_keyboard_hint`) follows the *detected input*, not the screen: `ReplayPanel
-  .setGamepadDetected(...)` is set from `VipInputMode` in Screen B and from a real `InputManager`
-  gamepad scan in Screen A. A controller hint on a keyboard-only player teaches buttons that do
-  nothing.
+  `replay_keyboard_hint`) follows the *detected input*, not the host: `ReplayPanel
+  .setGamepadDetected(...)` is set from a real `InputManager` gamepad scan. A controller hint on a
+  keyboard-only player teaches buttons that do nothing.
 - **Touch users act on clips through a long-press sheet.** `ReplayClipActionsDialog.showActions`
   offers play/trim/export/favorite/rename/delete and `showRename` is the rename prompt. Both screens
   call it; the controller routes (`cycleSelection`/`playSelected`/`deleteSelectedOrFirst`/
@@ -2083,6 +2170,70 @@ Three defects were fixed together; each has an invariant.
   the render in `try/catch` and paints a "preview error" notice. The diagnostics report lists per
   cosmetic id the PNG size, geometry size and cube count (`CosmeticAssetAudit`).
 
+## Mod Menu UI phase (M1-M10) — dark navy, glass, switch-based
+
+The Mod Menu is the in-game surface, so it has its **own** palette rather than following the
+launcher's. `ModMenuPalette` is that token set (`#070A0F` base, `#0B1118`/`#101823`/`#16202D`
+surfaces, `#E8EEF6`/`#93A3B8`/`#5C6B7E` text, `#3E6FF0` accent) and it is deliberately
+**Android-free** — the channel maths, the alpha mask and the WCAG contrast ratio are done by hand
+rather than through `android.graphics.Color`, because that class is a stub off-device and every
+rule here has to be unit-testable without one. `ModMenuPaletteTest` pins the contrast floors
+(primary-on-surface2 15.3:1, accent-on-surface1 4.3:1, error/success/warn on surface2). No pure
+black and no pure white: `#070A0F` + `#E8EEF6` is what reads as "smooth" rather than OLED-harsh.
+
+- **The switch-vs-action split is a type, not a flag (M2, M3).** A module has an enable state and is
+  drawn with a pill switch; an action fires once and is drawn with a chevron. `ModMenuRowKind.of(hasState)`
+  is the rule (`ModMenuRowKindTest` pins that no row is ever both), `ModMenuAction` is the one-shot
+  entry and `ModMenuActionCatalog` holds the two shipped actions (`reset_hud`, `reload_modules`).
+  `ModMenuActionTest` asserts every action is an `ACTION` row and its id is unique. A switch that
+  fires an action is the single most confusing control in a mod menu — never render one.
+- **`ModMenuSwitch` is the pure geometry and `ModMenuSwitchView` only paints it.** Travel, the
+  clamped overshoot (a spring must not push the thumb out of its track), the accent/muted track, the
+  error track for a failed row, the on/off damping pair (turning on is springier than turning off)
+  and the 48dp touch-target rule all live in the pure class; `ModMenuSwitchTest` pins them. The
+  visual is 52x32dp and the view reserves a 48dp target around it.
+- **`ModMenuSettings` (M6) is a value object with the system clamp inside it.** `effectiveGlass` and
+  `effectiveMotion` take the platform's reduce-transparency / reduce-motion flags and let them win
+  over the in-menu choice — a user-facing override that beats the OS accessibility setting is a bug,
+  not a feature. `blurs()` also returns false at a 0fps blur budget. `ModMenuSettingsTest` pins all
+  of it, plus the slider clamps and the six accent swatches (distinct, opaque).
+- **`ModMenuMotion` (U11) has two schemes.** Full motion is the spring pair; reduced motion is still
+  a *transition* (a short linear fade), never an instant pop. The reduced easing is a plain
+  `reducedInterpolation(float)` rather than an `Interpolator`, for the same off-device reason as the
+  palette; `ModMenuSwitchView` wraps it in a `LinearInterpolator` when it needs the real type.
+- **`ModMenuRowState` (M10) is the failure surfacing, and its check order is load-bearing.**
+  `of(registered, available, crashed, enabled)` returns FAILED when the module never registered,
+  CRASHED before UNSUPPORTED, then LOADED/DISABLED. Only LOADED and DISABLED are interactive; every
+  broken state is dimmed and carries a reason. `ModMenuAdapter.reasonFor` words an unsupported row
+  from `ModAvailability` (a server-decided module is not "waiting for game data") and the overlay's
+  `showRowReasonSheet` offers a re-enable only for CRASHED. The states are derived in
+  `ModMenuOverlay.applyRowStates` from `ModLoadDiagnostics` and `ModCrashAttribution`, so the menu
+  cannot call a module healthy while the crash guard has disabled it.
+- **Drag-to-reorder is per section (M9), and the rule is pure.** `ModMenuOrdering.apply` reorders one
+  section's keys; a key the saved order does not mention is appended rather than promoted to the
+  front, and an unknown key is dropped, so a user's arrangement survives an update that adds or
+  removes a module. `ModMenuOrderingTest` pins that, the duplicate-key case and the out-of-range move.
+  `ModMenuAdapter.moveModule` refuses a cross-section move and `canReorderBetween` is the
+  `ItemTouchHelper` guard, because the list renders one header per contiguous group run.
+  `applySavedOrder` **rebuilds the group headers** — dropping them there silently flattens the whole
+  non-compact layout.
+- **`ModMenuTheme` now reads the navy palette and the menu's own settings.** `new ModMenuTheme(ctx,
+  settings)` takes the accent from the swatch the player chose; the no-settings constructor still
+  resolves the launcher accent. Card elevation is 0 by default (a lifted card over a live game reads
+  as fog) and the glow toggle can still raise it.
+- Layout: `item_mod_menu_card.xml` and `item_mod_menu_compact.xml` both carry the same
+  `ModMenuSwitchView` (so the grid and the compact list cannot disagree about how a module is
+  toggled), the status dot, the one-line reason and the action chevron. The Settings tab's appearance
+  block (`group_mod_setting_*`, `seekbar_mod_setting_*`, `value_mod_setting_*`) is wired by
+  `setupModMenuAppearanceSettings`; the segmented rows are plain TextViews, not Spinners, because a
+  Spinner's popup is a second window that outlives the host view and this menu already had a
+  stale-popup bug from one. Every control writes through `InbuiltModManager.setModMenuSettings`
+  (one pref per field, so a new field is a new key rather than a blob needing a migration) and
+  re-applies immediately.
+- The Mod Menu's top nav is still the top bar over the `ModMenuPage` registry (M7) and per-module
+  enable state is still persisted through `InbuiltModManager.resolveInbuiltModEnabled` (M8); this
+  phase restyles and re-controls the surface, it does not move the navigation.
+
 ## Blueberry UI (UiTokens + shared components)
 
 - **One token file: `ui/components/UiTokens`.** It replaces the retired violet/magenta palette and
@@ -2108,6 +2259,46 @@ Three defects were fixed together; each has an invariant.
 - **Hidden UI gallery:** Settings > Updates, tap the version text 7 times
   (`UiGalleryActivity`, unexported). `docs/UI_CHECKLIST.md` is the device pass.
 
+## First-run wizard, named failure states, Play screen and mod rows (U13-U17)
+
+- **The wizard's ordering is a pure state machine.** `launcher/core/setup/SetupWizard` maps four
+  facts (game imported, version chosen, sign-in required, signed in) to the first incomplete step,
+  so "resume where the user left off" falls out of the design instead of its own bookkeeping.
+  `SetupWizardActivity` only renders the step and performs its action. The **progress rail is built
+  from `activeSteps`**, not a fixed four: with the launcher-managed login off the rail has three
+  stops and `currentIndex` must return 2 for READY, not 3 — a fixed rail that hides a step makes the
+  progress look stuck. `SetupWizardTest` pins the order, the skip, and both rail shapes.
+- **The wizard is shown by `SetupWizardActivity.shouldShow(activity)`**, from the splash: it requires
+  *both* "not finished before" (`glowberry_setup` / `KEY_WIZARD_DONE`) and "no installed instance",
+  so an existing user upgrading into this build never sees it. The wizard is skippable, and Skip
+  marks it done — a user with a working install must never be trapped in it.
+- **Launch refusal is a named state, not a generic error.** `core/minecraft/LaunchReadiness` (in
+  `launcher.core.minecraft`) enumerates the causes in precedence order — no version, missing game
+  files, 32-bit APK, stale extraction, missing signature rules, game not installed, sign-in required
+  — and `blocksLaunch` is a property of the state, not a second list at the call site.
+  `LaunchFailurePresenter` maps a state to its copy and its `isWarning` flag is asserted to agree
+  with `blocksLaunch` for every state, so a repairable problem can never become a dead end.
+- **`STALE_NATIVE_LIBS` is a warning the launcher repairs itself**, not a dialog: `MainActivity`'s
+  preflight invalidates the extraction cache and launches. `SIGNATURE_RULES_MISSING` likewise warns
+  without blocking, because it disables optional hooks only. Everything else blocks.
+- **The Play screen's dock is one row plus the action.** `include_launch_dock.xml` puts the profile
+  on the left and the **version as a chip** (`bg_dock_version_chip`, 20dp pill) on the right, above
+  the full-width Play button. The chip is the version *selector*; the ids
+  `select_version_button`/`text_minecraft_version` are unchanged because the popup anchor and the
+  version text bind to them. Do not turn the chip back into a stacked two-line selector — it pushed
+  the action down and read as a second button.
+- **The diagnostics screen shows the same launch state the Play button evaluates** (U14/U16), via
+  `renderReadinessRows` in `DiagnosticsActivity`: `LaunchReadiness` is evaluated once and the state
+  key is printed verbatim, because that string is what a bug report should quote.
+- **A mod row's state, kind and failure line come from `ModRowPresentation`** (U17), not from the
+  adapter: `kindOf` reads the **entry point** (`.so` → native, `.lua` → script), because an `.AntEgg`
+  can hold either runtime and the archive name does not say which. A recorded failure outranks the
+  enabled flag, and a failed mod stays toggleable so the user is not trapped with a broken enabled
+  mod. `ModRowPresentationTest` pins all of it.
+- **The spacing scale is `dimens.xml`'s `space_1/2/3/4/6/8` (4/8/12/16/24/32dp) plus
+  `min_touch_target` (48dp)**, mirroring `UiTokens`. Layouts use those rather than raw dp so the
+  vertical rhythm matches the code-drawn surfaces.
+
 ## Real Minecraft skin (engine-hook seam, wired)
 
 - **`GameSkinSource` is the fail-closed seam; `GameSkinFeed` is the live provider.** `GameSkinFeed`
@@ -2131,3 +2322,66 @@ Three defects were fixed together; each has an invariant.
   skin. Whether the game routes the player's skin through this seam is **unverified (needs device)**.
   The `SerializedSkinRef` base-skin `mce::Image` at `+0x78` would give attribution but its internal
   pixel pointer is not recoverable from the stripped binary, so that route stays documented-only.
+
+## Radial wheel glass overhaul (R1-R13)
+
+The wheel (`RadialMenuView` + `RadialMenuOverlay`) is now a glassmorphic, iOS-style radial menu.
+The rules live in three pure classes and the view only applies them.
+
+- **`RadialWheelMaterial` is the whole material decision (R2, R8, R9, R10, R12).** Three glass
+  thicknesses — ULTRA_THIN 24dp/8% white, REGULAR 32dp/14%, THICK 40dp/26% — plus a SOLID fallback,
+  all sitting on a 12% black scrim floor (`SCRIM_FLOOR_ALPHA`). `Env` carries every input that can
+  change what is drawable (API level, whether a `PixelCopy` succeeded, reduce-transparency,
+  high-contrast, thermal severity, battery saver, low memory, session active, reduce motion, blur
+  fps) and `resolve`/`resolveForBackdrop` produce one `Resolved`. **Order is load-bearing**: the
+  API/capability checks run first (no `RenderEffect` below API 31 → SOLID), then the accessibility
+  settings (the OS always beats the in-app choice), then the thermal ladder. Do not reorder them.
+- **The contrast escalation is BLACK, not white (R9).** `escalatedScrim` composites `0xFF000000`
+  over the backdrop. The first cut raised the *white tint*, which over a bright frame is a no-op —
+  white over white is white — and `escalatingTheWhiteTintOverABrightFrameWouldBeNoOp` pins exactly
+  that. The wheel's labels are light; only darkening can help them.
+- **The blur budget is the coordinator's, not the wheel's (R8).** `FpsOptimizationService
+  .wheelBlurBudget()` reuses `FpsOptimizer.currentAction()` so the wheel cannot re-derive a stricter
+  answer from the same sensors; `Env.budgetOverride` wins over the local reading when set.
+- **`WheelGlassRenderer` is the only place the blur API lives.** On API 31+ it uses
+  `Window#setBackgroundBlurRadius` + `FLAG_BLUR_BEHIND` (which blurs what is genuinely *behind* the
+  window — a `RenderEffect` on the wheel's own view would blur the wheel's own content); on 28-30 it
+  draws a downscale/stretch stack blur of the capture. `clearWindowBlur` runs on detach so nothing is
+  left on the game's window.
+- **`WheelBackdropCapture` owns the capture policy (R3, R12).** A 1/4-resolution `PixelCopy`
+  (`DOWNSCALE = 4`, `MAX_DIMENSION = 512`), driven by `BackdropRefreshSchedule` at ≤10fps
+  (`BLUR_FPS_MAX`, default 5). `captureDimension` is pure and pinned by `WheelBackdropCaptureTest`.
+  The `Handler` is **lazily created** — an eager field would touch `Looper.getMainLooper()` and make
+  the class un-constructible in a JVM test.
+- **`BackdropRefreshSchedule` is the throttle (R3).** A clock-jump backwards reads as "due" (one
+  wasted capture beats a frozen backdrop), the interval is capped at `1000/10`, and a rate of 0 means
+  never refresh. `RadialMenuOverlay` runs it on a `Handler` loop that stops on `hide()`.
+- **`RadialWheelMotion` is the feel (R1, R4-R7, R11).** Spring targets (open 0.86→1.0 @ d0.78/s380,
+  select 1.06 @ d0.7/s500, settle 1.14 for 90ms), the haptic vocabulary (`hapticFor` — commit
+  outranks crossing, **nothing on open**), label metrics (24dp icon, 11sp, ellipsis at 9 chars),
+  the hub (40dp head, 10sp/60% white label), the cancel gesture (24dp past the outer radius → 0.4
+  opacity / 0.94 scale) and the segment-target rule (`hasTouchTargets`/`maxSegmentsForRadius` enforce
+  R1's 48dp). `MAX_SEGMENTS` is `WheelLayout.MAX_SECTORS` — two independent caps is how the wheels
+  drift. Every haptic in the view goes through `applyHaptic(RadialWheelMotion.Haptic)`; a raw
+  `performHapticFeedback` call in the wheel is the regression to watch for.
+- **The annulus is 30%→46% (R1), defined once.** `RadialWheelLayout.ANNULUS_INNER/OUTER_FRACTION`
+  are the source; `RING_INNER_FRACTION` is *derived* (`inner/outer`) rather than a second literal, and
+  `OUTER_FRACTION` aliases the outer. `RadialWheelMotion` re-exports them. The old 0.40/0.52/0.46
+  triple is gone; `RadialWheelLayoutTest.theWheelFractionsMatchTheSpec` pins the new values and that
+  the hub fits inside the ring's hole.
+- **Sector caps are squircles (R1/R13).** `squircleCap` uses a cubic whose control points are pulled
+  toward the corner by `RadialWheelMaterial.squircleControl(squareness)` (0.5523 circular → 1.0
+  square); the old `quadTo` fillet read as a rounded rectangle.
+- **`R13`: the four resting sector paths are cached.** `cachedSectorPaths` is rebuilt only when the
+  geometry changes (`sectorPathsValid` cleared on open/close/cancel-armed), so a steady open wheel
+  re-tessellates nothing; only the hovered sector (scaled by the press animation) is rebuilt per
+  frame.
+- **R10 fallbacks.** Reduce motion runs a 120ms linear transition instead of the spring
+  (`playOpen`/`playClose`); the SOLID tier draws a 1.5x border rather than the faint glass hairline
+  (there is no blur to define the edge); high contrast outlines every label via
+  `WheelGlassRenderer.labelOutlinePaint`.
+- **R2 colour.** The wheel tokens are now the blue palette (`WHEEL_SCRIM` `0x73070A0F`,
+  `WHEEL_SEGMENT_BASE` `0xCC0B1118`, `WHEEL_SEGMENT_HOVER` `0xE616202D`, `WHEEL_HUB_FILL`
+  `0xE60B1118`); the old violet wash was the last place the retired brand survived.
+- Tests: `RadialWheelMaterialTest`, `RadialWheelMotionTest`, `BackdropRefreshScheduleTest`,
+  `WheelBackdropCaptureTest` (all pure, no mocks) plus the existing `RadialWheelLayoutTest`.

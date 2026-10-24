@@ -3,6 +3,7 @@ package org.chimeramc.client.core.minecraft;
 import android.content.Context;
 import android.os.PowerManager;
 
+import org.chimeramc.client.core.mods.inbuilt.overlay.RadialWheelMaterial;
 import org.chimeramc.client.settings.FeatureSettings;
 import org.chimeramc.client.settings.LowLatencyNetworkManager;
 import org.chimeramc.client.settings.ThermalGovernor;
@@ -62,6 +63,25 @@ public final class FpsOptimizationService {
             LowLatencyNetworkManager.setGameSessionActive(true);
         }
         return action;
+    }
+
+    /**
+     * The radial wheel's blur budget for the current device state (R8).
+     *
+     * <p>This is the wheel's half of the same thermal ladder: it reuses {@link FpsOptimizer}'s
+     * pressure decision rather than reading the sensors again, so the wheel cannot keep paying for a
+     * per-open blur capture while the coordinator has already decided the host should step back. The
+     * wheel calls this instead of judging the device itself.
+     */
+    public static RadialWheelMaterial.BlurBudget wheelBlurBudget() {
+        FpsOptimizer.Action action = currentAction();
+        if (action == FpsOptimizer.Action.SHED_BACKGROUND) {
+            return RadialWheelMaterial.BlurBudget.NONE;
+        }
+        if (ThermalGovernor.severity() >= 1 && LowLatencyNetworkManager.isGameSessionActive()) {
+            return RadialWheelMaterial.BlurBudget.REDUCED;
+        }
+        return RadialWheelMaterial.BlurBudget.FULL;
     }
 
     private static boolean isBatterySaverOn() {

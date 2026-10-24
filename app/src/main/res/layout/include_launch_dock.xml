@@ -25,27 +25,24 @@
         android:paddingHorizontal="16dp"
         android:paddingVertical="14dp">
 
-        <!-- Profile + version picker, above the launch action. Tapping it drops the instance list
-             downward into the page; at the very bottom of the screen that popup had nowhere to go,
-             so the picker sits on top of the dock. -->
+        <!--
+            Profile on the left, version as a chip on the right (U15). The chip is the version
+            selector: it is a compact tap target that reads as data, not as a second button, and it
+            keeps the dock one row tall so the Play action gets the full width below it. The ids
+            @id/select_version_button and @id/text_minecraft_version are unchanged because the
+            activity binds the popup anchor and the version text to them.
+        -->
         <LinearLayout
-            android:id="@+id/select_version_button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="56dp"
-            android:background="@drawable/bg_dock_selector"
             android:gravity="center_vertical"
-            android:orientation="vertical"
-            android:paddingHorizontal="14dp"
-            android:paddingVertical="8dp"
-            android:clickable="true"
-            android:focusable="true"
-            android:foreground="?attr/selectableItemBackground">
+            android:orientation="horizontal">
 
             <TextView
                 android:id="@+id/dock_profile_name"
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:fontFamily="@font/misans"
                 android:text="@string/dock_profile_default"
                 android:maxLines="1"
@@ -55,27 +52,33 @@
                 android:textStyle="bold" />
 
             <LinearLayout
-                android:layout_width="match_parent"
+                android:id="@+id/select_version_button"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
+                android:minHeight="40dp"
+                android:background="@drawable/bg_dock_version_chip"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground"
                 android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:paddingHorizontal="12dp">
 
                 <TextView
                     android:id="@+id/text_minecraft_version"
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:fontFamily="@font/misans"
-                    android:text="@string/home_edition_version_placeholder"
                     android:maxLines="1"
                     android:ellipsize="end"
-                    android:textColor="@color/dock_text_secondary"
+                    android:maxWidth="180dp"
+                    android:text="@string/home_edition_version_placeholder"
+                    android:textColor="@color/dock_text_primary"
                     android:textSize="12sp" />
 
                 <ImageView
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
                     android:layout_marginStart="6dp"
                     android:src="@drawable/ic_arrow_down"
                     app:tint="@color/dock_text_secondary" />

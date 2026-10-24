@@ -13,11 +13,15 @@ import android.widget.FrameLayout;
 import org.chimeramc.client.R;
 import org.chimeramc.client.core.mods.inbuilt.manager.InbuiltModManager;
 import org.chimeramc.client.core.mods.inbuilt.overlay.RadialWheelLayout.Sector;
+import org.chimeramc.client.core.minecraft.FpsOptimizationService;
+import org.chimeramc.client.settings.LowLatencyNetworkManager;
+import org.chimeramc.client.settings.ThermalGovernor;
+import org.chimeramc.client.util.PersonalizationManager;
 
 /**
  * The radial mod wheel as an in-game overlay (section 1 of the update spec).
  *
- * <p>It is a second screen beside the touch Mod Menu (Screen A) and the VIP menu (Screen B): it is
+ * <p>It is a second screen beside the one Mod Menu: it is
  * opened from the same in-game bind and points at the same destinations. The four sectors route to
  * the module list, the cosmetics wardrobe, the settings and the HUD editor; the floating chips
  * toggle individual modules without opening a menu at all.
@@ -34,6 +38,8 @@ public class RadialMenuOverlay {
     private View overlayView;
     private RadialMenuView menuView;
     private boolean isShowing;
+    /** The backdrop capture, so the wheel's glass can blur what is behind it (R3/R12). */
+    private WheelBackdropCapture backdropCapture;
 
     /** How the wheel reaches its destinations; supplied by whoever owns the other screens. */
     public interface Destinations {
@@ -265,6 +271,22 @@ public class RadialMenuOverlay {
         wmParams.token = activity.getWindow().getDecorView().getWindowToken();
         windowManager.addView(overlayView, wmParams);
         isShowing = true;
+        // The glass material: the wheel asks the host for the device state (R2/R8/R10/R12) and
+        // captures the window behind it for the blurred backdrop (R3). Both are fail-open: with no
+        // capture the material resolves to its solid tier and the wheel is still fully usable.
+        menuView.setMaterialEnvProvider(new RadialMenuView.MaterialEnvProvider() {
+            @Override
+            public RadialWheelMaterial.Env env() {
+                return buildMaterialEnv(activity);
+            }
+
+            @Override
+            public android.view.Window window() {
+                return activity.getWindow();
+            }
+        });
+        backdropCapture = new WheelBackdropCapture();
+        startBackdropRefreshLoop();
         // A pad-opened wheel enters controller-cursor mode: the cursor appears at the hub and the
         // stick drives it. Touch still works and hides the cursor on the first tap.
         menuView.post(() -> menuView.enableControllerCursor());
@@ -386,8 +408,105 @@ public class RadialMenuOverlay {
         }
     }
 
+    /**
+     * Builds the environment the wheel's glass resolves against (R2, R8, R10, R12).
+     *
+     * <p>Reads the same signals the FPS optimizer coordinates — the thermal reading, battery saver
+     * and the live-session flag — so the wheel's blur budget cannot disagree with the launcher's own
+     * decision to step back while a game runs. The accessibility flags come from the personalization
+     * manager, whose "reduce motion" switch already folds in the OS setting.
+     */
+    private static RadialWheelMaterial.Env buildMaterialEnv(Activity activity) {
+        RadialWheelMaterial.Env env = new RadialWheelMaterial.Env();
+        env.apiLevel(android.os.Build.VERSION.SDK_INT);
+        try {
+            PersonalizationManager personalization = new PersonalizationManager(activity);
+            env.reduceMotion(personalization.isReduceMotion());
+            // The app has no separate "reduce transparency" toggle, so the one accessibility switch
+            // that means "calm the UI down" drives the glass too; the OS setting already feeds it.
+            env.reduceTransparency(personalization.isReduceMotion());
+        } catch (Throwable ignored) {
+        }
+        try {
+            env.sessionActive(LowLatencyNetworkManager.isGameSessionActive());
+        } catch (Throwable ignored) {
+        }
+        try {
+            env.thermal(ThermalGovernor.severity(), isBatterySaver(activity), false);
+        } catch (Throwable ignored) {
+        }
+        try {
+            // R8: the wheel asks the FPS Optimization coordinator rather than judging the device a
+            // second time, so the blur budget cannot disagree with the launcher's own decision.
+            env.budget(FpsOptimizationService.wheelBlurBudget());
+        } catch (Throwable ignored) {
+        }
+        return env;
+    }
+
+    private static boolean isBatterySaver(Activity activity) {
+        try {
+            android.os.PowerManager pm =
+                    (android.os.PowerManager) activity.getSystemService(Activity.POWER_SERVICE);
+            return pm != null && pm.isPowerSaveMode();
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    /**
+     * Runs the backdrop capture on the capped refresh loop while the wheel is open (R3).
+     *
+     * <p>The wheel sits over a live game, so the backdrop has to be re-captured or it freezes; the
+     * schedule is what keeps that at a few refreshes per second instead of every frame. The loop
+     * stops the moment the wheel hides, so nothing keeps capturing after the game is the only thing
+     * on screen.
+     */
+    private void startBackdropRefreshLoop() {
+        mainHandler.removeCallbacks(backdropRefreshRunnable);
+        mainHandler.post(backdropRefreshRunnable);
+    }
+
+    private final Runnable backdropRefreshRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!isShowing) return;
+            requestBackdropCapture();
+            RadialMenuView view = menuView;
+            int fps = view == null || view.material() == null
+                    ? RadialWheelMaterial.BLUR_FPS_DEFAULT : view.material().blurFps;
+            long interval = BackdropRefreshSchedule.intervalMs(fps);
+            if (interval > 0L) mainHandler.postDelayed(this, interval);
+        }
+    };
+
+    /** Requests a backdrop capture if the schedule allows, and hands the result to the wheel. */
+    private void requestBackdropCapture() {
+        WheelBackdropCapture capture = backdropCapture;
+        RadialMenuView view = menuView;
+        if (capture == null || view == null) return;
+        capture.captureIfDue(activity.getWindow(), android.os.SystemClock.uptimeMillis(),
+                view.material() == null ? RadialWheelMaterial.BLUR_FPS_DEFAULT
+                        : Math.max(1, view.material().blurFps),
+                new WheelBackdropCapture.Callback() {
+                    @Override
+                    public void onCaptured(android.graphics.Bitmap bitmap) {
+                        RadialMenuView current = menuView;
+                        if (current != null) current.setBackdropCapture(bitmap);
+                    }
+
+                    @Override
+                    public void onFailed() {
+                        // The material resolves to SOLID on the next refresh; nothing else to do.
+                        RadialMenuView current = menuView;
+                        if (current != null) current.refreshMaterial();
+                    }
+                });
+    }
+
     public void hide() {
         isShowing = false;
+        mainHandler.removeCallbacks(backdropRefreshRunnable);
         RadialMenuView view = menuView;
         menuView = null;
         if (view != null) view.playClose();
@@ -407,6 +526,15 @@ public class RadialMenuOverlay {
     private void detachQuietly() {
         View view = overlayView;
         overlayView = null;
+        // Release the backdrop capture and clear the window blur so nothing is left on the game's
+        // window after the wheel closes (R3/R12).
+        if (backdropCapture != null) {
+            backdropCapture.release();
+            backdropCapture = null;
+        }
+        if (activity != null && activity.getWindow() != null) {
+            new WheelGlassRenderer().clearWindowBlur(activity.getWindow());
+        }
         if (view == null) return;
         try {
             if (view.getParent() != null) {

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The Mod Menu row's failure dot (M10).
+
+    A row that cannot run shows this dot beside its name and the row is dimmed; the switch is
+    forced off. The dot's colour is set in code from ModMenuPalette (state_error for a failed or
+    crash-disabled module, state_warn for one with no hook on this build) so the colour rule lives
+    in the tested palette rather than in the layout.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="@color/mod_menu_state_error" />
+</shape>

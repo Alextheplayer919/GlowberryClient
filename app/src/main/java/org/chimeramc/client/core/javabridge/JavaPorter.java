@@ -3,8 +3,10 @@ package org.chimeramc.client.core.javabridge;
 import org.chimeramc.client.core.antegg.AntEggManifest;
 import org.chimeramc.client.core.antegg.AntEggPackage;
 import org.chimeramc.client.core.antegg.AntEggPackageWriter;
+import org.chimeramc.client.core.antegg.ModHash;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -160,6 +162,12 @@ public final class JavaPorter {
         }
 
         AntEggManifest manifest = buildManifest(modManifest, answer);
+        // Item G12: a ported package is pinned from the moment it is written. The pin is the
+        // SHA-256 of the entry bytes (what PACKAGE_FILES.add stores), so the loader can verify a
+        // ported mod byte-for-byte against what the porter actually shipped — a user cannot be
+        // served a package whose entry was swapped after generation.
+        String entryHash = ModHash.sha256(answer.source.getBytes(StandardCharsets.UTF_8));
+        manifest = manifest.withSha256(entryHash == null ? "" : entryHash);
         File destination = new File(outputDir, manifest.id() + AntEggPackage.EXTENSION);
         AntEggPackageWriter.PackageFiles files = new AntEggPackageWriter.PackageFiles()
                 .add(manifest.entryPoint, answer.source);

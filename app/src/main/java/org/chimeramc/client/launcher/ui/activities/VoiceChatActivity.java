@@ -30,6 +30,7 @@ import org.chimeramc.client.core.voice.VoiceChannel;
 import org.chimeramc.client.core.voice.VoiceChannelCapacity;
 import org.chimeramc.client.core.voice.VoiceChannelDirectory;
 import org.chimeramc.client.core.voice.VoiceChatModule;
+import org.chimeramc.client.core.voice.VoiceConsent;
 import org.chimeramc.client.core.voice.VoicePeer;
 import org.chimeramc.client.core.voice.VoiceProtocol;
 import org.chimeramc.client.util.PersonalizationManager;
@@ -96,6 +97,13 @@ public class VoiceChatActivity extends BaseActivity {
     private LinearLayout directoryContainer;
     private org.chimeramc.client.ui.animation.OverscrollRefreshLayout refreshLayout;
 
+    // B15 safety gate
+    private LinearLayout consentCard;
+    private TextView consentAccept;
+    private TextView reportButton;
+    private TextView blockedLabel;
+    private LinearLayout blockedContainer;
+
     private boolean createPrivate;
     private int accent;
 
@@ -120,7 +128,7 @@ public class VoiceChatActivity extends BaseActivity {
         PersonalizationManager pm = new PersonalizationManager(this);
         View root = findViewById(R.id.voice_root);
         if (root != null) pm.applyAccentToView(root, this);
-        accent = pm.hasCustomAccent() ? pm.getAccentColor() : 0xFF0F5BE4;
+        accent = pm.getAccentColor();
 
         View back = findViewById(R.id.voice_back);
         if (back != null) back.setOnClickListener(v -> finish());
@@ -178,6 +186,11 @@ public class VoiceChatActivity extends BaseActivity {
         directoryEmpty = findViewById(R.id.voice_directory_empty);
         directoryContainer = findViewById(R.id.voice_directory_container);
         refreshLayout = findViewById(R.id.voice_directory_refresh);
+        consentCard = findViewById(R.id.voice_consent_card);
+        consentAccept = findViewById(R.id.voice_consent_accept);
+        reportButton = findViewById(R.id.voice_report_button);
+        blockedLabel = findViewById(R.id.voice_blocked_label);
+        blockedContainer = findViewById(R.id.voice_blocked_container);
         if (refreshLayout != null) {
             refreshLayout.setOnRefreshListener(this::refreshFromPull);
         }
@@ -256,10 +269,39 @@ public class VoiceChatActivity extends BaseActivity {
     private void wireControls() {
         masterSwitch.setChecked(manager().resolveInbuiltModEnabled(ModIds.VOICE_CHAT, false));
         masterSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            // B15: turning the master switch on requires recorded consent. Without it the switch
+            // is reverted and the consent card is revealed, so voice can never come up silently.
+            if (isChecked && !manager().hasVoiceConsent()) {
+                masterSwitch.setChecked(false);
+                Toast.makeText(this, R.string.voice_consent_required, Toast.LENGTH_SHORT).show();
+                renderConsent();
+                return;
+            }
             manager().setInbuiltModEnabled(ModIds.VOICE_CHAT, isChecked);
             setVoiceRunning(isChecked);
             refresh();
         });
+
+        if (consentAccept != null) {
+            consentAccept.setOnClickListener(v -> {
+                if (manager().hasVoiceConsent()) {
+                    manager().revokeVoiceConsent();
+                    setVoiceRunning(false);
+                    masterSwitch.setChecked(false);
+                    Toast.makeText(this, R.string.voice_consent_revoked, Toast.LENGTH_SHORT).show();
+                } else {
+                    manager().recordVoiceConsent();
+                    manager().setInbuiltModEnabled(ModIds.VOICE_CHAT, true);
+                    masterSwitch.setChecked(true);
+                    setVoiceRunning(true);
+                    Toast.makeText(this, R.string.voice_consent_granted, Toast.LENGTH_SHORT).show();
+                }
+                refresh();
+            });
+        }
+        if (reportButton != null) {
+            reportButton.setOnClickListener(v -> showReportDialog(null));
+        }
 
         createButton.setOnClickListener(v -> createChannel());
         joinButton.setOnClickListener(v -> joinTypedChannel());
@@ -490,6 +532,7 @@ public class VoiceChatActivity extends BaseActivity {
         }
 
         renderProximityMode();
+        renderConsent();
 
         // The share buttons only make sense for a channel that has a code to share.
         boolean hasCode = isPrivate || VoiceChannel.isJoinCode(current);
@@ -498,6 +541,7 @@ public class VoiceChatActivity extends BaseActivity {
         leaveButton.setVisibility(current.equals(VoiceChannel.WORLD) ? View.GONE : View.VISIBLE);
 
         renderMembers();
+        renderBlocked();
         renderDirectory();
         renderRelayStatus();
     }
@@ -585,7 +629,7 @@ public class VoiceChatActivity extends BaseActivity {
         }
     }
 
-    /** One member row: the peer's name plus a local mute pill (the peer is never told). */
+    /** One member row: the peer's name plus local mute and block pills (the peer is never told). */
     private View buildMemberRow(VoiceChatModule module, VoicePeer peer) {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -608,6 +652,27 @@ public class VoiceChatActivity extends BaseActivity {
             updateMuteButton(mute, module.isMuted(peer.id));
         });
         row.addView(mute);
+
+        // B15: a block is persistent and stronger than a mute. It is only offered when a stable
+        // key exists; a peer with no device id on a v3 multicast beacon still has a peer id, so
+        // in practice every listed member is blockable.
+        boolean blockable = org.chimeramc.client.core.voice.VoiceBlockList.canBlock(peer);
+        TextView block = VoiceUiKit.pillButton(this, getString(R.string.voice_block),
+                accent, false, false);
+        block.setEnabled(blockable);
+        block.setAlpha(blockable ? 1f : 0.5f);
+        LinearLayout.LayoutParams blockParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        blockParams.setMarginStart((int) (8 * density));
+        block.setOnClickListener(v -> {
+            if (module.blockPeer(peer)) {
+                renderMembers();
+                renderBlocked();
+            } else {
+                Toast.makeText(this, R.string.voice_block_failed, Toast.LENGTH_SHORT).show();
+            }
+        });
+        row.addView(block, blockParams);
         return row;
     }
 
@@ -620,6 +685,143 @@ public class VoiceChatActivity extends BaseActivity {
 
     private void addMemberView(View view) {
         membersContainer.addView(view);
+    }
+
+    /**
+     * Shows or hides the consent gate.
+     *
+     * <p>The card is only shown while consent is missing, so a user who has already accepted sees
+     * the safety line and the withdraw action inside it instead of a second prompt. The accept
+     * button's label flips to the withdraw action once consent exists, so there is one control
+     * rather than two states of the same button in different places.
+     */
+    private void renderConsent() {
+        if (consentCard == null || consentAccept == null) return;
+        boolean granted = manager().hasVoiceConsent();
+        consentCard.setVisibility(View.VISIBLE);
+        consentAccept.setText(granted
+                ? R.string.voice_consent_withdraw
+                : R.string.voice_consent_accept);
+        consentAccept.setTextColor(granted ? getColor(R.color.text_secondary)
+                : getColor(R.color.primary));
+    }
+
+    /**
+     * Renders the blocked list.
+     *
+     * <p>A blocked peer is removed from the member list, so without this the user would have no
+     * way to undo a block: the row it was made from is gone. Each entry offers an unblock action.
+     */
+    private void renderBlocked() {
+        if (blockedContainer == null) return;
+        blockedContainer.removeAllViews();
+        VoiceChatModule module = VoiceChatModule.peek();
+        List<String> keys = module == null
+                ? Collections.emptyList()
+                : new java.util.ArrayList<>(module.blocks().snapshot());
+
+        if (blockedLabel != null) {
+            blockedLabel.setVisibility(keys.isEmpty() ? View.GONE : View.VISIBLE);
+        }
+        if (keys.isEmpty()) return;
+
+        float density = getResources().getDisplayMetrics().density;
+        for (String key : keys) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPadding(0, (int) (4 * density), 0, (int) (4 * density));
+
+            TextView label = new TextView(this);
+            // A key is a device id or a session id; neither is a name, so it is shown as an id
+            // rather than pretending to be a display name.
+            label.setText(key);
+            label.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12f);
+            label.setTextColor(getColor(R.color.text_secondary));
+            row.addView(label, new LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+            TextView unblock = VoiceUiKit.pillButton(this,
+                    getString(R.string.voice_unblock), accent, false, false);
+            unblock.setOnClickListener(v -> {
+                if (module != null) module.unblockKey(key);
+                renderBlocked();
+            });
+            row.addView(unblock);
+            blockedContainer.addView(row);
+        }
+
+        TextView clear = VoiceUiKit.pillButton(this,
+                getString(R.string.voice_unblock_all), accent, false, false);
+        clear.setOnClickListener(v -> {
+            if (module != null) {
+                for (String key : new java.util.ArrayList<>(module.blocks().snapshot())) {
+                    module.unblockKey(key);
+                }
+            }
+            renderBlocked();
+        });
+        LinearLayout.LayoutParams clearParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        clearParams.topMargin = (int) (6 * density);
+        blockedContainer.addView(clear, clearParams);
+    }
+
+    /**
+     * Opens the human report path.
+     *
+     * <p>Nothing is uploaded automatically: the report body is built locally (including the
+     * reporter's per-session peer id so it can be matched to a session) and handed to the user's
+     * own mail app, falling back to the clipboard when none can be resolved. That keeps a report a
+     * deliberate action the user sends themselves, which is the only honest flow without a server.
+     */
+    private void showReportDialog(String subjectName) {
+        EditText detail = new EditText(this);
+        detail.setHint(R.string.voice_report_hint);
+        detail.setMinLines(3);
+        detail.setGravity(Gravity.TOP | Gravity.START);
+        int pad = (int) (16 * getResources().getDisplayMetrics().density);
+        detail.setPadding(pad, pad, pad, pad);
+
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle(R.string.voice_report_title)
+                .setMessage(R.string.voice_report_scope)
+                .setView(detail)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.voice_report_send, (d, which) -> {
+                    String text = detail.getText() == null ? "" : detail.getText().toString().trim();
+                    if (text.isEmpty()) {
+                        Toast.makeText(this, R.string.voice_report_empty, Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    sendReport(subjectName, text);
+                })
+                .show();
+    }
+
+    private void sendReport(String subjectName, String detail) {
+        VoiceChatModule module = VoiceChatModule.peek();
+        String peerId = module == null ? "" : module.peerId();
+        String name = module == null ? "" : module.displayName();
+        String channel = manager().getVoiceChannel();
+        String body = VoiceConsent.reportBody(peerId, name, subjectName, channel, detail);
+
+        Intent mail = new Intent(Intent.ACTION_SEND);
+        mail.setType("text/plain");
+        mail.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.voice_report_subject));
+        mail.putExtra(Intent.EXTRA_TEXT, body);
+        try {
+            startActivity(Intent.createChooser(mail, getString(R.string.voice_report_chooser)));
+        } catch (android.content.ActivityNotFoundException e) {
+            // No mail app: keep the text where the user can paste it into whatever they do use.
+            ClipboardManager clipboard =
+                    (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            if (clipboard != null) {
+                clipboard.setPrimaryClip(ClipData.newPlainText(
+                        getString(R.string.voice_report_subject), body));
+            }
+            Toast.makeText(this, R.string.voice_report_mail_hint, Toast.LENGTH_LONG).show();
+        }
     }
 
     private void addMemberRow(String label) {

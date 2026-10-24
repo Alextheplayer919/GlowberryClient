@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Green "FPS+" badge beside the Bedrock Optifine Mode title. A fixed green, not the accent:
+<!-- Green "FPS+" badge beside the Game Performance Mode title. A fixed green, not the accent:
      the badge is a capability mark, and an accent-tinted badge would change meaning with the
      wallpaper. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"

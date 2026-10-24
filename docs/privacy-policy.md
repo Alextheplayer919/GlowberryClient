@@ -1,6 +1,6 @@
 # Privacy Policy
 
-This privacy policy applies to the GlowberryClient app for mobile devices, together with any related services operated by LiteLDev (collectively, the "Application"). LiteLDev is hereby referred to as the "Service Provider".
+This privacy policy applies to the GlowberryClient app for mobile devices, together with any related services operated by the Chimera Team (collectively, the "Application"). The Chimera Team is hereby referred to as the "Service Provider".
 
 ## Information Collection and Use
 
@@ -10,6 +10,17 @@ The Application collects information when you download and use it. This informat
 * The pages of the Application that you visit, the time and date of your visit, the time spent on those pages
 * The time spent on the Application
 * your mobile operating system you use
+
+## Voice Chat
+
+Voice chat is off until you accept the notice on the Voice tab; the app never opens your microphone or connects you to another player on its own.
+
+* **What is transmitted.** When voice chat is on, the Application sends audio from your microphone and a small advertisement (a per-session voice id, the display name you choose, your in-world position and view direction, and the channel you are on) to other players on the same local network, or — if you configure one — through a relay server.
+* **Who receives it.** Other players in the same world who are running the Application, and the operator of the relay server if you enable the relay. The relay carries the audio and the advertisement; it does not decode the audio and does not store it.
+* **Not end-to-end encrypted.** Audio sent over a relay is carried by that server and is not end-to-end encrypted. Anyone who can observe the server's traffic may be able to observe the audio. On the local-network path the audio stays on your network segment.
+* **Retention.** The Application stores only your own local settings and the list of players you muted or blocked, on your device. The Service Provider does not keep a copy of your audio, your position, or your channel history. A relay operator may keep connection logs (source address, connection times) as described by that operator's own policy; the Application's own relay implementation keeps no audio.
+* **Your controls.** You can turn voice chat off at any time, mute or block any individual player (mutes and blocks are applied on your device and the other player is not told), and withdraw your consent from the Voice tab, which also turns the feature off.
+* **Reports.** Reporting a player composes a message in your own email or messaging app; the Application does not upload it for you. The message includes your per-session voice id so a report can be matched to a session, and nothing else that identifies you.
 
 ## Cookies and Tracking Technologies
 

@@ -19,6 +19,8 @@ public class Mod {
     private final String configDirPath;
     private final boolean hasEditableConfig;
     private final int configFileCount;
+    private final String declaredSha256;
+    private final boolean verified;
     private boolean enabled;
     private int order;
 
@@ -41,6 +43,15 @@ public class Mod {
                String author, String version, String iconPath, String manifestPath, String description,
                String modRootPath, String configDirPath, boolean hasEditableConfig, int configFileCount,
                boolean enabled, int order) {
+        this(id, fileName, entryPath, displayName, minecraftVersions, author, version, iconPath,
+                manifestPath, description, modRootPath, configDirPath, hasEditableConfig, configFileCount,
+                "", false, enabled, order);
+    }
+
+    public Mod(String id, String fileName, String entryPath, String displayName, List<String> minecraftVersions,
+               String author, String version, String iconPath, String manifestPath, String description,
+               String modRootPath, String configDirPath, boolean hasEditableConfig, int configFileCount,
+               String declaredSha256, boolean verified, boolean enabled, int order) {
         this.id = id;
         this.fileName = fileName;
         this.entryPath = entryPath;
@@ -57,6 +68,8 @@ public class Mod {
         this.configDirPath = configDirPath;
         this.hasEditableConfig = hasEditableConfig;
         this.configFileCount = configFileCount;
+        this.declaredSha256 = declaredSha256 == null ? "" : declaredSha256;
+        this.verified = verified;
         this.enabled = enabled;
         this.order = order;
     }
@@ -141,5 +154,15 @@ public class Mod {
 
     public int getConfigFileCount() {
         return configFileCount;
+    }
+
+    /** The SHA-256 pinned in the mod's manifest, or "" when the author did not pin one. */
+    public String getDeclaredSha256() {
+        return declaredSha256;
+    }
+
+    /** True when a declared hash exists and matches the shipped file (item G12). */
+    public boolean isVerified() {
+        return verified;
     }
 }

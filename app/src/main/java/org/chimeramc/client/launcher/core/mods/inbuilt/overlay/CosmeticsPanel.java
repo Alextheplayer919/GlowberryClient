@@ -209,6 +209,14 @@ public final class CosmeticsPanel {
         detailsColumn.addView(secondaryButton(R.string.cosmetics_diagnostics_open,
                 v -> CosmeticsDiagnosticsDialog.show(activity)));
 
+        // Item G10: known upstream engine issues next to the in-game status, so a cosmetic that
+        // looks wrong is not silently blamed on this client. The note names Mojang's public bug
+        // tracker rather than promising a fix this launcher cannot ship.
+        TextView knownIssues = bodyLine();
+        knownIssues.setText(activity.getString(R.string.cosmetics_known_issues_title) + " — "
+                + activity.getString(R.string.cosmetics_known_issues_note));
+        detailsColumn.addView(knownIssues);
+
         syncStatus = bodyLine();
         detailsColumn.addView(syncStatus);
         syncToggle = secondaryButton(R.string.cosmetics_sync_toggle_on, v -> {

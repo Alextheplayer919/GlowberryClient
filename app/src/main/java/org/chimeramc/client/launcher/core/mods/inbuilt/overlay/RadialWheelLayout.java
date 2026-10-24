@@ -27,10 +27,26 @@ public final class RadialWheelLayout {
         NONE,
     }
 
+    /**
+     * The annulus' outer edge, as a fraction of {@code min(screenW, screenH)} (R1: 46%).
+     *
+     * <p>An annulus band rather than a disc: the wheel's inner hole is where the hub sits and where
+     * the centre is reserved for "cancel", so a full disc would make the middle a dead zone the
+     * player keeps hitting by accident.
+     */
+    public static final float ANNULUS_OUTER_FRACTION = 0.46f;
+    /** The annulus' inner edge, as a fraction of {@code min(screenW, screenH)} (R1: 30%). */
+    public static final float ANNULUS_INNER_FRACTION = 0.30f;
+
     /** The wheel's outer radius, as a fraction of {@code min(screenW, screenH)}. */
-    public static final float OUTER_FRACTION = 0.40f;
-    /** The ring's inner radius, as a fraction of the outer radius. */
-    public static final float RING_INNER_FRACTION = 0.52f;
+    public static final float OUTER_FRACTION = ANNULUS_OUTER_FRACTION;
+    /**
+     * The ring's inner radius, as a fraction of the outer radius.
+     *
+     * <p>Derived from the two annulus fractions rather than written as its own literal: two literals
+     * that must agree is how the band silently becomes the wrong width.
+     */
+    public static final float RING_INNER_FRACTION = ANNULUS_INNER_FRACTION / ANNULUS_OUTER_FRACTION;
     /** The hub (avatar disc) radius, as a fraction of the outer radius. */
     public static final float HUB_FRACTION = 0.46f;
     /** The constant linear gap between neighbouring sectors, in dp. */

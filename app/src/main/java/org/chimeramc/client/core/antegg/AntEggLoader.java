@@ -102,6 +102,28 @@ public final class AntEggLoader {
         }
         AntEggManifest manifest = extracted.manifest;
 
+        // Item G12: a manifest that pins a sha256 must be verified. The pin is the hash of the
+        // entry-point bytes (the .so or .lua), not the whole archive — the manifest lives inside
+        // the archive, so a whole-package pin would be circular (editing the pin changes the
+        // bytes it claims to verify). Verifying the entry file keeps the check non-circular and
+        // identical in shape to the native-mod manifest.json pin. A mismatch is a hard refusal
+        // recorded as KIND_HASH_MISMATCH: a package whose entry differs from what the author
+        // pinned is not the package the author shipped.
+        if (!manifest.sha256.isEmpty()) {
+            File entryFile = new File(extracted.directory, manifest.entryPoint);
+            if (!entryFile.isFile()) {
+                return fail(context, manifest.name, "entry point is missing: " + manifest.entryPoint,
+                        ModLoadDiagnostics.KIND_HASH_MISMATCH);
+            }
+            if (!ModHash.matches(entryFile, manifest.sha256)) {
+                String reason = "entry file does not match the manifest pin (expected sha256 "
+                        + manifest.sha256 + ")";
+                Log.w(TAG, "Rejected " + packageFile.getName() + ": " + reason);
+                return fail(context, manifest.name, reason,
+                        ModLoadDiagnostics.KIND_HASH_MISMATCH);
+            }
+        }
+
         String dependencyError = missingDependencies(sandbox, manifest);
         if (dependencyError != null) {
             return fail(context, manifest.name, LoadResult.fail(dependencyError));
@@ -145,9 +167,11 @@ public final class AntEggLoader {
     /**
      * Returns a human-readable reason the manifest's dependencies are unmet, or null when they are.
      *
-     * <p>Dependency names are matched against the ids of mods already in the sandbox. This is a
-     * flat, name-based check on purpose: .AntEgg has no version-range syntax, so inventing one here
-     * would accept manifests the format cannot express.
+     * <p>Each dependency is parsed as a {@link DependencyRef}: a plain mod id, or an id with an
+     * inline version range (item G4). A missing id and a present id whose version does not satisfy
+     * the range are both reported, so the author (and the launcher's error UI) knows which half
+     * failed. A dependency whose range cannot be parsed is treated as a syntax error rather than
+     * silently accepted, because accepting it would admit a manifest the format cannot express.
      */
     static String missingDependencies(File sandbox, AntEggManifest manifest) {
         if (manifest.dependencies.isEmpty()) return null;
@@ -156,19 +180,56 @@ public final class AntEggLoader {
             installed.add(id.toLowerCase(Locale.ROOT));
         }
         List<String> missing = new ArrayList<>();
+        List<String> versionMismatches = new ArrayList<>();
         for (String dependency : manifest.dependencies) {
-            String wanted = AntEggManifest.slug(dependency);
-            if (!installed.contains(wanted)) {
-                missing.add(dependency);
+            DependencyRef ref = DependencyRef.parse(dependency);
+            if (ref == null) {
+                // A dependency that does not parse cannot be satisfied; name it so the author
+                // can fix the manifest rather than stare at a silent dlopen failure.
+                missing.add("\"" + dependency + "\" (malformed)");
+                continue;
+            }
+            if (!installed.contains(ref.id)) {
+                missing.add(ref.describe());
+                continue;
+            }
+            if (ref.range != null) {
+                String installedVersion = AntEggPackage.versionOfInstalled(sandbox, ref.id);
+                if (installedVersion == null) {
+                    missing.add(ref.describe() + " (version unreadable)");
+                    continue;
+                }
+                if (!ref.range.matches(installedVersion)) {
+                    versionMismatches.add(ref.id + " needs " + ref.range.describe()
+                            + ", installed is " + installedVersion);
+                }
             }
         }
-        if (missing.isEmpty()) return null;
-        return "missing dependencies: " + String.join(", ", missing);
+        StringBuilder out = new StringBuilder();
+        if (!missing.isEmpty()) {
+            out.append("missing dependencies: ").append(String.join(", ", missing));
+        }
+        if (!versionMismatches.isEmpty()) {
+            if (out.length() > 0) out.append("; ");
+            out.append("dependency version mismatch: ").append(String.join("; ", versionMismatches));
+        }
+        return out.length() == 0 ? null : out.toString();
     }
 
     private static LoadResult fail(Context context, String modName, LoadResult result) {
         if (!result.success) {
-            recordFailure(context, modName, result.error);
+            recordFailure(context, modName, result.error, ModLoadDiagnostics.KIND_DLOPEN);
+        }
+        return result;
+    }
+
+    private static LoadResult fail(Context context, String modName, String reason, String kind) {
+        return fail(context, modName, LoadResult.fail(reason), kind);
+    }
+
+    private static LoadResult fail(Context context, String modName, LoadResult result, String kind) {
+        if (!result.success) {
+            recordFailure(context, modName, result.error, kind);
         }
         return result;
     }
@@ -181,12 +242,16 @@ public final class AntEggLoader {
      * import itself, hence the catch.
      */
     public static void recordFailure(Context context, String modName, String reason) {
+        recordFailure(context, modName, reason, ModLoadDiagnostics.KIND_DLOPEN);
+    }
+
+    public static void recordFailure(Context context, String modName, String reason, String kind) {
         if (context == null) return;
         try {
             List<ModLoadDiagnostics.Record> records = new ArrayList<>(ModLoadDiagnostics.getAll(context));
             records.add(0, new ModLoadDiagnostics.Record(
                     AntEggManifest.slug(modName), modName, "0", reason,
-                    ModLoadDiagnostics.KIND_DLOPEN, System.currentTimeMillis()));
+                    kind, System.currentTimeMillis()));
             ModLoadDiagnostics.record(context, records);
         } catch (Throwable t) {
             Log.w(TAG, "Could not record AntEgg load failure", t);

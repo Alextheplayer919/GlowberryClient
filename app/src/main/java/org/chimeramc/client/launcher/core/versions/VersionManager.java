@@ -454,6 +454,7 @@ public class VersionManager {
             gv.launchVertically = metadata.launchVertically;
             gv.shaderCompatEnabled = metadata.shaderCompatEnabled;
             gv.inGamePackChangerEnabled = metadata.inGamePackChangerEnabled;
+            gv.boundAccountId = metadata.boundAccountId;
 
             installedVersions.add(gv);
         } catch (PackageManager.NameNotFoundException ignored) {
@@ -502,6 +503,7 @@ public class VersionManager {
                         metadata.packageName = current.packageName;
                         metadata.shaderCompatEnabled = current.shaderCompatEnabled;
                         metadata.inGamePackChangerEnabled = current.inGamePackChangerEnabled;
+                        metadata.boundAccountId = current.boundAccountId;
                     }
             );
         } catch (IOException ignored) {
@@ -582,6 +584,7 @@ public class VersionManager {
         gv.launchVertically = metadata.launchVertically;
         gv.shaderCompatEnabled = metadata.shaderCompatEnabled;
         gv.inGamePackChangerEnabled = metadata.inGamePackChangerEnabled;
+        gv.boundAccountId = metadata.boundAccountId;
 
         return gv;
     }
@@ -651,6 +654,35 @@ public class VersionManager {
 
     public boolean isInstanceInGamePackChangerEnabled(GameVersion version) {
         return version != null && version.inGamePackChangerEnabled;
+    }
+
+    /**
+     * Binds a Microsoft account to an instance, or clears the binding with a null/blank id (F2).
+     *
+     * <p>Persisted per instance, so an instance launches with its own account instead of whichever
+     * one is globally active. A null or blank id clears the binding, which restores the previous
+     * behaviour of using the active account. The stored id is <b>not</b> validated here: an id
+     * whose account has since been deleted is kept, and {@code InstanceAccountBinding} reports it
+     * as stale at launch, so the user is told rather than silently switched.
+     */
+    public void setInstanceBoundAccount(GameVersion version, String accountId) {
+        if (version == null) return;
+        String value = accountId == null || accountId.trim().isEmpty() ? null : accountId.trim();
+        version.boundAccountId = value;
+        updateCachedInstance(version, cached -> cached.boundAccountId = value);
+        try {
+            File metadataDir = LauncherStorage.getProfileMetadataDir(context, getMetadataDirectoryName(version));
+            metadataStore.update(
+                    metadataDir,
+                    metadataDefaults(version.isInstalled, version.directoryName, version.packageName, version.versionCode),
+                    metadata -> metadata.boundAccountId = value
+            );
+        } catch (Exception ignored) {}
+    }
+
+    /** The account id bound to an instance, or null when it uses the active account. */
+    public String getInstanceBoundAccount(GameVersion version) {
+        return version == null ? null : version.boundAccountId;
     }
 
     public boolean setInstanceDisplayName(GameVersion version, String displayName) {

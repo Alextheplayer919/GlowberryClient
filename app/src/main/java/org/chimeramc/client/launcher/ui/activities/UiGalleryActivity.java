@@ -8,6 +8,7 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import org.chimeramc.client.ui.components.UiShape;
 import org.chimeramc.client.ui.components.UiTokens;
 
 /**
@@ -47,14 +48,21 @@ public class UiGalleryActivity extends Activity {
         addSwatch(root, density, "warning", UiTokens.WARNING);
         addSwatch(root, density, "danger", UiTokens.DANGER);
 
-        addSection(root, density, "Type");
-        addLabel(root, density, "Title 16sp/600", UiTokens.TEXT_TITLE, UiTokens.TEXT_PRIMARY);
-        addLabel(root, density, "Row title 13sp/500", UiTokens.TEXT_ROW_TITLE,
-                UiTokens.TEXT_PRIMARY);
-        addLabel(root, density, "Caption 11sp/400", UiTokens.TEXT_CAPTION,
-                UiTokens.TEXT_SECONDARY);
+        addSection(root, density, "Type roles (one variable family)");
+        addRole(root, density, "Display 22sp/600", org.chimeramc.client.ui.components.UiType.Role.DISPLAY);
+        addRole(root, density, "Title 16sp/600", org.chimeramc.client.ui.components.UiType.Role.TITLE);
+        addRole(root, density, "Body 14sp/400", org.chimeramc.client.ui.components.UiType.Role.BODY);
+        addRole(root, density, "Label 13sp/500", org.chimeramc.client.ui.components.UiType.Role.LABEL);
+        addRole(root, density, "Caption 11sp/400", org.chimeramc.client.ui.components.UiType.Role.CAPTION);
         addLabel(root, density, "Section 10sp/600 caps", UiTokens.TEXT_SECTION,
                 UiTokens.TEXT_SECONDARY);
+
+        addSection(root, density, "Shape scale (4 / 8 / 12 / 16 / 28 / pill)");
+        addShapeSample(root, density, UiShape.Role.INDICATOR);
+        addShapeSample(root, density, UiShape.Role.CHIP);
+        addShapeSample(root, density, UiShape.Role.FIELD);
+        addShapeSample(root, density, UiShape.Role.CARD);
+        addShapeSample(root, density, UiShape.Role.WINDOW);
 
         addSection(root, density, "Toggle (off / on / disabled)");
         root.addView(new UiToggleView(this, accent, false, false));
@@ -85,6 +93,41 @@ public class UiGalleryActivity extends Activity {
         tv.setLetterSpacing(UiTokens.SECTION_LETTER_SPACING);
         tv.setPadding(0, (int) (UiTokens.SPACE_4 * density), 0, (int) (UiTokens.SPACE_2 * density));
         root.addView(tv);
+    }
+
+    /** A sample rendered by the shared {@code UiType} role, so the gallery shows the real font. */
+    private void addRole(LinearLayout root, float density,
+                         String text, org.chimeramc.client.ui.components.UiType.Role role) {
+        TextView tv = new TextView(this);
+        tv.setText(text);
+        tv.setTextColor(UiTokens.TEXT_PRIMARY);
+        org.chimeramc.client.ui.components.UiType.apply(tv, role);
+        root.addView(tv);
+    }
+
+    /** A rounded rectangle at one stop of the shape scale, labelled with its dp value. */
+    private void addShapeSample(LinearLayout root, float density,
+                                org.chimeramc.client.ui.components.UiShape.Role role) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        View box = new View(this);
+        int h = (int) (32 * density);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams((int) (72 * density), h);
+        lp.rightMargin = (int) (UiTokens.SPACE_3 * density);
+        box.setLayoutParams(lp);
+        android.graphics.drawable.GradientDrawable shape = new android.graphics.drawable.GradientDrawable();
+        shape.setColor(UiTokens.BG_SURFACE_HOVER);
+        shape.setCornerRadius(org.chimeramc.client.ui.components.UiShape
+                .clampToBox(role.radiusDp * density, lp.width, h));
+        box.setBackground(shape);
+        row.addView(box);
+        TextView label = new TextView(this);
+        label.setText(role.name() + "  " + role.radiusDp + "dp");
+        label.setTextColor(UiTokens.TEXT_SECONDARY);
+        label.setTextSize(UiTokens.TEXT_CAPTION);
+        row.addView(label);
+        row.setPadding(0, (int) (UiTokens.SPACE_1 * density), 0, (int) (UiTokens.SPACE_1 * density));
+        root.addView(row);
     }
 
     private void addLabel(LinearLayout root, float density, String text, float size, int color) {

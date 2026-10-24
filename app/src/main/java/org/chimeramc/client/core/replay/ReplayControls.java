@@ -5,7 +5,7 @@ import android.view.KeyEvent;
 /**
  * The Replay tab's control contract, shared by both screens.
  *
- * <p>The spec fixes two input maps, and they are the same on Screen A and Screen B because the tab
+ * <p>The spec fixes two input maps, and they are the same everywhere because the tab
  * is one feature with one backend:
  * <ul>
  *   <li>Controller — A select, X delete, Y favorite, L1/R1 cycle clips.</li>

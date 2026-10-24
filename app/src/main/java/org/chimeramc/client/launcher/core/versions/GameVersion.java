@@ -24,6 +24,14 @@ public class GameVersion implements Parcelable {
     public boolean shaderCompatEnabled;
     /** When true, the in-game Mod Menu exposes a resource-pack changer for this instance. */
     public boolean inGamePackChangerEnabled;
+    /**
+     * The Microsoft account this instance launches with, or null when it uses the active account.
+     *
+     * <p>A dead id is kept rather than cleared, so the UI can say the binding is stale instead of
+     * silently re-pointing the instance at whoever is active now. See
+     * {@code InstanceAccountBinding}.
+     */
+    public String boundAccountId;
     public final File modsDir;
 
     public GameVersion(String directoryName, String displayName, String versionCode, File versionDir, boolean isOfficial, String packageName, String abiList) {
@@ -63,6 +71,7 @@ public class GameVersion implements Parcelable {
         String modsDirPath = in.readString();
         modsDir = modsDirPath == null ? null : new File(modsDirPath);
         inGamePackChangerEnabled = in.readByte() != 0;
+        boundAccountId = in.readString();
     }
 
     @Override
@@ -83,6 +92,7 @@ public class GameVersion implements Parcelable {
         dest.writeByte((byte) (shaderCompatEnabled ? 1 : 0));
         dest.writeString(modsDir == null ? null : modsDir.getAbsolutePath());
         dest.writeByte((byte) (inGamePackChangerEnabled ? 1 : 0));
+        dest.writeString(boundAccountId);
     }
 
     @Override

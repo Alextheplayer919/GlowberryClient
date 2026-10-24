@@ -4,7 +4,6 @@ import org.luaj.vm2.Globals;
 import org.luaj.vm2.LuaError;
 import org.luaj.vm2.LuaTable;
 import org.luaj.vm2.LuaValue;
-import org.luaj.vm2.lib.jse.JsePlatform;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,10 +25,12 @@ import java.util.List;
  * JVM, and needs no NDK build. The trade-off is speed — LuaJ is an interpreter, not a JIT — which
  * is acceptable because script mods drive setup and configuration, not per-frame game logic.
  *
- * <p>Each mod gets a fresh {@link Globals} with the standard libraries loaded, plus a
- * {@code mod} table carrying the mod's name, version, directory and a {@code sandbox}
- * path so the script can locate its own data files. The entry file is executed with
- * {@code chunk(...)}, so it is a normal Lua script, not a C-style entry function.
+ * <p>Each mod gets a fresh {@link Globals} built by {@link AntEggScriptSandbox} — the pure Lua
+ * libraries only, no {@code os}/{@code io}/{@code luajava}, with an instruction budget and a
+ * mod-directory-confined {@code require} — plus a {@code mod} table carrying the mod's name,
+ * version, directory and a {@code sandbox} path so the script can locate its own data files. The
+ * entry file is executed with {@code chunk(...)}, so it is a normal Lua script, not a C-style
+ * entry function.
  */
 public final class AntEggScriptHost {
 
@@ -75,8 +76,7 @@ public final class AntEggScriptHost {
             return Result.fail("could not read script: " + e.getMessage());
         }
 
-        Globals globals = JsePlatform.standardGlobals();
-        globals.set("mod", buildModTable(modDirectory, manifest));
+        Globals globals = AntEggScriptSandbox.build(modDirectory, buildModTable(modDirectory, manifest));
         try {
             LuaValue chunk = globals.load(source, "@" + manifest.entryPoint);
             chunk.call();
@@ -108,7 +108,7 @@ public final class AntEggScriptHost {
 
     /** Test seam: runs a Lua source string with no mod table, for the unit tests. */
     public static Result runSource(String source) {
-        Globals globals = JsePlatform.standardGlobals();
+        Globals globals = AntEggScriptSandbox.build(null, null);
         try {
             globals.load(source, "@test.lua").call();
             return Result.ok();
@@ -123,10 +123,17 @@ public final class AntEggScriptHost {
         return new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
     }
 
-    /** The Lua standard libraries the sandbox exposes; documented so the surface is reviewable. */
+    /**
+ * The Lua libraries an .AntEgg script can rely on.
+ *
+ * <p>{@code io} and {@code os} are deliberately absent: JsePlatform's {@code io} reads arbitrary
+ * files and its {@code os} can {@code System.exit} or {@code Runtime.exec}, which is why the
+ * sandbox builds globals from the pure libraries only (see {@link AntEggScriptSandbox}). The list
+ * and the sandbox are kept in one place so the two cannot drift.
+ */
     public static List<String> exposedStandardLibraries() {
         return Collections.unmodifiableList(new ArrayList<>(Arrays.asList(
-                "base", "package", "string", "table", "math", "coroutine", "io", "os")));
+                "base", "package", "string", "table", "math", "coroutine", "bit32")));
     }
 
     /** Unused except to keep a direct handle on the input stream type for future data files. */

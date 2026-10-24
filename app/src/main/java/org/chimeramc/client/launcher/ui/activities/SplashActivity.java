@@ -440,7 +440,12 @@ public class SplashActivity extends BaseActivity {
         if (navigated) return;
         navigated = true;
 
-        Intent intent = new Intent(SplashActivity.this, MainActivity.class);
+        // A first launch with no installed instance goes to the wizard instead of the dashboard;
+        // SetupWizardActivity.shouldShow owns that decision so the two entry points cannot drift.
+        Intent intent = new Intent(SplashActivity.this,
+                org.chimeramc.client.ui.activities.SetupWizardActivity.shouldShow(SplashActivity.this)
+                        ? org.chimeramc.client.ui.activities.SetupWizardActivity.class
+                        : MainActivity.class);
         // The arrival animation is gated on this extra so it plays once per cold start and never
         // replays when the user simply returns to the Launch tab.
         intent.putExtra(EXTRA_FROM_SPLASH, true);

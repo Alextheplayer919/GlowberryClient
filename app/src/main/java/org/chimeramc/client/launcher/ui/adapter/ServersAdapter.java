@@ -11,12 +11,26 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import org.chimeramc.client.R;
 import org.chimeramc.client.core.content.ServerItem;
+import org.chimeramc.client.core.content.ServerPongInfo;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+/**
+ * Server rows carry a live ping line (G14). Ping results arrive asynchronously (from a background
+ * executor in the host activity) keyed by {@code ip:port}, so a row can redraw without rebuilding
+ * the whole list and a result does not get lost when the adapter is rebound.
+ */
 public class ServersAdapter extends RecyclerView.Adapter<ServersAdapter.ViewHolder> {
+
     private List<ServerItem> servers;
     private final OnServerClickListener listener;
+    /** Ping outcomes per server key ("ip:port"); absent means "yet to ping". */
+    private final Map<String, ServerPongInfo> pongs = new HashMap<>();
+    private final Map<String, Boolean> pingFailures = new HashMap<>();
+    /** The selected instance's version code, used for the compatibility verdict. */
+    private String selectedVersionCode;
 
     public interface OnServerClickListener {
         void onDeleteClick(ServerItem server);
@@ -29,7 +43,31 @@ public class ServersAdapter extends RecyclerView.Adapter<ServersAdapter.ViewHold
 
     public void updateData(List<ServerItem> newServers) {
         this.servers = newServers;
+        // Pongs are keyed by ip:port and stay valid across re-binds: a filter or a refresh does not
+        // justify losing every ping line. A server genuinely deleted and re-added with the same
+        // address re-uses the old reading, which is the better failure mode.
         notifyDataSetChanged();
+    }
+
+    public void setSelectedVersionCode(String versionCode) {
+        this.selectedVersionCode = versionCode;
+        notifyDataSetChanged();
+    }
+
+    /** Called from the UI thread when a ping lands; redraws only the matching row. */
+    public void onPingResult(ServerItem server, ServerPongInfo pong, boolean failed) {
+        String key = keyFor(server);
+        if (failed || pong == null) {
+            pingFailures.put(key, Boolean.TRUE);
+            pongs.remove(key);
+        } else {
+            pongs.put(key, pong);
+            pingFailures.remove(key);
+        }
+        int index = indexOf(server);
+        if (index >= 0) {
+            notifyItemChanged(index);
+        }
     }
 
     @NonNull
@@ -45,6 +83,7 @@ public class ServersAdapter extends RecyclerView.Adapter<ServersAdapter.ViewHold
         ServerItem server = servers.get(position);
         holder.nameText.setText(server.name);
         holder.ipText.setText(server.ip + ":" + server.port);
+        renderStatus(holder, server);
 
         holder.deleteButton.setOnClickListener(v -> {
             if (listener != null) {
@@ -52,9 +91,66 @@ public class ServersAdapter extends RecyclerView.Adapter<ServersAdapter.ViewHold
             }
         });
 
-        org.chimeramc.client.util.PersonalizationManager pm = new org.chimeramc.client.util.PersonalizationManager(holder.itemView.getContext());
+        org.chimeramc.client.util.PersonalizationManager pm =
+                new org.chimeramc.client.util.PersonalizationManager(holder.itemView.getContext());
         pm.applyGlassToView(holder.itemView);
         pm.applyAccentToView(holder.itemView, holder.itemView.getContext());
+    }
+
+    private void renderStatus(ViewHolder holder, ServerItem server) {
+        TextView status = holder.statusText;
+        if (status == null) return;
+        String key = keyFor(server);
+
+        if (Boolean.TRUE.equals(pingFailures.get(key))) {
+            setStatus(status, holder.itemView.getContext()
+                    .getString(R.string.server_ping_offline), 0xFF8B949E);
+            return;
+        }
+        ServerPongInfo pong = pongs.get(key);
+        if (pong == null) {
+            setStatus(status, holder.itemView.getContext()
+                    .getString(R.string.server_ping_checking), 0xFF8B949E);
+            return;
+        }
+        if (pong.parseError || !pong.isBedrock()) {
+            setStatus(status, holder.itemView.getContext()
+                    .getString(R.string.server_ping_offline), 0xFF8B949E);
+            return;
+        }
+
+        String summary = pong.motd + " · " + pong.playersOnline + "/" + pong.maxPlayers;
+        ServerPongInfo.Compatibility compatibility = pong.compatibilityWith(selectedVersionCode);
+        if (compatibility == ServerPongInfo.Compatibility.COMPATIBLE) {
+            setStatus(status, summary, 0xFF35DC84);
+        } else if (compatibility == ServerPongInfo.Compatibility.MISMATCH) {
+            String line = summary + " · " + holder.itemView.getContext()
+                    .getString(R.string.server_ping_version_mismatch, pong.gameVersion);
+            setStatus(status, line, 0xFFFFC944);
+        } else {
+            setStatus(status, summary, 0xFF8B949E);
+        }
+    }
+
+    private static void setStatus(TextView status, String text, int color) {
+        status.setText(text);
+        status.setTextColor(color);
+    }
+
+    private int indexOf(ServerItem server) {
+        if (servers == null) return -1;
+        for (int i = 0; i < servers.size(); i++) {
+            if (sameServer(servers.get(i), server)) return i;
+        }
+        return -1;
+    }
+
+    private static boolean sameServer(ServerItem a, ServerItem b) {
+        return a.ip.equals(b.ip) && a.port == b.port && a.name.equals(b.name);
+    }
+
+    public static String keyFor(ServerItem server) {
+        return server.ip + ":" + server.port;
     }
 
     @Override
@@ -65,12 +161,14 @@ public class ServersAdapter extends RecyclerView.Adapter<ServersAdapter.ViewHold
     static class ViewHolder extends RecyclerView.ViewHolder {
         TextView nameText;
         TextView ipText;
+        TextView statusText;
         Button deleteButton;
 
         ViewHolder(View view) {
             super(view);
             nameText = view.findViewById(R.id.server_name);
             ipText = view.findViewById(R.id.server_ip);
+            statusText = view.findViewById(R.id.server_status);
             deleteButton = view.findViewById(R.id.server_delete_button);
         }
     }

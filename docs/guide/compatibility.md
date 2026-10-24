@@ -1,54 +1,68 @@
-# Compatibility and FAQ
+# Compatibility
 
-## Supported Devices
+One-page statement of what GlowberryClient runs on and needs.
 
-GlowberryClient targets Android 9.0 or later on ARM64 devices. Devices with more
-available RAM and storage will have a better experience, especially when
-managing multiple versions or large worlds.
+## At-a-glance
 
-## Minecraft Requirement
+| | Supported |
+| --- | --- |
+| **Android** | 9.0 (API 28) or newer, 64-bit (`arm64-v8a`) |
+| **Minecraft** | Bedrock Edition **1.21.80 or newer** (older versions are refused at launch) |
+| **RAM** | 1 GB minimum, **3 GB recommended** for multi-version use |
+| **Storage** | 2 GB minimum, **5 GB recommended** |
 
-GlowberryClient requires the official Minecraft Bedrock Edition app from Google
-Play. It is designed for legitimate players and does not provide a Minecraft
-license.
+## How the game is obtained and used
 
-If Minecraft is not installed, installed from an unsupported source, or too old
-for the current launcher behavior, the launcher may stop before starting the
-game.
+GlowberryClient is a launcher, not a game. It **requires an existing Minecraft:
+Bedrock Edition APK** — either the official Google Play app or an otherwise
+authentic, licensed copy of a supported version — and it runs the copy you
+already own. It never ships, redistributes, or bypasses licensing for the game.
+The launcher extracts native libraries from that APK on the device and does not
+provide a Minecraft license.
 
-## Minecraft Versions
+## What is supported
 
-The app currently rejects Minecraft versions older than 1.21.80. Imported
-versions should use version isolation when their data should remain separate
-from the installed version.
+- **APK import and installation-free launching** — import your Minecraft APK
+  (or composed XAPK) and run it without a system-level install.
+- **Multi-version instances** — keep multiple isolated game versions and their
+  data side by side. Most Bedrock versions ship both 64- and 32-bit libraries
+  and run on this build; a version whose APK ships **only** 32-bit libraries is
+  refused with a clear message.
+- **Version isolation** — enable it for imported versions so their data stays
+  separate from an installed copy.
 
-## Storage and Migration
+## Failure states and what they mean
 
-The launcher may need to migrate older data directories before continuing. Do
-not delete the old directory until the migration succeeds and you have confirmed
-that worlds, packs, and settings are available.
+| Launcher says | Meaning | Fix |
+| --- | --- | --- |
+| "Minecraft is missing" | No compatible Minecraft APK is available to the launcher | Provide an official/authentic Bedrock APK and retry |
+| "Version refused" | The selected version ships no `arm64-v8a` libraries, or is older than 1.21.80 | Pick a supported version |
+| "Import won't launch" | The import did not complete (ABI or extract mismatch) | Re-import the APK, or use Settings → Diagnostics |
 
-Backups are stored under the launcher-managed backup location. For important
-worlds, keep another copy outside app storage.
+When a launch fails, the launch log from the failure screen names the reported
+reason before changing settings.
 
-## Native Modules
+## Backups and migration
 
-Native modules run native code in the game process. Install only modules from
-sources you trust, and test them with an isolated version first.
+- The launcher may migrate older data directories before continuing. **Do not
+  delete the old directory** until the migration succeeds and you have confirmed
+  worlds, packs, and settings are available.
+- Keep an extra copy of important worlds outside app storage.
 
-## Common Questions
+## Native modules
 
-### Why does the launcher say Minecraft is missing?
+Native modules run code in the game process. Install only modules from sources
+you trust and test them with an isolated version first. Modules that need game
+data this build cannot read fail closed and say so in-app.
 
-Install or update the official Minecraft app from Google Play, then open
-GlowberryClient again.
+## Common questions
 
-### Why can an imported version fail to launch?
+**Why does the launcher say Minecraft is missing?** — Provide an official or
+authentic Bedrock Edition APK and open GlowberryClient again.
 
-Imported versions often need version isolation. Enable it in the instance
-settings and try again.
+**Why can an imported version fail to launch?** — Enable version isolation in the
+instance settings, or re-import a supported APK via Diagnostics.
 
-### Where should developer API questions go?
-
-Use the [Developer](/guide/developer) section. The Preloader API reference is
-intentionally grouped there instead of the main user guide.
+**Where do developer API questions go?** — The [Developer](/guide/developer)
+section. The Preloader API reference is intentionally grouped there instead of
+the main user guide.

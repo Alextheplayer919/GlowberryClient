@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * encoder/decoder path on many SoCs, and fighting over it mid-recording can stutter both. The
  * capture service checks this gate before starting and stops when playback begins.
  *
- * <p>A count rather than a boolean: two overlays (Screen A and Screen B) can in principle each
+ * <p>A count rather than a boolean: two overlays can in principle each
  * hold a player, and the gate must stay latched until the last one releases. Every release is
  * paired with a start, and {@link #reset()} is the safety net if a player is torn down without a
  * matching callback.

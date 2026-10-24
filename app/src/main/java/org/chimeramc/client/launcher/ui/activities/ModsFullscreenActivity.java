@@ -23,6 +23,7 @@ import android.graphics.Canvas;
 import org.chimeramc.client.R;
 import org.chimeramc.client.core.mods.FileHandler;
 import org.chimeramc.client.core.mods.Mod;
+import org.chimeramc.client.core.mods.ModCrashAttribution;
 import org.chimeramc.client.core.mods.ModLoadDiagnostics;
 import org.chimeramc.client.core.mods.ModManager;
 import org.chimeramc.client.core.mods.ModSafeMode;
@@ -113,9 +114,7 @@ public class ModsFullscreenActivity extends BaseActivity {
         Button addModButton = findViewById(R.id.add_mod_fullscreen_button);
 
         addModButton.setVisibility(View.VISIBLE);
-        addModButton.setOnClickListener(v -> {
-            startFilePicker();
-        });
+        addModButton.setOnClickListener(v -> showImportChooser());
         DynamicAnim.applyPressScale(addModButton);
 
         Button modHubButton = findViewById(R.id.mod_hub_fullscreen_button);
@@ -214,6 +213,10 @@ public class ModsFullscreenActivity extends BaseActivity {
      * Offers to disable the mods recorded as loaded before the crash. Disabling is the only
      * useful action: the user cannot be expected to know which of several native mods was at
      * fault, and leaving them enabled guarantees the same crash loop.
+     *
+     * <p>When the same suspect set has crashed {@code AUTO_DISABLE_THRESHOLD}+ launches in a row
+     * (item G8), the disable happens here without asking — the attribution has made the cause
+     * trustworthy and a second crash prompt would just read as a broken launcher.
      */
     private void promptForCrashSafeMode() {
         List<String> suspectIds = ModSafeMode.suspectModIds(this);
@@ -224,12 +227,34 @@ public class ModsFullscreenActivity extends BaseActivity {
 
         List<Mod> installed = viewModel.getModsLiveData().getValue();
         List<Mod> suspects = new ArrayList<>();
+        java.util.Set<String> autoDisabled = new java.util.HashSet<>(
+                ModCrashAttribution.getAutoDisabledMods(this));
         if (installed != null) {
             for (Mod mod : installed) {
                 if (suspectIds.contains(mod.getId()) && mod.isEnabled()) {
                     suspects.add(mod);
                 }
             }
+        }
+        // G8: the same suspects crashed twice in a row — disable without asking, then say why.
+        boolean anyAutoDisable = false;
+        for (Mod mod : suspects) {
+            if (autoDisabled.contains(mod.getId())) {
+                anyAutoDisable = true;
+                break;
+            }
+        }
+        if (anyAutoDisable && !suspects.isEmpty()) {
+            for (Mod mod : suspects) {
+                viewModel.setModEnabled(mod.getId(), false);
+            }
+            ModSafeMode.acknowledgeCrash(this, true);
+            Toast.makeText(this,
+                    getString(R.string.mod_safe_mode_auto_disabled,
+                            ModCrashAttribution.AUTO_DISABLE_THRESHOLD, suspects.size()),
+                    Toast.LENGTH_LONG).show();
+            viewModel.refreshMods();
+            return;
         }
         if (suspects.isEmpty()) {
             ModSafeMode.acknowledgeCrash(this, false);
@@ -271,6 +296,96 @@ public class ModsFullscreenActivity extends BaseActivity {
                 .format(new java.util.Date(timestampMs));
     }
 
+    /**
+     * "Add Mod" asks how, rather than assuming a file picker (F1).
+     *
+     * <p>A {@code .AntEgg} now arrives two ways: as a file, or as a link someone shared. A chooser
+     * keeps the common path one tap away and makes the link path discoverable without adding a
+     * fourth button to a header that is already full. Both paths end in the same validated loader,
+     * so neither is a shortcut around it.
+     */
+    private void showImportChooser() {
+        // The chooser is the only entry point; a plain file picker is one of its two answers.
+        new CustomAlertDialog(this)
+                .setTitleText(getString(R.string.mod_import_chooser_title))
+                .setMessage(getString(R.string.mod_import_chooser_message))
+                .setPositiveButton(getString(R.string.mod_import_from_file), d -> startFilePicker())
+                .setNegativeButton(getString(R.string.mod_import_from_link), d -> promptForLink())
+                .setNeutralButton(getString(R.string.cancel), d -> { })
+                .show();
+    }
+
+    /** Prompts for a shared or pasted package link and imports it through the validated loader. */
+    private void promptForLink() {
+        android.widget.EditText input = new android.widget.EditText(this);
+        input.setSingleLine(true);
+        input.setHint(R.string.mod_import_link_hint);
+        CustomAlertDialog dialog = new CustomAlertDialog(this)
+                .setTitleText(getString(R.string.mod_import_from_link))
+                .setMessage(getString(R.string.mod_import_link_message))
+                .setCustomView(input)
+                .setPositiveButton(getString(R.string.mod_import_link_go), v -> {
+                    String link = org.chimeramc.client.core.antegg.AntEggLink
+                            .firstImportableUrl(input.getText().toString());
+                    if (link == null) {
+                        Toast.makeText(this, R.string.mod_import_link_invalid,
+                                Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    importFromLink(link);
+                })
+                .setNegativeButton(getString(R.string.cancel), v -> { });
+        dialog.show();
+    }
+
+    /**
+     * Downloads and imports a link, reporting both stages.
+     *
+     * <p>The progress toast is deliberately coarse (a single "downloading" notice) because the
+     * import itself is what the user is waiting for, and a percentage that only updates for
+     * servers that send a length is not worth a second widget.
+     */
+    private void importFromLink(String url) {
+        Toast.makeText(this, R.string.mod_import_link_downloading, Toast.LENGTH_SHORT).show();
+        new org.chimeramc.client.core.antegg.AntEggLinkDownloader().download(
+                this, url, null, new org.chimeramc.client.core.antegg
+                        .AntEggLinkDownloader.Callback() {
+                    @Override
+                    public void onSuccess(java.io.File staged, String fileName) {
+                        new Thread(() -> {
+                            org.chimeramc.client.core.antegg.AntEggLoader.LoadResult result =
+                                    org.chimeramc.client.core.antegg.AntEggLoader
+                                            .loadMod(ModsFullscreenActivity.this, staged);
+                            //noinspection ResultOfMethodCallIgnored
+                            staged.delete();
+                            if (!result.success) {
+                                org.chimeramc.client.core.antegg.AntEggLoader.recordFailure(
+                                        ModsFullscreenActivity.this, fileName, result.error);
+                            }
+                            runOnUiThread(() -> {
+                                if (result.success) {
+                                    Toast.makeText(ModsFullscreenActivity.this,
+                                            getString(R.string.mod_import_link_done, fileName),
+                                            Toast.LENGTH_LONG).show();
+                                    viewModel.reloadMods();
+                                } else {
+                                    Toast.makeText(ModsFullscreenActivity.this,
+                                            getString(R.string.mod_import_link_failed, result.error),
+                                            Toast.LENGTH_LONG).show();
+                                }
+                            });
+                        }, "antegg-link-import").start();
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        runOnUiThread(() -> Toast.makeText(ModsFullscreenActivity.this,
+                                getString(R.string.mod_import_link_failed, message),
+                                Toast.LENGTH_LONG).show());
+                    }
+                });
+    }
+
     private void startFilePicker() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -310,7 +425,13 @@ public class ModsFullscreenActivity extends BaseActivity {
         modsAdapter.setOnModEnableChangeListener((mod, enabled) -> {
             if (viewModel != null) {
                 viewModel.setModEnabled(mod.getId(), enabled);
-                updateModsCount(); 
+                updateModsCount();
+            }
+            // An explicit enable is the user taking control of the mod set; the consecutive-crash
+            // attribution (and any persisted auto-disable) no longer applies and would otherwise
+            // re-disable the mod behind the user's back on the next launch.
+            if (enabled) {
+                ModCrashAttribution.clear(this);
             }
         });
         

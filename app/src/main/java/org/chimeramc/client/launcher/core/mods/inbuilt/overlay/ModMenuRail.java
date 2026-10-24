@@ -18,10 +18,10 @@ import java.util.function.Consumer;
 /**
  * The touch Mod Menu's icon rail.
  *
- * <p>Both mod-menu windows are the same shell: a glass top bar (logo, title, input-mode badge,
- * close) with an icon-only destination rail beside the content. The rail is built from
- * {@link ModMenuPage#sharedPages()}, the single page registry the VIP menu also reads, so the two
- * screens cannot drift and a new destination is one enum entry.
+ * <p>The rail is built from {@link ModMenuPage#pages()}, the single page registry the whole menu
+ * reads, so a new destination is one enum entry. A page flagged
+ * {@link ModMenuPage#isSupporter()} gets a small accent dot on its tile, which is the Supporter
+ * badge: the page is otherwise an ordinary page of the same menu (U4).
  *
  * <p>This class owns only view construction and the selection fill; which page is currently shown
  * stays with the overlay, which passes a selection callback.
@@ -50,7 +50,7 @@ final class ModMenuRail {
 
         int size = (int) (UiTokens.RAIL_BUTTON * density());
         int gap = (int) (8 * density());
-        for (final ModMenuPage page : ModMenuPage.sharedPages()) {
+        for (final ModMenuPage page : ModMenuPage.pages()) {
             // A fixed-size tile with a centred icon, matching the VIP rail. A TextView with a
             // compound drawable positions the icon against an empty text line box, so it drifts
             // off centre at some densities.
@@ -70,6 +70,26 @@ final class ModMenuRail {
             icon.setLayoutParams(iconLp);
             icon.setImageResource(page.getIconRes());
             tile.addView(icon);
+
+            if (page.isSupporter()) {
+                // The Supporter badge: a small accent dot in the tile's corner. A dot rather than a
+                // second label keeps the rail icon-only at every width, which is what lets nine
+                // destinations fit the landscape height.
+                View badge = new View(activity);
+                int badgeSize = (int) (7 * density());
+                FrameLayout.LayoutParams badgeLp =
+                        new FrameLayout.LayoutParams(badgeSize, badgeSize);
+                badgeLp.gravity = Gravity.END | Gravity.TOP;
+                badgeLp.topMargin = (int) (5 * density());
+                badgeLp.rightMargin = (int) (5 * density());
+                badge.setLayoutParams(badgeLp);
+                android.graphics.drawable.GradientDrawable dot =
+                        new android.graphics.drawable.GradientDrawable();
+                dot.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+                dot.setColor(accent);
+                badge.setBackground(dot);
+                tile.addView(badge);
+            }
 
             tile.setOnClickListener(v -> onSelect.accept(page));
             tile.setOnLongClickListener(v -> {

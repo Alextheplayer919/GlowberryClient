@@ -5,11 +5,15 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.os.Build
 import org.chimeramc.client.core.mods.Mod
+import org.chimeramc.client.core.mods.ModCrashAttribution
 import org.chimeramc.client.core.mods.ModLoadDiagnostics
 import org.chimeramc.client.core.mods.ModManager
 import org.chimeramc.client.core.mods.ModNativeLoader
 import org.chimeramc.client.core.mods.ModSafeMode
 import org.chimeramc.client.core.minecraft.MinecraftLauncher
+import org.chimeramc.client.core.auth.InstanceAccountBinding
+import org.chimeramc.client.core.auth.MsftAccountStore
+import org.chimeramc.client.core.auth.storage.XalExporter
 import org.chimeramc.client.core.versions.GameVersion
 import io.bambosan.mbloader.launcherUtils.LibBindings
 import org.chimeramc.client.preloader.PreloaderInput
@@ -125,9 +129,24 @@ object MinecraftRuntimePreparer {
         // the preloader's own "rules not delivered" guard at hook-install time; delivering into
         // the void here would leave the same silent state the crash came from.
         if (ModManager.ensurePreloaderLoaded()) {
-            val signatureRulesFile = PreloaderSignatureRulesManager.getRulesFile(context.applicationContext)
-            PreloaderInput.configureSignatureRules(signatureRulesFile, version.versionCode)
-            trace.mark("Preloader signature rules configured", signatureRulesFile?.absolutePath ?: "<none>")
+            // G5: fail closed on a build the signature DB does not cover. A rule file with no
+            // matching entry would feed scan-and-hope byte patterns into the preloader; the
+            // hooks silently never install. Refuse to hand the file over and record a reason
+            // the diagnostics screen can show instead of pretending the build is supported.
+            val coverageFailure = PreloaderSignatureRulesManager
+                .describeCoverageFailure(context.applicationContext, version.versionCode)
+            if (coverageFailure == null) {
+                val signatureRulesFile = PreloaderSignatureRulesManager
+                    .getRulesFile(context.applicationContext)
+                PreloaderInput.configureSignatureRules(signatureRulesFile, version.versionCode)
+                trace.mark("Preloader signature rules configured",
+                    signatureRulesFile?.absolutePath ?: "<none>")
+            } else {
+                fileListener.onLog("Signature rules skipped: $coverageFailure")
+                trace.mark("Preloader signature rules skipped (no coverage)", coverageFailure)
+            }
+        } else {
+            fileListener.onLog("Game loader unavailable; preloader signature rules not delivered")
         }
 
         fileListener.onLog("Loading native libraries")
@@ -168,6 +187,39 @@ val modsDir = modManager.currentVersion?.modsDir?.absolutePath
         } catch (error: Exception) {
             trace.error("Bundled native-mod pack synchronization failed", error.message ?: error.javaClass.simpleName)
             throw RuntimeException("Failed to prepare bundled native-mod packs", error)
+        }
+
+        // F2: an instance can be bound to a specific Microsoft account. Export that account's XAL
+        // data before the game starts, so the instance signs in as the account it was bound to
+        // rather than whichever one is globally active. A binding whose account is gone is left in
+        // place and reported, never silently re-pointed; a failure is logged and the launch
+        // continues, because an account problem must not block a launch.
+        try {
+            val boundAccountId = version.boundAccountId
+            if (boundAccountId != null && boundAccountId.isNotEmpty()) {
+                val accounts = MsftAccountStore.list(context).map {
+                    object : InstanceAccountBinding.Account {
+                        override fun id() = it.id
+                        override fun active() = it.active
+                        override fun hasAuthMaterial() = it.serializedAuthManager != null
+                    }
+                }
+                val resolution = InstanceAccountBinding.resolve(boundAccountId, accounts)
+                val chosen = resolution.account
+                if (chosen != null && chosen.id() == boundAccountId) {
+                    if (XalExporter.exportAccount(context, boundAccountId)) {
+                        fileListener.onLog("Bound account exported for this instance")
+                    } else {
+                        fileListener.onLog("Bound account has no usable sign-in data")
+                    }
+                } else if (resolution.bindingStale) {
+                    fileListener.onLog(
+                        "This instance is bound to an account that is no longer available; " +
+                            "launching with the active account instead")
+                }
+            }
+        } catch (error: Throwable) {
+            trace.error("Instance account binding failed", error.javaClass.simpleName)
         }
 
         // Publish the equipped set into the native cosmetics registry before every launch, so the
@@ -383,6 +435,37 @@ val modsDir = modManager.currentVersion?.modsDir?.absolutePath
         val skippedIncompatibleMods = mutableListOf<String>()
         val loadedModIds = linkedSetOf<String>()
         val failedModRecords = mutableListOf<ModLoadDiagnostics.Record>()
+
+        // G8: per-mod crash attribution. The decision to auto-disable a mod that has crashed
+        // the previous N launches comes from the attribution counter; ModSafeMode still owns the
+        // single-shot crash-loop marker this launch's outcome is recorded on.
+        val crashEvaluation = ModCrashAttribution.onLaunchStart(
+            context,
+            ModSafeMode.hasCrashLoop(context),
+            ModSafeMode.suspectModIds(context)
+        )
+        if (crashEvaluation.autoDisable.isNotEmpty()) {
+            // Same suspects crashed AUTO_DISABLE_THRESHOLD+ launches in a row. Disable them now
+            // so this launch is the one that finally goes through; ModsFullscreenActivity shows
+            // the explanatory toast when the Mods tab is opened.
+            val byId = modManager.mods.associateBy(Mod::getId)
+            for (modId in crashEvaluation.autoDisable) {
+                val mod = byId[modId]
+                if (mod == null) continue
+                if (!mod.isEnabled) continue
+                modManager.setModEnabled(modId, false)
+                val reason = "Disabled after ${crashEvaluation.crashCount} crashes in a row; " +
+                    "re-enable one at a time in the Mods tab"
+                failedModRecords.add(
+                    ModLoadDiagnostics.Record(
+                        modId, mod.displayName, mod.version ?: "",
+                        reason, ModLoadDiagnostics.KIND_INCOMPATIBLE, System.currentTimeMillis()
+                    )
+                )
+                listener.onLog("Auto-disabled $reason: ${mod.displayName}")
+                trace.warning("Mod auto-disabled (crash attribution)", mod.displayName)
+            }
+        }
         ModSafeMode.beginLaunch(context, modManager.mods.filter { it.isEnabled }.map { it.id })
         ModNativeLoader.loadEnabledSoMods(
             modManager,

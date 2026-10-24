@@ -26,5 +26,22 @@
         plus their labels must share the row.
     -->
     <dimen name="nav_tab_padding">14dp</dimen>
+    <!-- The vertical rail's width and the height of one destination row in it (U5). -->
+    <dimen name="nav_rail_width">72dp</dimen>
+    <dimen name="nav_rail_tab_height">44dp</dimen>
     <dimen name="nav_tab_drawable_padding">0dp</dimen>
+
+    <!--
+        The one spacing scale (U9): 4/8/12/16/24/32dp, mirroring UiTokens.SPACE_*. Layouts use
+        these rather than raw dp so the vertical rhythm matches the code-drawn surfaces.
+    -->
+    <dimen name="space_1">4dp</dimen>
+    <dimen name="space_2">8dp</dimen>
+    <dimen name="space_3">12dp</dimen>
+    <dimen name="space_4">16dp</dimen>
+    <dimen name="space_6">24dp</dimen>
+    <dimen name="space_8">32dp</dimen>
+
+    <!-- The 48dp minimum touch target (U6/U9), mirrored from UiTokens.MIN_TOUCH_TARGET. -->
+    <dimen name="min_touch_target">48dp</dimen>
 </resources>

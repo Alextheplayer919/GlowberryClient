@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Renders and wires the Bedrock Optifine Mode section of the Settings screen.
+ * Renders and wires the Game Performance Mode section of the Settings screen.
  *
  * <p>One row per item, built from {@link OptifineItemIds#ALL} so the list and the preloader's
  * item table cannot drift. Each row carries its own toggle (so a device-specific misbehaviour can

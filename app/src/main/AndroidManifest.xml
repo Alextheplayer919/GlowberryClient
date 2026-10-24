@@ -11,6 +11,7 @@
         android:required="false" />
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
@@ -71,13 +72,35 @@
             </intent-filter>
         </activity>
 
+        <!--
+            The first-run wizard (U13). Not exported and not a launcher entry: the splash opens it
+            only when the launcher has no installed instance, so an existing user never sees it.
+        -->
+        <activity
+            android:name="org.chimeramc.client.ui.activities.SetupWizardActivity"
+            android:exported="false"
+            android:label="@string/setup_step_import_title"
+            android:screenOrientation="sensorLandscape"
+            android:theme="@style/MainActivityTheme" />
+
         <activity
             android:name="org.chimeramc.client.ui.activities.MainActivity"
             android:exported="true"
             android:screenOrientation="sensorLandscape"
             android:theme="@style/MainActivityTheme"
             android:configChanges="fontScale|density|smallestScreenSize|screenSize|uiMode|screenLayout|orientation|navigation|keyboardHidden|keyboard|touchscreen|locale|mnc|mcc"
-            tools:ignore="DiscouragedApi" />
+            tools:ignore="DiscouragedApi">
+
+            <!-- F1: a shared .AntEgg link. The scheme/host filter is intentionally broad and the
+                 payload is filtered in FileHandler by AntEggLink, because a share sheet usually
+                 sends a whole message rather than a bare URL. `text/plain` is required for a
+                 browser or chat app to offer this entry at all. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
 
         <activity
             android:name="org.chimeramc.client.ui.activities.ContentManagementActivity"
@@ -104,6 +127,22 @@
             android:name="org.chimeramc.client.core.replay.ReplayCaptureService"
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
+
+        <service
+            android:name="org.chimeramc.client.launcher.util.WorldBackupService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <receiver
+            android:name="org.chimeramc.client.launcher.util.WorldBackupBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <activity
             android:name="org.chimeramc.client.ui.activities.ContentListActivity"
@@ -143,19 +182,14 @@
             android:configChanges="fontScale|density|smallestScreenSize|screenSize|uiMode|screenLayout|orientation|navigation|keyboardHidden|keyboard|touchscreen|locale|mnc|mcc"
             tools:ignore="DiscouragedApi" />
 
+        <!-- The Library destination (U1/U3): Instances + Install + Replay behind one host. -->
         <activity
-            android:name="org.chimeramc.client.ui.activities.InstancesActivity"
+            android:name="org.chimeramc.client.ui.activities.LibraryActivity"
             android:exported="false"
             android:screenOrientation="sensorLandscape"
             android:configChanges="fontScale|density|smallestScreenSize|screenSize|uiMode|screenLayout|orientation|navigation|keyboardHidden|keyboard|touchscreen|locale|mnc|mcc"
-            tools:ignore="DiscouragedApi" />
-
-        <activity
-            android:name="org.chimeramc.client.ui.activities.InstallationsActivity"
-            android:exported="false"
-            android:screenOrientation="sensorLandscape"
-            android:configChanges="fontScale|density|smallestScreenSize|screenSize|uiMode|screenLayout|orientation|navigation|keyboardHidden|keyboard|touchscreen|locale|mnc|mcc"
-            tools:ignore="DiscouragedApi" />
+            tools:ignore="DiscouragedApi"
+            android:label="@string/nav_library" />
 
         <activity
             android:name="org.chimeramc.client.ui.activities.SettingsActivity"
@@ -164,6 +198,15 @@
             android:configChanges="fontScale|density|smallestScreenSize|screenSize|uiMode|screenLayout|orientation|navigation|keyboardHidden|keyboard|touchscreen|locale|mnc|mcc"
             tools:ignore="DiscouragedApi"
             android:label="@string/settings_title" />
+
+        <!-- In-app diagnostics (U16) with the "Repair installation" action (G2). -->
+        <activity
+            android:name="org.chimeramc.client.launcher.ui.activities.DiagnosticsActivity"
+            android:exported="false"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="fontScale|density|smallestScreenSize|screenSize|uiMode|screenLayout|orientation|navigation|keyboardHidden|keyboard|touchscreen|locale|mnc|mcc"
+            tools:ignore="DiscouragedApi"
+            android:label="@string/diagnostics_title" />
 
         <!-- Hidden UI gallery: reached by tapping the version 7 times in Settings > Updates. -->
         <activity
@@ -190,14 +233,6 @@
             android:configChanges="fontScale|density|smallestScreenSize|screenSize|uiMode|screenLayout|orientation|navigation|keyboardHidden|keyboard|touchscreen|locale|mnc|mcc"
             tools:ignore="DiscouragedApi"
             android:label="@string/nav_voice" />
-
-        <activity
-            android:name="org.chimeramc.client.ui.activities.ReplayActivity"
-            android:exported="false"
-            android:screenOrientation="sensorLandscape"
-            android:configChanges="fontScale|density|smallestScreenSize|screenSize|uiMode|screenLayout|orientation|navigation|keyboardHidden|keyboard|touchscreen|locale|mnc|mcc"
-            tools:ignore="DiscouragedApi"
-            android:label="@string/launch_toggle_replay" />
 
         <activity
             android:name="org.chimeramc.client.ui.activities.InstanceSettingsActivity"
@@ -354,11 +389,6 @@
                 <data android:pathPattern="/.*\\..*\\..*\\.chimerabackup" />
                 <data android:pathPattern="/.*\\..*\\..*\\..*\\.chimerabackup" />
                 <data android:pathPattern="/.*\\..*\\..*\\..*\\..*\\.chimerabackup" />
-                <data android:pathPattern="/.*\\.chimerapack" />
-                <data android:pathPattern="/.*\\..*\\.chimerapack" />
-                <data android:pathPattern="/.*\\..*\\..*\\.chimerapack" />
-                <data android:pathPattern="/.*\\..*\\..*\\..*\\.chimerapack" />
-                <data android:pathPattern="/.*\\..*\\..*\\..*\\..*\\.chimerapack" />
                 <data android:pathPattern="/.*\\.so" />
                 <data android:pathPattern="/.*\\..*\\.so" />
                 <data android:pathPattern="/.*\\..*\\..*\\.so" />
@@ -396,7 +426,6 @@
                 <data android:pathPattern="/.*\\..*\\..*\\..*\\..*\\.mctemplate" />
                 <data android:pathSuffix=".zip" />
                 <data android:pathSuffix=".chimerabackup" />
-                <data android:pathSuffix=".chimerapack" />
                 <data android:pathSuffix=".so" />
                 <data android:pathSuffix=".antegg" />
                 <data android:pathSuffix=".jar" />
@@ -425,11 +454,6 @@
                 <data android:pathPattern="/.*\\..*\\..*\\.chimerabackup" />
                 <data android:pathPattern="/.*\\..*\\..*\\..*\\.chimerabackup" />
                 <data android:pathPattern="/.*\\..*\\..*\\..*\\..*\\.chimerabackup" />
-                <data android:pathPattern="/.*\\.chimerapack" />
-                <data android:pathPattern="/.*\\..*\\.chimerapack" />
-                <data android:pathPattern="/.*\\..*\\..*\\.chimerapack" />
-                <data android:pathPattern="/.*\\..*\\..*\\..*\\.chimerapack" />
-                <data android:pathPattern="/.*\\..*\\..*\\..*\\..*\\.chimerapack" />
                 <data android:pathPattern="/.*\\.so" />
                 <data android:pathPattern="/.*\\..*\\.so" />
                 <data android:pathPattern="/.*\\..*\\..*\\.so" />
@@ -467,7 +491,6 @@
                 <data android:pathPattern="/.*\\..*\\..*\\..*\\..*\\.mctemplate" />
                 <data android:pathSuffix=".zip" />
                 <data android:pathSuffix=".chimerabackup" />
-                <data android:pathSuffix=".chimerapack" />
                 <data android:pathSuffix=".so" />
                 <data android:pathSuffix=".antegg" />
                 <data android:pathSuffix=".jar" />

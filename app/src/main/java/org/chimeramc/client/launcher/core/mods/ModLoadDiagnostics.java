@@ -38,6 +38,7 @@ public final class ModLoadDiagnostics {
     public static final String KIND_MISSING_DEPENDENCY = "missing_dependency";
     public static final String KIND_SYMBOL = "symbol";
     public static final String KIND_DLOPEN = "dlopen";
+    public static final String KIND_HASH_MISMATCH = "hash_mismatch";
     public static final String KIND_UNKNOWN = "unknown";
 
     private ModLoadDiagnostics() {
@@ -161,6 +162,10 @@ public final class ModLoadDiagnostics {
             if (message.contains("does not exist") || message.contains("failed to prepare")
                     || message.contains("entry not found") || message.contains("failed to list")) {
                 return KIND_MISSING_DEPENDENCY;
+            }
+            if (message.contains("pinned checksum") || message.contains("pinned sha256")
+                    || message.contains("hash does not match")) {
+                return KIND_HASH_MISMATCH;
             }
             return KIND_UNKNOWN;
         }

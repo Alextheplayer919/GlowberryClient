@@ -20,11 +20,11 @@ hero:
       link: /guide/developer
     - theme: alt
       text: Download
-      link: https://github.com/ChimeraAnt-DEV/ChimeraLauncher/releases/latest
+      link: https://github.com/ChimeraAnt-DEV/GlowberryClient/releases/latest
 
 features:
-  - title: Official game first
-    details: GlowberryClient is built for legitimate Minecraft Bedrock players and requires the official Google Play version of Minecraft.
+  - title: Your own game, launched cleanly
+    details: GlowberryClient is built for legitimate Minecraft Bedrock players and launches a Minecraft Bedrock Edition copy you already own — it never ships or redistributes the game.
   - title: Version isolation
     details: Keep multiple game versions and their data separated so testing one setup does not disturb another.
   - title: Content management

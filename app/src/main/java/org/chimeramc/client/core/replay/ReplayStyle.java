@@ -13,7 +13,7 @@ import org.chimeramc.client.util.PersonalizationManager;
  *
  * <p>The Replay tab appears on the touch Mod Menu and the VIP Mod Menu, and the spec requires the
  * two to share "the same data, controls and polish". One token class is what makes that true: the
- * cards, pills and washes on Screen A and Screen B are drawn from the same ramp, so the feature
+ * cards, pills and washes are drawn from the same ramp, so the feature
  * cannot look like two different products depending on how it was opened. It is a four-tier
  * surface ramp (canvas → surface → elevated → hairline), a text ramp and a fixed status palette,
  * plus factories for the rounded / stroked / rippled drawables the panel reuses.
@@ -46,7 +46,7 @@ public final class ReplayStyle {
         boolean glow = true;
         try {
             PersonalizationManager pm = new PersonalizationManager(context);
-            if (pm.hasCustomAccent()) resolved = pm.getAccentColor();
+            resolved = pm.getAccentColor();
             glow = pm.isEnableGlowEffects();
         } catch (Throwable ignored) {
         }

@@ -2,7 +2,7 @@
 
 This directory is a complete C++ native mod example for GlowberryClient. It shows
 the recommended C++ lifecycle API, typed config, Mod Menu integration, and
-`.levipack` packaging.
+`.antegg` packaging.
 
 ## What It Covers
 
@@ -14,7 +14,7 @@ the recommended C++ lifecycle API, typed config, Mod Menu integration, and
 - `pl::modmenu::ButtonBuilder` registration for external HUD binding buttons
 - PNG, WebP, and SVG custom icons for external HUD buttons
 - Toggle/config callbacks that update and persist the same config file
-- `build.ps1` packaging for the Android `.so` and `.levipack`
+- `build.ps1` packaging for the Android `.so` and `.antegg`
 
 ## Layout
 
@@ -63,7 +63,7 @@ Successful builds generate:
 
 ```text
 examples\full-cpp-mod\dist\arm64-v8a\full-cpp-mod\
-examples\full-cpp-mod\dist\arm64-v8a\full-cpp-mod.levipack
+examples\full-cpp-mod\dist\arm64-v8a\full-cpp-mod.antegg
 ```
 
 The package root should contain:
@@ -81,7 +81,7 @@ Menu owner group.
 ## Verify
 
 ```powershell
-tar -tf .\examples\full-cpp-mod\dist\arm64-v8a\full-cpp-mod.levipack
+tar -tf .\examples\full-cpp-mod\dist\arm64-v8a\full-cpp-mod.antegg
 ```
 
 Expected entries:

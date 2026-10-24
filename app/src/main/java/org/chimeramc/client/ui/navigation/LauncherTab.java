@@ -3,10 +3,7 @@ package org.chimeramc.client.ui.navigation;
 import android.app.Activity;
 import android.view.KeyEvent;
 
-import org.chimeramc.client.ui.activities.InstallationsActivity;
-import org.chimeramc.client.ui.activities.AboutActivity;
-import org.chimeramc.client.ui.activities.CustomizeActivity;
-import org.chimeramc.client.ui.activities.InstancesActivity;
+import org.chimeramc.client.ui.activities.LibraryActivity;
 import org.chimeramc.client.ui.activities.MainActivity;
 import org.chimeramc.client.ui.activities.ModsFullscreenActivity;
 import org.chimeramc.client.ui.activities.SettingsActivity;
@@ -18,17 +15,20 @@ import org.chimeramc.client.ui.activities.SettingsActivity;
  * so a tab is a label plus the activity it opens. Declaration order is the order shown in
  * the nav bar and the order controller bumpers cycle through, so the two cannot drift.
  *
- * Voice is deliberately <b>not</b> here. It is a mod, so its home is the in-game Mod Menu's
- * top bar (first entry, ahead of Modules); a launcher nav tab for it duplicated that home and
- * put a communication feature in the same row as navigation. {@code VoiceChatActivity} still
- * exists and is still reachable, but only from the Mod Menu.
+ * There are four destinations, not six (U1). Instances, Install and Replay are all "a list you
+ * browse and act on", so they are one {@link LibraryActivity} with an inner segmented control.
+ * Cosmetics is a profile sheet on Play rather than a tab. Controller, Skins and Voice are reached
+ * from Settings, which is where a configuration screen belongs. A tab that is really a section of
+ * another tab is what made the old bar too long for a phone.
+ *
+ * <p>Voice in particular is deliberately <b>not</b> a launcher nav tab. Its in-game home is the
+ * Mod Menu's own Voice section, and its launcher-side home is Settings; a nav tab for it put a
+ * communication feature in the same row as navigation.
  */
 public enum LauncherTab {
     LAUNCH(MainActivity.class),
-    VERSIONS(InstancesActivity.class),
-    INSTALLATIONS(InstallationsActivity.class),
+    LIBRARY(LibraryActivity.class),
     MODS(ModsFullscreenActivity.class),
-    CUSTOMIZE(CustomizeActivity.class),
     SETTINGS(SettingsActivity.class);
 
     private final Class<? extends Activity> activity;

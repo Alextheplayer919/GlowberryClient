@@ -75,10 +75,13 @@ public class ModManager {
         final File modRoot;
         final File configDir;
         final int configFileCount;
+        final String declaredSha256;
+        final boolean verified;
 
         ModDescriptor(String id, String fileName, String entryPath, String displayName, List<String> minecraftVersions,
                       String author, String version, String iconPath, String manifestPath, String description,
-                      File modRoot, File configDir, int configFileCount) {
+                      File modRoot, File configDir, int configFileCount,
+                      String declaredSha256, boolean verified) {
             this.id = id;
             this.fileName = fileName;
             this.entryPath = entryPath;
@@ -92,6 +95,8 @@ public class ModManager {
             this.modRoot = modRoot;
             this.configDir = configDir;
             this.configFileCount = configFileCount;
+            this.declaredSha256 = declaredSha256;
+            this.verified = verified;
         }
     }
 
@@ -311,6 +316,8 @@ public class ModManager {
                     descriptor.configDir.getAbsolutePath(),
                     descriptor.configFileCount > 0,
                     descriptor.configFileCount,
+                    descriptor.declaredSha256,
+                    descriptor.verified,
                     enabledMap.getOrDefault(modId, true),
                     i
             ));
@@ -644,6 +651,15 @@ public class ModManager {
             File iconFile = resolveSafeIconFile(modDirectory, parseOptionalString(manifest, "icon", DEFAULT_MOD_ICON));
             String description = parseOptionalString(manifest, "description", null);
 
+            // Item G12: a manifest can pin the SHA-256 of its entry library. When it does, the
+            // hash is computed at discovery so the Mods tab can badge the row as verified and the
+            // verifier can refuse to load a file that does not match what the author shipped.
+            String declaredSha256 = parseOptionalString(manifest, "sha256", "");
+            boolean verified = false;
+            if (!declaredSha256.isEmpty() && org.chimeramc.client.core.antegg.ModHash.isValidDigest(declaredSha256)) {
+                verified = org.chimeramc.client.core.antegg.ModHash.matches(entryFile, declaredSha256);
+            }
+
             return new ModDescriptor(
                     modDirectory.getName(),
                     entryFile.getName(),
@@ -657,7 +673,9 @@ public class ModManager {
                     description,
                     modDirectory,
                     configDir,
-                    configFileCount
+                    configFileCount,
+                    declaredSha256,
+                    verified
             );
         } catch (Exception e) {
             Log.w(TAG, "Failed to parse mod manifest: " + manifestFile.getAbsolutePath(), e);

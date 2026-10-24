@@ -25,6 +25,7 @@
     <string name="mod_load_diagnostics_dlopen">Library could not be opened</string>
     <string name="mod_load_diagnostics_symbol">Built for a different game build (missing symbol)</string>
     <string name="mod_load_diagnostics_missing_dependency">A required file or dependency is missing</string>
+    <string name="mod_load_diagnostics_hash_mismatch">File does not match its pinned checksum</string>
     <string name="mod_load_diagnostics_unknown">Reason unknown</string>
     <string name="mod_name_bullet">• %1$s — %2$s</string>
     <string name="mod_safe_mode_title">A mod may have crashed the game</string>
@@ -32,6 +33,7 @@
     <string name="mod_safe_mode_disable">Disable them</string>
     <string name="mod_safe_mode_keep">Keep enabled</string>
     <string name="mod_safe_mode_disabled">Mods disabled. Turn them back on one at a time in the Mods tab.</string>
+    <string name="mod_safe_mode_auto_disabled">%1$d crashes in a row: disabled %2$d mod(s) automatically. Re-enable one at a time in the Mods tab.</string>
     <string name="mod_safe_mode_recent">recently</string>
     <string name="drag_to_reorder">Drag to reorder</string>
     <string name="mod_reordered">Mod order updated</string>
@@ -40,7 +42,7 @@
     <string name="about_title">About</string>
     <string name="copyright">©2024–2026 GlowberryClient. All rights reserved.</string>
     <string name="font_license">This app uses the Misans font.</string>
-    <string name="about_footer_github">GitHub: https://github.com/ChimeraAnt-DEV/ChimeraLauncher</string>
+    <string name="about_footer_github">GitHub: https://github.com/ChimeraAnt-DEV/GlowberryClient</string>
     <string name="quick_actions_title">Quick Actions</string>
 
     <!-- Home screen -->
@@ -120,6 +122,7 @@
     <string name="install">Install</string>
     <string name="version_name">Version name</string>
     <string name="name_invalid">This name cannot be used or is already taken!</string>
+    <string name="import_isolation_note">Each import becomes its own isolated instance: its own game data folder, mods and settings. The name is stored underneath the launcher\'s game-data root, so a different name is a different instance — reinstalling a version creates a second instance instead of overwriting the first.</string>
     <string name="install_done">Install finished, version: %1$s</string>
 
     <string name="illegal_apk_title">Illegal APK</string>
@@ -230,6 +233,11 @@ The old games/org.chimeramc directory was not deleted and is no longer used.</st
     <string name="storage_migration_failed_message">Migration could not continue: %1$s
 
 Migration must complete before GlowberryClient can continue.</string>
+    <string name="storage_migration_interrupted_title">Migration Interrupted</string>
+    <string name="storage_migration_interrupted_message">%1$s
+
+GlowberryClient must complete the migration before continuing.</string>
+    <string name="storage_migration_interrupted_hint">A previous migration attempt was interrupted. Files that already finished copying are skipped when it resumes.</string>
     <string name="migration_cleanup_title">Clean Historical Directory</string>
     <string name="migration_cleanup_desc">Only remove the old games/org.chimeramc directory after you have confirmed every instance launches normally and worlds, resource packs, behavior packs, and settings are not missing. Deleted historical data cannot be restored from this directory.</string>
     <string name="migration_cleanup_button">Clean Historical Directory</string>
@@ -269,7 +277,18 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="toast_delete_failed">Delete failed: %1$s</string>
     <string name="error_delete_builtin_version">Cannot delete built-in version</string>
     <string name="invalid_mod_file">Failed</string>
-    <string name="invalid_mod_file_reason">Only .so files, .zip mod packages, or .chimerapack mod packages are allowed. The selected file is not a valid native mod import package.</string>
+    <string name="mod_import_chooser_title">Add a mod</string>
+    <string name="mod_import_chooser_message">Import a package file from this device, or paste a link someone shared with you. Both go through the same validation.</string>
+    <string name="mod_import_from_file">Choose a file</string>
+    <string name="mod_import_from_link">Use a link</string>
+    <string name="mod_import_link_message">Paste the link to an .antegg package. If you copied a whole message, the link inside it is found for you.</string>
+    <string name="mod_import_link_hint">https://example.com/mod.antegg</string>
+    <string name="mod_import_link_go">Import</string>
+    <string name="mod_import_link_invalid">That text does not contain a link to an .antegg package.</string>
+    <string name="mod_import_link_downloading">Downloading the package…</string>
+    <string name="mod_import_link_done">Imported %1$s.</string>
+    <string name="mod_import_link_failed">Could not import from that link: %1$s</string>
+    <string name="invalid_mod_file_reason">Only .antegg packages, .so files or .zip mod packages are accepted. The selected file is not a valid native mod import package.</string>
     <string name="invalid_zip_mod_package_title">Invalid ZIP Mod Package</string>
     <string name="invalid_zip_mod_package_message">The ZIP mod package must contain manifest.json and a .so file.</string>
     <string name="error_versions">Error Versions</string>
@@ -299,6 +318,14 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="instance_shortcut_default_icon">Use Default</string>
     <string name="instance_shortcut_add_button">Add Shortcut</string>
     <string name="instance_settings_auto_save_failed">Could not save this instance setting.</string>
+    <string name="instance_account_title">Microsoft account</string>
+    <string name="instance_account_active">Using the account that is active in the launcher.</string>
+    <string name="instance_account_bound">This instance launches with %1$s.</string>
+    <string name="instance_account_stale">That account is no longer available, so this instance currently launches with the active account. Choose another account to fix the binding.</string>
+    <string name="instance_account_change">Change</string>
+    <string name="instance_account_picker_title">Launch this instance as</string>
+    <string name="instance_account_use_active">Use the active account</string>
+    <string name="instance_account_no_accounts">No accounts are signed in. Add one from the account screen first.</string>
     <string name="in_game_pack_changer_title">In-game pack changer</string>
     <string name="in_game_pack_changer_desc">Adds a resource-pack switcher to the in-game Mod Menu so packs can be enabled or disabled without leaving the game.</string>
     <string name="instance_shortcut_not_supported">Your home screen launcher does not support pinned shortcuts.</string>
@@ -501,6 +528,8 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="mod_no_config_files">No editable config</string>
     <string name="mod_config_badge">CONFIG</string>
     <string name="mod_config_badge_with_count">CONFIG · %d</string>
+    <string name="mod_verified_badge">VERIFIED</string>
+    <string name="mod_verified_badge_desc">Hash matches the author\'s pin</string>
     <string name="mod_config_title_format">%s Config</string>
     <string name="mod_config_not_found">No editable config found</string>
     <string name="mod_config_load_failed">Failed to load config: %s</string>
@@ -666,7 +695,7 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="fps_optimizer_title">FPS Optimization</string>
     <string name="fps_optimizer_desc">While a game is running, keeps the launcher out of the way: serves cached news and update data instead of polling, and steps further back automatically when the device gets hot, low on memory, or battery saver is on. It only reduces work the launcher itself does — it never changes Minecraft\'s own graphics or framerate.</string>
 
-    <string name="optifine_mode_title">Bedrock Optifine Mode</string>
+    <string name="optifine_mode_title">Game Performance Mode</string>
     <string name="optifine_badge_text">FPS+</string>
     <string name="optifine_mode_desc">Applies host-level performance changes to the game process through the preloader: a faster allocator, a real-time render thread, performance-core pinning and the panel\'s top refresh rate. Every item is listed below with what it actually did, and can be turned off on its own if your device does not like it. It never claims a frame rate.</string>
     <string name="optifine_tier1_header">Host optimizations (safe)</string>
@@ -799,12 +828,60 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="mod_menu_favorite">Add to favorites</string>
     <string name="mod_menu_unfavorite">Remove from favorites</string>
     <string name="mod_menu_hud_editor">HUD Editor</string>
+
+    <!-- Mod Menu row failure surfacing (M10). A module that cannot run says why, in one line, on
+         the row itself. -->
+    <string name="mod_menu_row_failed">Failed to load</string>
+    <string name="mod_menu_row_crashed">Disabled after 2 crashes. Re-enable?</string>
+    <string name="mod_menu_row_unsupported">No hook for this Bedrock build</string>
+    <string name="mod_menu_row_reason_title">Why this module is off</string>
+    <string name="mod_menu_row_reason_re_enable">Re-enable</string>
+    <string name="mod_menu_row_reason_dismiss">Close</string>
+
+    <!-- Mod Menu actions (M3). An action fires once and is drawn with a chevron, never a switch. -->
+    <string name="mod_menu_actions_header">ACTIONS</string>
+    <string name="mod_menu_action_reset_hud">Reset HUD Position</string>
+    <string name="mod_menu_action_reset_hud_desc">Centre every HUD overlay back to its default spot</string>
+    <string name="mod_menu_action_reload_mods">Reload Modules</string>
+    <string name="mod_menu_action_reload_mods_desc">Re-scan and re-register every module</string>
+    <string name="mod_menu_action_reset_hud_done">HUD positions reset</string>
+
+    <!-- Mod Menu settings tab (M6). Presets plus four sliders, and nothing free-form. -->
+    <string name="mod_menu_settings_appearance">Appearance</string>
+    <string name="mod_menu_setting_theme">Theme</string>
+    <string name="mod_menu_setting_glass">Glass intensity</string>
+    <string name="mod_menu_setting_radius">Corner radius</string>
+    <string name="mod_menu_setting_density">Density</string>
+    <string name="mod_menu_setting_toggle_style">Toggle style</string>
+    <string name="mod_menu_setting_motion">Motion</string>
+    <string name="mod_menu_setting_blur_fps">Blur refresh</string>
+    <string name="mod_menu_setting_hud_opacity">HUD opacity</string>
+    <string name="mod_menu_setting_accent">Accent</string>
+    <string name="mod_menu_setting_system_override">System accessibility settings always win</string>
+    <string name="mod_menu_setting_value_dp">%1$d dp</string>
+    <string name="mod_menu_setting_value_fps">%1$d fps</string>
+    <string name="mod_menu_setting_value_percent">%1$d%%</string>
+    <string name="mod_menu_theme_navy">Navy</string>
+    <string name="mod_menu_theme_true_black">True Black</string>
+    <string name="mod_menu_theme_system">Follow System</string>
+    <string name="mod_menu_glass_off">Off</string>
+    <string name="mod_menu_glass_subtle">Subtle</string>
+    <string name="mod_menu_glass_full">Full</string>
+    <string name="mod_menu_density_compact">Compact</string>
+    <string name="mod_menu_density_comfortable">Comfortable</string>
+    <string name="mod_menu_toggle_switch">Switch</string>
+    <string name="mod_menu_toggle_pill_label">Pill + label</string>
+    <string name="mod_menu_toggle_checkbox">Checkbox</string>
+    <string name="mod_menu_motion_full">Full</string>
+    <string name="mod_menu_motion_reduced">Reduced</string>
+    <string name="mod_menu_motion_system">Follow system</string>
+    <string name="mod_menu_reorder_hint">Press and hold a row to reorder it</string>
+    <string name="mod_menu_section_empty">No modules in this section</string>
     <string name="mod_menu_filter_enabled">Enabled</string>
     <string name="mod_menu_filter_inbuilt">Inbuilt</string>
     <string name="mod_menu_filter_external">External</string>
     <string name="mod_menu_filter_pvp">PvP</string>
     <string name="mod_menu_group_pvp">PvP</string>
-    <string name="mod_menu_pvp_empty">No PvP modules enabled. PvP modules also appear under Inbuilt.</string>
     <string name="mod_menu_search_hint">Search mods…</string>
     <string name="mod_stats_fps_placeholder">— FPS</string>
     <string name="mod_stats_ping_placeholder">— ms</string>
@@ -881,13 +958,20 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="mod_menu_compact">Compact Mod Menu</string>
     <string name="mod_menu_compact_desc">Use a smaller menu with a dense module list and compact filters</string>
     <string name="mod_menu_cosmetics">Cosmetics</string>
+    <string name="cosmetics_closet">Closet</string>
+    <string name="profile_signed_out">Not signed in</string>
+    <string name="profile_switch_account">Switch</string>
+    <string name="profile_sheet_description">Profile, cosmetics and skins</string>
+    <string name="settings_voice_title">Voice chat</string>
+    <string name="settings_voice_desc">Microphone, channels and the voice relay</string>
+    <string name="settings_voice_open">Open voice chat settings</string>
+    <string name="settings_controller_desc">Dead zones, sensitivity, button remaps and rumble</string>
+    <string name="settings_controller_open">Open controller settings</string>
     <string name="mod_menu_packs">Packs</string>
 
-    <!-- VIP Mod Menu (Screen B). A separate premium screen opened by the in-game bind, distinct
-         from the touch Mod Menu opened by the launcher nav bar. -->
-    <string name="vip_menu_title">VIP Mod Menu</string>
-    <string name="vip_menu_subtitle">Premium in-game control</string>
-    <!-- The touch Mod Menu's top-bar subtitle, matching the VIP shell's lockup. -->
+    <!-- The one Mod Menu's top-bar lockup. There used to be two menus (a touch one and a premium
+         VIP one); they are one screen now, and the pages that were premium-only carry the
+         Supporter badge instead of living in a second window. -->
     <string name="mod_menu_subtitle">In-game control</string>
     <!-- Account skin lookup (Cosmetics panel). On after a Microsoft sign-in: it resolves the
          signed-in player's real Bedrock skin from their XUID via a third-party service. -->
@@ -906,12 +990,7 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="vip_mode_keyboard">Keyboard &amp; mouse</string>
     <string name="vip_close">Close</string>
     <string name="vip_search_hint">Search modules…</string>
-    <string name="vip_empty_title">Nothing here yet</string>
-    <string name="vip_empty_no_mods">No modules are available for this instance.</string>
-    <string name="vip_empty_no_matches">No module matches that search.</string>
     <string name="vip_empty_no_controller">No controller detected. Connect a gamepad to configure it.</string>
-    <string name="vip_module_count">%1$d modules</string>
-    <string name="vip_active_count">%1$d active</string>
     <string name="vip_status_active">ACTIVE</string>
     <string name="vip_status_off">OFF</string>
     <string name="vip_status_unavailable">UNAVAILABLE</string>
@@ -957,6 +1036,8 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="cosmetics_scope_note">Capes reach the game through the engine\'s own texture loader, so a cape appears on your character with no resource pack and no reload. Accessories and pets reach the game through the client\'s native player-render hook, which draws their geometry directly onto the game\'s own player model. The preview shows your own skin wearing the equipped cape, accessory and pet, and pets animate their walk, run, crouch, fly and swim gaits here. A cape appears as soon as the engine has loaded your cape texture once; accessories and pets appear through the native hook when it is available on your build. Cosmetic sync shows them to other Glowberry users in the same world. Vanilla players do not see them — Bedrock gives an app no way to push a cosmetic onto someone else\'s account — and the pet is drawn on your own player rather than spawned as an entity, so it needs no server command and cannot trip a server check.</string>
     <string name="accessory_style_note">Each style is a real, different mesh — a cap, a beanie, a crown, horns, a halo and so on are separate geometry. Every palette then tints those meshes, so "Prism Crown" and "Ember Circlet" share a shape in different colours while "Prism Crown" and "Geode Beret" are different shapes. Names are individual to each piece, not one palette word repeated down the list.</string>
     <string name="cosmetics_in_game">On your character in-game</string>
+    <string name="cosmetics_known_issues_title">Known upstream issues</string>
+    <string name="cosmetics_known_issues_note">If a cosmetic looks wrong in-game, it may be a known Bedrock engine bug rather than something this client can fix alone. Mojang reports tracked here are open upstream: MCPE-238211 (some custom capes not loaded from the account service on recent builds), MCPE-243527 (RenderDragon skin/hair rendering on certain GPU drivers), MCPE-241755 (custom skin upload shows the default character on some devices), MCPE-242499 (capes disappear on dimension change until reload), MCPE-229837 (paperdoll/skin preview ignores the custom cape). These change outside this launcher\'s control; the state of each can be checked in Mojang\'s public bug tracker.</string>
     <string name="cosmetics_native_active">Native renderer active — your equipped cape, accessory and pet are drawn on your character in game.</string>
     <string name="cosmetics_native_cape_only">Your cape reaches the game through the engine\'s own texture loader, so it appears on your character. Accessories and pets need the native player-render hook, which is not live on this build yet.</string>
     <string name="cosmetics_route_cape_live">Capes reach the game through the engine\'s own texture loader, so this cape appears on your character with no resource pack and no reload.</string>
@@ -999,8 +1080,6 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="third_person_hint">Switch to third person to see cosmetics — in first person the game does not render your player model.</string>
     <string name="cosmetics_diagnostics_live_overlay">Show live render debug overlay</string>
     <string name="vip_controller_step_failed">Controller settings step failed — see diagnostics</string>
-    <string name="vip_hud_editor_hint">Drag your HUD overlays to reposition them, then save or reset from the launcher\u2019s HUD editor. Tap the modules tab to return.</string>
-    <string name="vip_settings_hint">Mod menu settings (notifications, pause-menu-only, keybinds) live in the launcher\u2019s Settings tab.</string>
     <string name="mod_menu_version">v1.0</string>
     <string name="mod_menu_enabled">Mod Menu enabled</string>
     <string name="mod_menu_disabled">Mod Menu disabled</string>
@@ -1175,6 +1254,9 @@ Migration must complete before GlowberryClient can continue.</string>
     <!-- Quick Launch Validation -->
     <string name="server_ip_required">Server IP is required</string>
     <string name="server_details_required">Server name and IP are required</string>
+    <string name="server_ping_checking">Checking…</string>
+    <string name="server_ping_offline">Offline or unreachable</string>
+    <string name="server_ping_version_mismatch">Version %1$s may not be compatible</string>
     <string name="server_added">Server added</string>
     <string name="server_exists">That server is already in your list</string>
     <string name="server_add_failed">Could not add the server</string>
@@ -1219,6 +1301,7 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="nav_launch">Launch</string>
     <string name="nav_import">Import</string>
     <string name="nav_instances">Instances</string>
+    <string name="nav_library">Library</string>
     <string name="nav_installations">Install</string>
     <string name="nav_mods">Mods</string>
     <string name="nav_about">About</string>
@@ -1360,6 +1443,89 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="settings_backup_exported">Settings exported.</string>
     <string name="settings_backup_imported">Settings restored, %1$d controller profiles included.</string>
     <string name="settings_backup_failed">Backup failed: %1$s</string>
+
+    <!-- Settings > Scheduled world backups (G13): SAF-folder backups on a schedule. -->
+    <string name="settings_world_backup_title">Scheduled world backups</string>
+    <string name="settings_world_backup_desc">Back up every world automatically to a folder you pick, on a schedule you choose. The latest copies of each world are kept; older ones are pruned.</string>
+    <string name="settings_world_backup_enable">Enabled</string>
+    <string name="settings_world_backup_interval">Back up every</string>
+    <string name="settings_world_backup_interval_daily">Day</string>
+    <string name="settings_world_backup_interval_3_days">3 days</string>
+    <string name="settings_world_backup_interval_weekly">Week</string>
+    <string name="settings_world_backup_destination">Backup folder</string>
+    <string name="settings_world_backup_destination_pick">Choose folder</string>
+    <string name="settings_world_backup_destination_picked">%1$s</string>
+    <string name="settings_world_backup_destination_missing">No folder chosen</string>
+    <string name="settings_world_backup_destination_lost">Chosen folder is no longer accessible. Choose it again.</string>
+    <string name="settings_world_backup_back_up_now">Back up now</string>
+    <string name="settings_world_backup_retention">Keep the newest %1$d backups of each world</string>
+    <string name="settings_world_backup_next_run">Next backup: %1$s</string>
+    <string name="settings_world_backup_next_run_pending">Next backup: once a destination is chosen</string>
+    <string name="settings_world_backup_disabled">Scheduled backups are off</string>
+    <string name="world_backup_notification_title">World backup</string>
+    <string name="world_backup_channel">World backups</string>
+    <string name="world_backup_running">Backing up worlds…</string>
+    <string name="world_backup_result">Backed up %1$d worlds, pruned %2$d old backups.</string>
+    <string name="world_backup_status_no_destination">No backup folder granted — open Settings and choose one.</string>
+    <string name="world_backup_status_failed">Backup failed: %1$s</string>
+    <string name="world_backup_ran_ok">Last backup succeeded.</string>
+    <string name="world_backup_started_background">Backed up in the background.</string>
+
+    <!-- Settings > Diagnostics (U16): in-app diagnostics report + G2 "Repair installation". -->
+    <string name="settings_diagnostics_open">Diagnostics</string>
+    <string name="settings_diagnostics">Diagnostics</string>
+    <string name="settings_diagnostics_desc">App, preloader and library state, mod load errors and a repair action for the native library cache.</string>
+    <string name="diagnostics_title">Diagnostics</string>
+    <string name="diagnostics_subtitle">App, preloader and native library state</string>
+    <string name="diagnostics_refresh">Refresh</string>
+    <string name="diagnostics_copy">Copy report</string>
+    <string name="diagnostics_copied">Diagnostics report copied.</string>
+    <string name="diagnostics_share">Share report</string>
+    <string name="diagnostics_share_title">Share diagnostics report</string>
+    <string name="diagnostics_repair">Repair installation</string>
+    <string name="diagnostics_repair_desc">Wipe and re-extract the native library cache for the selected version. Fixes stale or corrupted extracted libraries that fail to dlopen.</string>
+    <string name="diagnostics_repair_confirm_title">Repair native libraries?</string>
+    <string name="diagnostics_repair_confirm_message">This wipes the extracted library cache for this version and re-extracts everything from the APK. Installed worlds, settings and mods are not touched.</string>
+    <string name="diagnostics_repair_started">Repair started — re-extracting native libraries…</string>
+    <string name="diagnostics_no_version">No version selected.</string>
+    <string name="diagnostics_section_app">Application</string>
+    <string name="diagnostics_section_libs">Native libraries</string>
+    <string name="diagnostics_section_rules">Signature rules</string>
+    <string name="diagnostics_section_mods">Mod load errors</string>
+    <string name="diagnostics_section_native">Native render path</string>
+    <string name="diagnostics_field_app_version">App version</string>
+    <string name="diagnostics_field_android_version">Android</string>
+    <string name="diagnostics_field_device">Device</string>
+    <string name="diagnostics_field_sdk_build">Target SDK</string>
+    <string name="diagnostics_field_min_sdk">Min SDK</string>
+    <string name="diagnostics_field_abi">ABI</string>
+    <string name="diagnostics_field_launcher_abi">Launch ABI</string>
+    <string name="diagnostics_field_selected_version">Selected version</string>
+    <string name="diagnostics_section_readiness">Launch readiness</string>
+    <string name="diagnostics_field_launch_state">State</string>
+    <string name="diagnostics_field_launch_blocks">Effect</string>
+    <string name="diagnostics_launch_blocked">Launch blocked</string>
+    <string name="diagnostics_launch_proceeds">Launch proceeds</string>
+    <string name="diagnostics_field_extraction_version">Extraction version</string>
+    <string name="diagnostics_field_signature_rules_source">Signature rules source</string>
+    <string name="diagnostics_field_signature_rules_revision">Signature rules revision</string>
+    <string name="diagnostics_field_signature_rules_coverage">Signature rule coverage</string>
+    <string name="diagnostics_rules_covers_build">Covers this build</string>
+    <string name="diagnostics_rules_no_coverage">NOT COVERED — byte-pattern hooks disabled for this build</string>
+    <string name="diagnostics_field_cosmetics_hook">Cosmetics render hook</string>
+    <string name="diagnostics_field_skin_seam">Skin capture seam</string>
+    <string name="diagnostics_no_mod_errors">No mod load errors on record.</string>
+    <string name="diagnostics_mod_error_line">%1$s (%2$s): %3$s</string>
+    <string name="diagnostics_native_loaded">Loaded</string>
+    <string name="diagnostics_native_missing">Not loaded</string>
+    <string name="diagnostics_hook_live">Live</string>
+    <string name="diagnostics_hook_inactive">Inactive</string>
+    <string name="diagnostics_rules_bundled">Bundled</string>
+    <string name="diagnostics_rules_remote">Remote</string>
+    <string name="diagnostics_rules_unknown">Unknown</string>
+    <string name="diagnostics_extraction_ok">Up to date</string>
+    <string name="diagnostics_extraction_stale">Stale — will re-extract on next launch</string>
+    <string name="diagnostics_repair_error">Repair failed: %1$s</string>
     <string name="about_authors_title">Authors &amp; Maintainers</string>
     <string name="about_author_name">DreamGuXiang</string>
     <string name="about_author_badge">Author</string>
@@ -1389,10 +1555,6 @@ Migration must complete before GlowberryClient can continue.</string>
         <item>Import mods to extend or enhance Minecraft features and performance.</item>
     </string-array>
 
-    <string name="theme_color_title">Theme Color</string>
-    <string name="theme_color_desc">The primary accent color of the application</string>
-    <string name="preset_colors">PRESET COLORS</string>
-    <string name="more_colors">MORE COLORS</string>
     <string name="bg_image_title">Background Image</string>
     <string name="bg_image_desc">Select an image to use as background</string>
     <string name="bg_image_none">No image selected</string>
@@ -1445,14 +1607,6 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="font_caveat">Caveat</string>
     <string name="font_orbitron">Orbitron</string>
     <string name="font_preview">The quick brown fox jumps over the lazy dog</string>
-    <string name="firework_touch">Firework touch effect</string>
-    <string name="firework_touch_desc">A burst of blue sparks follows your taps and swipes on launcher screens.</string>
-    <string name="firework_intensity">Firework intensity</string>
-    <string name="firework_low">Low</string>
-    <string name="firework_medium">Medium</string>
-    <string name="firework_high">High</string>
-    <string name="firework_follow_accent">Use accent color</string>
-    <string name="firework_follow_accent_desc">Off uses the blue palette.</string>
     <string name="mod_menu_keybinds">Keybinds</string>
     <string name="mod_menu_keybinds_desc">Choose the inputs that open the Mod Menu while in game.</string>
     <string name="mod_menu_keyboard_bind">Keyboard / mouse bind</string>
@@ -1479,9 +1633,6 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="mod_menu_bind_hint">This opens the Mod Menu in game.</string>
     <string name="blur_intensity">Background Blur Intensity</string>
     <string name="blur_intensity_value">%1$d%%</string>
-    <string name="show_animations">Show Animations</string>
-    <string name="enable_glow_effects">Enable Glow Effects</string>
-    <string name="compact_mode">Compact Mode</string>
     <string name="haptic_feedback">Haptic Feedback</string>
     <string name="haptic_feedback_desc">Vibrate briefly on presses and toggles. Confirming an action and deleting a profile feel different. Turn off to silence all touch vibration.</string>
     <string name="dynamic_color">Match Wallpaper Colors</string>
@@ -1502,6 +1653,8 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="visible">Visible</string>
     <string name="tutorial">Tutorial</string>
     <string name="apply">Apply</string>
+    <string name="reduce_motion">Reduce motion &amp; transparency</string>
+    <string name="reduce_motion_desc">Turns off decorative animation, glow and glass blur across the launcher.</string>
     <string name="sort">Sort</string>
     <string name="website">Website</string>
     <string name="description">Description</string>
@@ -1517,7 +1670,6 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="pagination_page_of">Page %1$d of %2$s</string>
     <string name="pagination_page_one">Page 1</string>
     <string name="logcat_filter_all">ALL</string>
-    <string name="invalid_color_format">Invalid color format</string>
     <string name="world_directory_not_found">World directory not found</string>
     <string name="worlds_directory_unavailable">Worlds directory not available</string>
     <string name="delete_screenshot_confirm">Are you sure you want to delete this screenshot?</string>
@@ -1544,8 +1696,6 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="resource_pack_description_placeholder">Pack description goes here</string>
     <string name="mod_name_placeholder">Mod Name</string>
     <string name="mod_load_order_placeholder">Load order: 1</string>
-    <string name="custom_color_hex_rgb">Custom Color (HEX/RGB)</string>
-    <string name="custom_color_hint">#RRGGBB or R,G,B</string>
     <string name="screenshot_name_placeholder">Screenshot Name</string>
     <string name="screenshot_date_placeholder">Date: 2024-01-01 12:00:00</string>
 
@@ -1860,6 +2010,29 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="voice_directory_capacity" formatted="false">%1$s members</string>
     <string name="voice_mute">Mute</string>
     <string name="voice_unmute">Unmute</string>
+    <string name="voice_block">Block</string>
+    <string name="voice_unblock">Unblock</string>
+    <string name="voice_block_scope">Blocking is permanent and local: the player is silenced, hidden from your member list and your in-world icons, and they are never told. It is kept by device, so it survives them rejoining.</string>
+    <string name="voice_block_failed">That player cannot be blocked from this connection.</string>
+    <string name="voice_blocked_players">Blocked players</string>
+    <string name="voice_blocked_none">You have not blocked anyone.</string>
+    <string name="voice_unblock_all">Unblock everyone</string>
+    <string name="voice_consent_title">Before you turn on voice chat</string>
+    <string name="voice_consent_body" formatted="false">Voice chat opens your microphone and connects you to other players over the local network or, if you set one, a relay server. Audio is not end-to-end encrypted: on a relay the server carries it. You can mute or block any player locally at any time, and blocking is never shared with them. Only turn this on if you are old enough to use it and agree to talk to the players you meet.</string>
+    <string name="voice_consent_accept">I understand, turn on voice chat</string>
+    <string name="voice_consent_granted">Voice chat is allowed. You can withdraw this any time from this screen.</string>
+    <string name="voice_consent_withdraw">Withdraw consent and turn voice off</string>
+    <string name="voice_consent_revoked">Consent withdrawn. Voice chat is off.</string>
+    <string name="voice_consent_required">Accept the voice chat notice before turning it on.</string>
+    <string name="voice_report_button">Report a player</string>
+    <string name="voice_report_title">Report a player</string>
+    <string name="voice_report_hint">What happened?</string>
+    <string name="voice_report_send">Open a report</string>
+    <string name="voice_report_scope">Reports are written up by you in your own email or chat app and sent to the team; nothing is uploaded automatically. Your report includes your per-session voice id so it can be matched to the session, and nothing else that identifies you.</string>
+    <string name="voice_report_chooser">Send report</string>
+    <string name="voice_report_subject">GlowberryClient voice chat report</string>
+    <string name="voice_report_empty">Describe what happened before opening a report.</string>
+    <string name="voice_report_mail_hint">No email app found. The report text was copied to your clipboard.</string>
     <string name="voice_mute_scope">Muting is local to you. The other player is not told and stays in the channel.</string>
     <string name="voice_channel_created" formatted="false">Created channel %1$s</string>
     <string name="voice_channel_name_required">Enter a name for the channel</string>
@@ -2128,6 +2301,8 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="javabridge_port_success">Ported. Review the generated mod before enabling it.</string>
     <string name="javabridge_review_title">Review generated mod</string>
     <string name="javabridge_review_note">This code was generated by an AI. Read it before enabling. It is not enabled automatically.</string>
+    <string name="javabridge_verified_pin">SHA-256 %1$s</string>
+    <string name="javabridge_no_pin">No checksum pin recorded</string>
     <string name="javabridge_review_enable">Enable now</string>
     <string name="javabridge_review_later">Review later</string>
     <string name="javabridge_review_disabled_note">The ported mod was saved but left disabled. Enable it from the Mods tab after you have read it.</string>
@@ -2175,4 +2350,30 @@ Migration must complete before GlowberryClient can continue.</string>
     <string name="cosmetics_equipped_toast">Cosmetic equipped</string>
     <string name="closet_offhand_note">Off-hand items are set from the inventory in game.</string>
     <string name="closet_effects_note">Toggle the particle aura for the equipped set.</string>
+
+    <!-- First-run wizard (U13). -->
+    <string name="setup_step_import_title">Welcome to GlowberryClient</string>
+    <string name="setup_step_import_body">Import your Minecraft game files to get started. Pick the APK you want to play.</string>
+    <string name="setup_step_import_action">Import game</string>
+    <string name="setup_step_version_title">Pick your version</string>
+    <string name="setup_step_version_body">Choose which Minecraft version to play. You can add more later from the Library.</string>
+    <string name="setup_step_version_action">Choose version</string>
+    <string name="setup_step_signin_title">Sign in</string>
+    <string name="setup_step_signin_body">Sign in with your Microsoft account to play online and keep your progress.</string>
+    <string name="setup_step_signin_action">Sign in</string>
+    <string name="setup_skip">Skip for now</string>
+    <string name="setup_import_failed">Import failed: %1$s</string>
+
+    <!-- Named launch failure states (U14). Each cause gets its own copy so a report can name it. -->
+    <string name="launch_failure_title_game_files_missing">Game files missing</string>
+    <string name="launch_failure_message_game_files_missing">This instance\'s game files are missing or incomplete. Re-import the version from the Library, or run Repair installation in Settings \u2192 Diagnostics.</string>
+    <string name="launch_failure_title_abi">Unsupported build</string>
+    <string name="launch_failure_message_abi">This Minecraft version ships 32-bit native libraries only, and GlowberryClient runs as a 64-bit app. Import a 64-bit build of this version instead.</string>
+    <string name="launch_failure_title_stale_libs">Repairing native libraries</string>
+    <string name="launch_failure_message_stale_libs">The extracted native libraries are from an older version of the launcher. They will be re-extracted automatically on the next launch. If the game still fails to start, run Repair installation in Settings \u2192 Diagnostics.</string>
+    <string name="launch_failure_title_rules">Limited compatibility</string>
+    <string name="launch_failure_message_rules">There are no hook definitions for this Minecraft build yet, so in-game overlays and cosmetics are disabled. The game itself will run normally.</string>
+    <string name="launch_failure_title_not_installed">Minecraft not found</string>
+    <string name="launch_failure_message_not_installed">Minecraft does not appear to be installed on this device. Install it from the Play Store, or import your own game files from the Library.</string>
+
 </resources>
