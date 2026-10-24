@@ -18,6 +18,8 @@ import java.io.IOException
 import java.io.InputStream
 import java.util.zip.ZipFile
 
+import org.chimeramc.client.core.minecraft.ExtractionCachePolicy
+
 class GamePackageManager private constructor(
     private val context: Context,
     private val version: GameVersion?,
@@ -266,27 +268,27 @@ class GamePackageManager private constructor(
         val nativeExtractionVersion = nativeExtractionVersion()
         val versionFile = File(nativeLibDir, "native_extraction_version")
         val versionMatches = try {
-            versionFile.isFile && versionFile.readText().trim() == nativeExtractionVersion.toString()
+            ExtractionCachePolicy.markerMatches(
+                if (versionFile.isFile) versionFile.readText() else null,
+                nativeExtractionVersion
+            )
         } catch (_: Exception) {
             false
         }
         val cacheRequiredLibs = getCacheRequiredLibs()
 
-        if (markerMatches && !versionMatches) {
+        if (ExtractionCachePolicy.shouldWipeStaleLibraries(markerMatches, versionMatches)) {
             report("Extraction version changed ($nativeExtractionVersion): wiping stale native library cache")
             wipeExtractedLibraries(outputDir, cacheRequiredLibs)
         }
 
-        var allPresent = markerMatches && versionMatches
-        if (allPresent) {
-            for (lib in cacheRequiredLibs) {
-                val file = File(outputDir, lib)
-                if (!file.exists() || file.length() == 0L) {
-                    allPresent = false
-                    break
-                }
+        val allPresent = ExtractionCachePolicy.isCacheUsable(
+            markerMatches,
+            versionMatches,
+            ExtractionCachePolicy.allLibrariesPresent(cacheRequiredLibs.toList()) { lib ->
+                File(outputDir, lib).let { it.exists() && it.length() > 0L }
             }
-        }
+        )
 
         if (allPresent) {
             report("Minecraft library cache hit: ${outputDir.absolutePath}")
@@ -409,7 +411,7 @@ class GamePackageManager private constructor(
 
     private fun buildExtractionManifest(apkFiles: List<File>): String {
         return buildString {
-            append("extractor=").append(EXTRACTOR_VERSION).append('\n')
+            append("extractor=").append(ExtractionCachePolicy.EXTRACTOR_VERSION).append('\n')
             append("abi=").append(getDeviceAbi(apkFiles)).append('\n')
             append("token=").append(NativeImageGuard.TOKEN).append('\n')
             append("mode=").append(if (version != null && !version.isInstalled) "isolated" else "installed").append('\n')
@@ -482,14 +484,22 @@ class GamePackageManager private constructor(
                     if (!entry.name.startsWith(abiPath) || !entry.name.endsWith(".so")) continue
                     val libName = entry.name.removePrefix(abiPath)
                     val output = File(outputDir, libName)
-                    zip.getInputStream(entry).use { input ->
-                        copyStreamToReadOnlyFile(input, output)
-                    }
-                    extracted += libName
-                    report("Extracted $libName from ${apkFile.name} for $abi")
-                    if (!processNativeImage(output, true)) {
-                        output.delete()
-                        throw IOException("Failed to prepare native library: ${output.name}")
+                    // Per-entry containment: one library that cannot be replaced (a previous
+                    // extraction left it read-only) or prepared must not abort the remaining
+                    // entries, or a single bad file would leave the cache half-populated and the
+                    // launch failing with a confusing missing-dependency error.
+                    try {
+                        zip.getInputStream(entry).use { input ->
+                            copyStreamToReadOnlyFile(input, output)
+                        }
+                        if (!processNativeImage(output, true)) {
+                            output.delete()
+                            throw IOException("Failed to prepare native library: ${output.name}")
+                        }
+                        extracted += libName
+                        report("Extracted $libName from ${apkFile.name} for $abi")
+                    } catch (e: Exception) {
+                        mirrorLogcat('W', "Failed to extract ${output.name} from $apkPath: ${e.message}")
                     }
                 }
                 if (extracted.isEmpty()) {
@@ -503,8 +513,14 @@ class GamePackageManager private constructor(
 
     private fun copyStreamToReadOnlyFile(input: InputStream, output: File) {
         ensureParentDirectory(output)
-        if (output.exists() && !output.delete()) {
-            throw IOException("Failed to replace existing file: ${output.absolutePath}")
+        if (output.exists()) {
+            // A previous extraction marks every library read-only, and a read-only file cannot be
+            // deleted. Without making it writable first, re-extraction (Repair, or a version bump)
+            // failed to replace its own cache and the launch kept loading the stale library.
+            output.setWritable(true, true)
+            if (!output.delete()) {
+                throw IOException("Failed to replace existing file: ${output.absolutePath}")
+            }
         }
 
         val tempFile = File(output.absolutePath + ".tmp")
@@ -956,7 +972,6 @@ class GamePackageManager private constructor(
 
     companion object {
         private const val TAG = "GamePackageManager"
-        private const val EXTRACTOR_VERSION = 4
 
         @Volatile
         private var instance: GamePackageManager? = null
@@ -1006,7 +1021,7 @@ class GamePackageManager private constructor(
 
         /** Manual extractor pipeline version; bump when the extraction logic changes. */
         @JvmStatic
-        fun extractorVersion(): Int = EXTRACTOR_VERSION
+        fun extractorVersion(): Int = ExtractionCachePolicy.EXTRACTOR_VERSION
 
         /**
          * The extraction version this launcher build expects, as written to the
@@ -1016,13 +1031,15 @@ class GamePackageManager private constructor(
          */
         @JvmStatic
         fun calculateNativeExtractionVersion(): Int {
-            val manual = EXTRACTOR_VERSION
             val appVersion = try {
                 BuildConfig.VERSION_CODE
             } catch (_: Throwable) {
                 0
             }
-            return (manual shl 16) or (appVersion and 0xffff)
+            return ExtractionCachePolicy.extractionVersion(
+                ExtractionCachePolicy.EXTRACTOR_VERSION,
+                appVersion
+            )
         }
 
         /**
@@ -1107,6 +1124,15 @@ class GamePackageManager private constructor(
         /** Removes the extraction version marker so the next launch re-extracts native libs. */
         @JvmStatic
         fun invalidateExtractionCache(context: Context, version: GameVersion?) {
+            // Drop the cached manager as well as the on-disk markers. The manager extracts in its
+            // `init`, so a cached instance would never re-extract: the next launch reused it, found
+            // the cache "ready" from the already-populated nativeLibDir, and the repair was a
+            // no-op. Discarding it here is what makes Repair (and the automatic stale-library
+            // repair) actually rebuild the cache.
+            synchronized(this) {
+                instance = null
+                lastVersionKey = null
+            }
             try {
                 if (version == null) return
                 val profileId = MinecraftLauncher.getStorageProfileId(version)
