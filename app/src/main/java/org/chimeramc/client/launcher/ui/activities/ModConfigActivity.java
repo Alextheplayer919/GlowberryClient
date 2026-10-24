@@ -131,7 +131,12 @@ public class ModConfigActivity extends BaseActivity {
             } catch (Exception e) {
                 runOnUiThread(() -> {
                     loadingProgress.setVisibility(View.GONE);
-                    showEmpty(getString(R.string.mod_config_load_failed, e.getMessage()));
+                    // Name the file as well as the cause. The screen can be showing several config
+                    // files, and a bare getMessage() on a malformed one is usually null or
+                    // "Expected BEGIN_OBJECT but was STRING at line 1 column 1" - which names
+                    // neither the file nor the next step.
+                    showEmpty(getString(R.string.mod_config_load_failed, file.getDisplayName())
+                            + "\n\n" + UserFacingError.describe(ModConfigActivity.this, e));
                 });
             }
         }).start();

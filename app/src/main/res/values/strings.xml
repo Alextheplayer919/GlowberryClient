@@ -533,6 +533,7 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="mod_config_restart_hint">The config file was saved and a .backup file was kept. Restart or reload the game for changes to take effect.</string>
     <string name="mod_config_validation_failed">Config validation failed</string>
     <string name="mod_config_invalid_json">Invalid JSON</string>
+    <string name="mod_config_invalid_json_detail">The text is not valid JSON. Check for a missing comma, an unquoted key, or a trailing comma before the closing brace.</string>
     <string name="mod_config_expand">Expand</string>
     <string name="mod_config_collapse">Collapse</string>
     <string name="mod_config_raw_json">Edit Raw JSON</string>

@@ -155,8 +155,7 @@ public class ModrinthDetailActivity extends BaseActivity {
         handler.post(() -> {
             progress.setVisibility(View.GONE);
             empty.setVisibility(View.VISIBLE);
-            Toast.makeText(this, getString(R.string.error_message_format, t.getMessage()),
-                    Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, UserFacingError.reason(this, t), Toast.LENGTH_LONG).show();
         });
     }
 

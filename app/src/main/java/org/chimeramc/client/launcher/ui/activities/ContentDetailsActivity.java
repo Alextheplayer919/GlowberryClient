@@ -273,7 +273,9 @@ public class ContentDetailsActivity extends BaseActivity {
                                 ContentDetailsActivity.this, ContentDetailsActivity.this::loadAllFiles);
                         return;
                     }
-                    Toast.makeText(ContentDetailsActivity.this, getString(R.string.failed_to_load_files, t.getMessage()), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(ContentDetailsActivity.this,
+                            UserFacingError.reason(ContentDetailsActivity.this, t),
+                            Toast.LENGTH_LONG).show();
                 });
             }
         });
