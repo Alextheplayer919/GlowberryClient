@@ -34,6 +34,17 @@ public class GithubReleaseUpdater {
     private static final String TAG = "GithubReleaseUpdater";
     private static final String GITHUB_LATEST_API = "https://api.github.com/repos/%s/%s/releases/latest";
     private static final String APK_ASSET_KEYWORD = ".apk";
+
+    /**
+     * The canonical repository this client publishes to.
+     *
+     * <p>Single-sourced so the update check cannot point at a stale slug. It previously named
+     * {@code ChimeraLauncher} while every other link (About, Settings, the signature-rules source)
+     * named {@code GlowberryClient}; the old slug only survives as a redirect, and a redirect is not
+     * something a release check should depend on.
+     */
+    public static final String REPO_OWNER = "ChimeraAnt-DEV";
+    public static final String REPO_NAME = "GlowberryClient";
     private static final String PREF_IGNORED_VERSION = "update_ignored_version";
     private final Activity activity;
     private final String owner;
@@ -58,18 +69,7 @@ public class GithubReleaseUpdater {
     }
 
     public static int compareVersion(String a, String b) {
-        a = a.startsWith("v") ? a.substring(1) : a;
-        b = b.startsWith("v") ? b.substring(1) : b;
-        String[] x = a.split("\\.");
-        String[] y = b.split("\\.");
-        int len = Math.max(x.length, y.length);
-        for (int i = 0; i < len; i++) {
-            int vi = i < x.length ? Integer.parseInt(x[i]) : 0;
-            int vj = i < y.length ? Integer.parseInt(y[i]) : 0;
-            if (vi > vj) return 1;
-            if (vi < vj) return -1;
-        }
-        return 0;
+        return org.chimeramc.client.launcher.util.UpdateVersion.compare(a, b);
     }
 
     public void checkUpdate() {

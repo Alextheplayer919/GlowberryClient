@@ -1466,7 +1466,7 @@ public class SettingsActivity extends BaseActivity {
             updateButtonTapCount = 0;
             triggerEasterEgg();
         } else {
-            new GithubReleaseUpdater(this, "ChimeraAnt-DEV", "ChimeraLauncher", permissionResultLauncher).checkUpdate();
+            new GithubReleaseUpdater(this, GithubReleaseUpdater.REPO_OWNER, GithubReleaseUpdater.REPO_NAME, permissionResultLauncher).checkUpdate();
         }
     }
 

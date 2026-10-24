@@ -169,6 +169,13 @@ import okhttp3.OkHttpClient;
      */
     private final ExecutorService launchProbeExecutor = Executors.newSingleThreadExecutor();
 
+    /**
+     * Runs a resource-pack intent's launch. It used to be a fresh executor created inside
+     * {@code checkResourcepack()} on every call and never shut down, so each incoming pack intent
+     * leaked a thread; it is one executor for the Activity's lifetime now.
+     */
+    private final ExecutorService resourcepackExecutor = Executors.newSingleThreadExecutor();
+
     private final Handler uiHandler = new Handler(Looper.getMainLooper());
     private Runnable pulseRunnable;
     private boolean pulseRunning;
@@ -212,7 +219,7 @@ import okhttp3.OkHttpClient;
         setupNavBar();
         setupManagersAndHandlers();
         if (!isInstanceShortcutIntent()) {
-            new GithubReleaseUpdater(this, "ChimeraAnt-DEV", "ChimeraLauncher", permissionResultLauncher).checkUpdateOnLaunch();
+            new GithubReleaseUpdater(this, GithubReleaseUpdater.REPO_OWNER, GithubReleaseUpdater.REPO_NAME, permissionResultLauncher).checkUpdateOnLaunch();
         }
         showEulaIfNeeded();
         setupOnBackPressedCallback();
@@ -915,9 +922,8 @@ import okhttp3.OkHttpClient;
     }
 
     private void checkResourcepack() {
-        ExecutorService executorService = Executors.newSingleThreadExecutor();
         new ResourcepackHandler(
-                this, minecraftLauncher, executorService
+                this, minecraftLauncher, resourcepackExecutor
         ).checkIntentForResourcepack();
     }
 
@@ -2697,6 +2703,9 @@ import okhttp3.OkHttpClient;
         dismissStorageMigrationDialog(null);
         storageMigrationExecutor.shutdownNow();
         launchProbeExecutor.shutdownNow();
+        resourcepackExecutor.shutdownNow();
+        // The account executor was never shut down either, so it outlived the Activity.
+        accountExecutor.shutdownNow();
         super.onDestroy();
     }
 
