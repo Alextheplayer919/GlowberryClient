@@ -63,7 +63,7 @@ import org.chimeramc.client.ui.animation.DynamicAnim;
 import org.chimeramc.client.ui.animation.LaunchIntro;
 import org.chimeramc.client.ui.dialogs.CustomAlertDialog;
 import org.chimeramc.client.ui.dialogs.LibsRepairDialog;
-import org.chimeramc.client.ui.dialogs.PlayStoreValidationDialog;
+import org.chimeramc.client.ui.dialogs.MinecraftNotFoundDialog;
 import org.chimeramc.client.ui.views.MainViewModel;
 import org.chimeramc.client.ui.views.MainViewModelFactory;
 import org.chimeramc.client.util.ApkImportManager;
@@ -2195,7 +2195,7 @@ import okhttp3.OkHttpClient;
             return;
         }
         if (state == LaunchReadiness.State.GAME_NOT_INSTALLED) {
-            PlayStoreValidationDialog.showNotInstalledDialog(this);
+            MinecraftNotFoundDialog.showNotInstalledDialog(this);
             return;
         }
         if (state == LaunchReadiness.State.PLAY_STORE_PACKAGE) {

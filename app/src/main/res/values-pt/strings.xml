@@ -378,14 +378,8 @@ A migração deve ser concluída antes que o GlowberryClient continue.</string>
     <string name="add_at_least_one_layer">Adicione pelo menos uma camada</string>
     <string name="world_created_successfully">Mundo criado com sucesso</string>
     <string name="failed_to_create_world">Falha ao criar o mundo</string>
-
-    <string name="minecraft_playstore_required_title">Versão da Play Store Necessária</string>
-    <string name="minecraft_playstore_required_message">Este launcher só funciona com a versão oficial do Minecraft da Google Play. Por favor, instale-a.</string>
-    <string name="buy_minecraft">Obter Minecraft</string>
     <string name="minecraft_not_installed_title">Minecraft Não Instalado</string>
     <string name="minecraft_not_installed_message">O Minecraft não está instalado no seu dispositivo. Por favor, instale pela Google Play Store.</string>
-    <string name="install_minecraft">Instalar Minecraft</string>
-    <string name="genuine_badge_label">Licença não verificada</string>
     <string name="invalid_license_detected_toast">Minecraft não original detectado. Verifique a sua versão da Play Store.</string>
 
     <string name="full_mods_title">Mods </string>

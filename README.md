@@ -81,7 +81,7 @@ It is built for legitimate players: it runs the copy of Minecraft you already ow
 | **Architecture** | 64-bit (`arm64-v8a`). Most versions ship both 64- and 32-bit libs and run fine; a version whose APK ships 32-bit **only** is refused |
 | **RAM** | 1 GB minimum, **3 GB+ recommended** |
 | **Storage** | 2 GB minimum, **5 GB+ recommended** |
-| **Minecraft** | You need a **Minecraft: Bedrock Edition APK** on your device — either the official Google Play app or an officially-signed APK of a supported version. GlowberryClient extracts native libraries from that APK; it never ships or redistributes the game. See the [compatibility guide](docs/guide/compatibility.md) for the one-page statement. |
+| **Minecraft** | You need a **Minecraft: Bedrock Edition APK** (1.21.80 or newer) to import — your own licensed copy. GlowberryClient reads the native libraries out of that APK; it never ships or redistributes the game. A Google Play install cannot be launched, because the game keeps its library inside the installed app; import an APK instead. See the [compatibility guide](docs/guide/compatibility.md) for the one-page statement. |
 
 ### Install in 4 steps
 

@@ -489,14 +489,9 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="failed_to_create_world">Failed to create world</string>
 
     <!-- Play Store Validation -->
-    <string name="minecraft_playstore_required_title">Play Store Version Required</string>
-    <string name="minecraft_playstore_required_message">This launcher works only with the official Minecraft app from the Google Play Store. Please install the Play Store version to continue.</string>
-    <string name="buy_minecraft">Get Minecraft</string>
     <string name="minecraft_not_installed_title">Minecraft Not Installed</string>
     <string name="minecraft_not_installed_message">Minecraft isn’t installed on your device. Import a Minecraft APK from the Library to play — a Google Play install cannot be launched by this launcher, because the game keeps its native library inside the installed app where the launcher cannot reach it.</string>
-    <string name="install_minecraft">Install Minecraft</string>
-    <string name="genuine_badge_label">License not verified</string>
-    <string name="invalid_license_detected_toast">Non-genuine Minecraft detected. Ensure Minecraft is from Google Play Store</string>
+    <string name="invalid_license_detected_toast">Non-genuine Minecraft detected. Import an authentic Bedrock Edition APK from the Library to continue.</string>
 
     <string name="full_mods_title">Mods </string>
     <string name="total_mods">Total Mods:</string>

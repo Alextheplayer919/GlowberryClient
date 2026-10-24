@@ -14,11 +14,18 @@ One-page statement of what GlowberryClient runs on and needs.
 ## How the game is obtained and used
 
 GlowberryClient is a launcher, not a game. It **requires an existing Minecraft:
-Bedrock Edition APK** — either the official Google Play app or an otherwise
-authentic, licensed copy of a supported version — and it runs the copy you
-already own. It never ships, redistributes, or bypasses licensing for the game.
-The launcher extracts native libraries from that APK on the device and does not
-provide a Minecraft license.
+Bedrock Edition APK** — an authentic, licensed copy of a supported version,
+supplied by you — and it runs the copy you already own. It never ships,
+redistributes, or bypasses licensing for the game. The launcher extracts native
+libraries from that APK on the device and does not provide a Minecraft license.
+
+**The Google Play install cannot be used, and that is a deliberate limit rather
+than a bug.** The Play Store copy keeps its native library inside the installed
+app, where a launcher that does not own the package cannot read it. Import an
+APK of the same version instead; the Play Store copy can stay installed. The
+launcher reports this case by name — "This is either a Google Play version of
+Minecraft or a version missing a specific file needed to launch the game" — so
+it is never mistaken for a corrupt import.
 
 ## What is supported
 
@@ -35,7 +42,8 @@ provide a Minecraft license.
 
 | Launcher says | Meaning | Fix |
 | --- | --- | --- |
-| "Minecraft is missing" | No compatible Minecraft APK is available to the launcher | Provide an official/authentic Bedrock APK and retry |
+| "Minecraft is missing" | No compatible Minecraft APK is available to the launcher | Import an authentic Bedrock APK from the Library and retry |
+| "This is either a Google Play version of Minecraft or a version missing a specific file needed to launch the game" | The game is installed from the Play Store (or the imported files are incomplete), so the launcher cannot read `libminecraftpe.so` out of it | Import a Bedrock APK of the same version from the Library. The Play Store copy can stay installed. |
 | "Version refused" | The selected version ships no `arm64-v8a` libraries, or is older than 1.21.80 | Pick a supported version |
 | "Import won't launch" | The import did not complete (ABI or extract mismatch) | Re-import the APK, or use Settings → Diagnostics |
 | "Launch failed" naming a Java method (e.g. `NoSuchMethodError: readAllBytes`) | The launcher called a method the device's Android runtime does not have. This is a launcher defect, not a problem with your APK or your version. | Update to the latest build. Report it with the launch log; the message names the exact method. |
@@ -64,8 +72,10 @@ data this build cannot read fail closed and say so in-app.
 
 ## Common questions
 
-**Why does the launcher say Minecraft is missing?** — Provide an official or
-authentic Bedrock Edition APK and open GlowberryClient again.
+**Why does the launcher say Minecraft is missing?** — Import an authentic
+Bedrock Edition APK (1.21.80 or newer) from the Library and open GlowberryClient
+again. Installing or updating the Play Store copy does not help: the launcher
+cannot read the game library out of an app it does not own.
 
 **Why can an imported version fail to launch?** — Enable version isolation in the
 instance settings, or re-import a supported APK via Diagnostics.
