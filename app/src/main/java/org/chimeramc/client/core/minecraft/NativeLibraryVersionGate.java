@@ -1,5 +1,8 @@
 package org.chimeramc.client.core.minecraft;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Which optional native libraries a Minecraft build ships, decided by its version code.
  *
@@ -51,6 +54,19 @@ public final class NativeLibraryVersionGate {
     /** Whether the build needs {@code libPlayFabMultiplayer.so}. */
     public static boolean shouldLoadPlayFab(String versionCode) {
         return atLeast(versionCode, PLAY_FAB_RELEASE, PLAY_FAB_BETA);
+    }
+
+    /**
+     * Every library the loader opens from the extracted cache because of a version gate, in load
+     * order. The cache's completeness check and the loader both derive from this one list, so the
+     * cache can never call itself complete while the loader is still going to open one of these.
+     */
+    public static List<String> gatedLibraries(String versionCode) {
+        List<String> libs = new ArrayList<>(3);
+        if (shouldLoadHttpClient(versionCode)) libs.add("libHttpClient.Android.so");
+        if (shouldLoadMaesdk(versionCode)) libs.add("libmaesdk.so");
+        if (shouldLoadPlayFab(versionCode)) libs.add("libPlayFabMultiplayer.so");
+        return libs;
     }
 
     /** Compares against the release target, or the beta target when the code is a beta. */

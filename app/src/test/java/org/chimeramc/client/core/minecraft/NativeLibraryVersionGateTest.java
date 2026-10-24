@@ -1,5 +1,6 @@
 package org.chimeramc.client.core.minecraft;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -95,6 +96,45 @@ public class NativeLibraryVersionGateTest {
             // The HTTP client and PlayFab share a threshold, so a build that needs one needs both.
             assertTrue("http and playfab must agree for " + version,
                     http == NativeLibraryVersionGate.shouldLoadPlayFab(version));
+        }
+    }
+
+    @Test
+    public void theGatedLibraryListCoversEveryGateAndNothingElse() {
+        // The cache's completeness check is built from this list, and the loader opens exactly these
+        // files out of the extracted directory. A library in one but not the other is a launch
+        // failure: the cache says "complete", the loader then opens a file that was never required
+        // to be there. Pinned by name so adding a gate means adding it here too.
+        // 1.21.110 gained the maesdk bundle; the HTTP client and PlayFab arrived at 1.21.130, which
+        // is also above the maesdk threshold, so that build carries all three.
+        assertEquals(java.util.Collections.singletonList("libmaesdk.so"),
+                NativeLibraryVersionGate.gatedLibraries("1.21.110"));
+        assertEquals(java.util.Arrays.asList(
+                        "libHttpClient.Android.so", "libmaesdk.so", "libPlayFabMultiplayer.so"),
+                NativeLibraryVersionGate.gatedLibraries("1.21.130"));
+        assertEquals(java.util.Arrays.asList(
+                        "libHttpClient.Android.so", "libmaesdk.so", "libPlayFabMultiplayer.so"),
+                NativeLibraryVersionGate.gatedLibraries("1.26.50.4"));
+        assertEquals(java.util.Collections.emptyList(),
+                NativeLibraryVersionGate.gatedLibraries("1.21.80"));
+
+        // Every returned name must be one the loader would actually open, i.e. its gate says yes.
+        for (String version : new String[]{"1.21.80", "1.21.110", "1.21.130", "1.26.50.4"}) {
+            for (String lib : NativeLibraryVersionGate.gatedLibraries(version)) {
+                switch (lib) {
+                    case "libHttpClient.Android.so":
+                        assertTrue(NativeLibraryVersionGate.shouldLoadHttpClient(version));
+                        break;
+                    case "libmaesdk.so":
+                        assertTrue(NativeLibraryVersionGate.shouldLoadMaesdk(version));
+                        break;
+                    case "libPlayFabMultiplayer.so":
+                        assertTrue(NativeLibraryVersionGate.shouldLoadPlayFab(version));
+                        break;
+                    default:
+                        throw new AssertionError("unexpected gated library: " + lib);
+                }
+            }
         }
     }
 }

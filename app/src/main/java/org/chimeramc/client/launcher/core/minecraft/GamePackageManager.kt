@@ -665,16 +665,17 @@ class GamePackageManager private constructor(
     }
 
     private fun getCacheRequiredLibs(): Array<String> {
-        return if (shouldLoadHttpClient()) {
-            requiredLibs + optionalLibs
-        } else {
-            requiredLibs
-        }
+        // The cache is "complete" only when every library the loader will open is present. The
+        // version-gated libraries are loaded out of this same extracted directory by
+        // loadAllLibraries, so leaving them out of this list let an interrupted extraction look
+        // complete and then fail at load with "libmaesdk.so not found" - the same class of
+        // cache/loader disagreement the HTTP-client gate had. The list itself comes from the shared
+        // rule, so the cache and the loader cannot drift again.
+        val gated = NativeLibraryVersionGate.gatedLibraries(version?.versionCode)
+        return (requiredLibs.asList() + gated).toTypedArray()
     }
 
     private fun shouldLoadHttpClient(): Boolean {
-        // The same rule the loader reads, so the cache can never consider a build complete without a
-        // library the loader then tries to open. See NativeLibraryVersionGate.
         return NativeLibraryVersionGate.shouldLoadHttpClient(version?.versionCode)
     }
 
