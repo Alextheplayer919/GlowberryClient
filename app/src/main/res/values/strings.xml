@@ -2395,6 +2395,8 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="launch_error_message_missing_game_library">This is either a Google Play version of Minecraft or a version missing a specific file needed to launch the game.\n\nThe launcher loads the game\'s native library directly, and it could not open libminecraftpe.so from this install.\n\nTo play, import a Minecraft APK from the Library instead. A Play Store install can stay on your device.</string>
     <string name="launch_error_title_missing_dependency">A required file is missing</string>
     <string name="launch_error_message_missing_dependency">A library this Minecraft version needs is missing from the launcher\'s extracted files. Open Settings \u2192 Diagnostics and run Repair installation to re-extract them, then launch again.</string>
+    <string name="launch_error_title_stale_libs">Native files need repair</string>
+    <string name="launch_error_message_stale_libs">The extracted native libraries do not match this Minecraft build: a library loaded, but a symbol it needs is missing. That is what a stale or half-replaced extraction looks like.\n\nOpen Settings \u2192 Diagnostics and run Repair installation to re-extract them, then launch again.</string>
     <string name="launch_error_title_mod_failed">A mod stopped the launch</string>
     <string name="launch_error_message_mod_failed">A mod\'s native library failed to load, so the game could not start. Open the Mods tab, disable the most recently added mod, and launch again. Settings \u2192 Diagnostics names the mod that failed.</string>
     <string name="launch_error_title_out_of_memory">Not enough memory</string>

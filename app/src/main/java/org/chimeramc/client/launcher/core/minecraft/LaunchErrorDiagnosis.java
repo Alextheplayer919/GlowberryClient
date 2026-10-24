@@ -20,7 +20,9 @@ import org.chimeramc.client.R;
  * <p>Classification order matters and is deliberate: the most specific signal wins. "32-bit instead
  * of 64-bit" contains neither "not found" nor a library name in a reliable position, and a generic
  * {@code UnsatisfiedLinkError} must not be reported as a missing game file, so the bitness test runs
- * before the missing-library test and the game-library test runs before the generic one.
+ * before the missing-library test and the game-library test runs before the generic one. A
+ * "cannot locate symbol" failure also carries "dlopen failed", so it is tested before the generic
+ * dlopen branch or it would be mis-reported as a missing file when the file is present but unusable.
  */
 public final class LaunchErrorDiagnosis {
 
@@ -75,6 +77,20 @@ public final class LaunchErrorDiagnosis {
         }
         if (lower.contains("minecraft not found") || lower.contains("no minecraft package")) {
             return Cause.GAME_NOT_FOUND;
+        }
+        // A present-but-unusable library: the file opens, but a symbol it references is absent, so
+        // the extracted cache does not match the build that is loading it. That is what a stale
+        // (or half-replaced) extraction looks like at dlopen time, and it is the case Repair fixes.
+        //
+        // This is tested before the game-library branch because a symbol failure names the library
+        // that *references* the missing symbol, and that library is libminecraftpe.so: matched by
+        // the branch below, it would be reported as "cannot open libminecraftpe.so" when the file
+        // is in fact present. It is also tested before the generic dlopen branch, whose pattern it
+        // contains.
+        if (lower.contains("cannot locate symbol")
+                || lower.contains("undefined symbol")
+                || lower.contains("cannot find symbol")) {
+            return Cause.STALE_NATIVE_LIBS;
         }
         // The game's own library is the one whose absence means "this install cannot be launched",
         // which is the Google Play / incomplete-package case. It is tested before the generic
@@ -132,7 +148,7 @@ public final class LaunchErrorDiagnosis {
             case MISSING_DEPENDENCY:
                 return R.string.launch_error_title_missing_dependency;
             case STALE_NATIVE_LIBS:
-                return R.string.launch_failure_title_stale_libs;
+                return R.string.launch_error_title_stale_libs;
             case GAME_NOT_FOUND:
                 return R.string.minecraft_not_installed_title;
             case MOD_FAILED:
@@ -155,7 +171,7 @@ public final class LaunchErrorDiagnosis {
             case MISSING_DEPENDENCY:
                 return R.string.launch_error_message_missing_dependency;
             case STALE_NATIVE_LIBS:
-                return R.string.launch_failure_message_stale_libs;
+                return R.string.launch_error_message_stale_libs;
             case GAME_NOT_FOUND:
                 return R.string.minecraft_not_installed_message;
             case MOD_FAILED:

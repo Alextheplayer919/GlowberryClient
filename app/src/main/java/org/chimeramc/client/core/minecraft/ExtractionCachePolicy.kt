@@ -18,8 +18,14 @@ package org.chimeramc.client.core.minecraft
  */
 object ExtractionCachePolicy {
 
-    /** Manual bump of the extraction pipeline. Raise when the extraction logic itself changes. */
-    const val EXTRACTOR_VERSION: Int = 4
+    /**
+     * Manual bump of the extraction pipeline. Raise when the extraction logic itself changes.
+     *
+     * <p>5: the installed-package path now copies every `.so` the package ships, not only the named
+     * list, matching the APK path. A cache written by extractor 4 can be missing a transitive
+     * dependency that only became reachable with this change, so it must be rebuilt.
+     */
+    const val EXTRACTOR_VERSION: Int = 5
 
     /**
      * The value written beside the extracted libraries.

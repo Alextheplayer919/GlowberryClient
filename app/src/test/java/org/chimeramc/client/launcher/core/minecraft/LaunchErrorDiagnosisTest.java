@@ -118,6 +118,41 @@ public class LaunchErrorDiagnosisTest {
     }
 
     @Test
+    public void aPresentButUnusableLibraryIsStaleNotMissing() {
+        // "cannot locate symbol" also contains "dlopen failed", so without its own branch it would
+        // be reported as a missing file. The file is present; the cache does not match the build,
+        // which is what Repair fixes.
+        assertEquals(LaunchErrorDiagnosis.Cause.STALE_NATIVE_LIBS,
+                LaunchErrorDiagnosis.classifyText(
+                        "dlopen failed: cannot locate symbol \"_ZN6Player4tickEv\" referenced by \"libminecraftpe.so\""));
+        assertEquals(LaunchErrorDiagnosis.Cause.STALE_NATIVE_LIBS,
+                LaunchErrorDiagnosis.classifyText(
+                        "java.lang.UnsatisfiedLinkError: dlopen failed: undefined symbol: _ZN3mce5ImageD1Ev"));
+    }
+
+    @Test
+    public void everyCauseIsReachableFromSomeRealMessage() {
+        // A declared cause with no message that can produce it is a mapping nobody can ever see -
+        // the exact shape of a half-finished feature. Pin that each cause has a reachable input.
+        assertEquals(LaunchErrorDiagnosis.Cause.MISSING_GAME_LIBRARY,
+                LaunchErrorDiagnosis.classifyText("dlopen failed: library \"libminecraftpe.so\" not found"));
+        assertEquals(LaunchErrorDiagnosis.Cause.ABI_MISMATCH,
+                LaunchErrorDiagnosis.classifyText("is 32-bit instead of 64-bit"));
+        assertEquals(LaunchErrorDiagnosis.Cause.MISSING_DEPENDENCY,
+                LaunchErrorDiagnosis.classifyText("dlopen failed: library \"libfmod.so\" not found"));
+        assertEquals(LaunchErrorDiagnosis.Cause.STALE_NATIVE_LIBS,
+                LaunchErrorDiagnosis.classifyText("dlopen failed: cannot locate symbol \"x\""));
+        assertEquals(LaunchErrorDiagnosis.Cause.GAME_NOT_FOUND,
+                LaunchErrorDiagnosis.classifyText("Minecraft not found"));
+        assertEquals(LaunchErrorDiagnosis.Cause.MOD_FAILED,
+                LaunchErrorDiagnosis.classifyText("UnsatisfiedLinkError: No implementation found for mod"));
+        assertEquals(LaunchErrorDiagnosis.Cause.OUT_OF_MEMORY,
+                LaunchErrorDiagnosis.classifyText("OutOfMemoryError"));
+        assertEquals(LaunchErrorDiagnosis.Cause.UNKNOWN,
+                LaunchErrorDiagnosis.classifyText("something else entirely"));
+    }
+
+    @Test
     public void keysAndLabelsAreStableForABugReport() {
         assertEquals("missing_game_library",
                 LaunchErrorDiagnosis.key(LaunchErrorDiagnosis.Cause.MISSING_GAME_LIBRARY));

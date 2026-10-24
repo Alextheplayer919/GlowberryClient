@@ -444,7 +444,26 @@ class GamePackageManager private constructor(
             return
         }
 
-        extractableLibs.forEach { lib ->
+        // G3: copy every `.so` the installed package ships, not only the names the launcher lists,
+        // for the same reason `extractFromApk` does. The named list gates what *must* be present;
+        // covering everything means a transitive DT_NEEDED dependency the launcher does not know
+        // about is still in the directory when the game's libraries dlopen it. Before this, an
+        // installed-package launch could fail with "library not found" for a dependency that was
+        // sitting right there in the source directory.
+        val shipped = source.listFiles { file -> file.isFile && file.name.endsWith(".so") }
+        // `asList` (the Kotlin stdlib view over an Array), not `toList`: the latter is textually the
+        // same call as the API-34 Stream.toList the Api28Compat guard forbids, so the guard cannot
+        // tell the two apart and flags a perfectly safe Kotlin call.
+        val named = extractableLibs.asList()
+        val toCopy = if (shipped.isNullOrEmpty()) {
+            // A directory that cannot be listed (permissions, an unusual OEM layout) falls back to
+            // the named list rather than copying nothing.
+            named
+        } else {
+            (shipped.map { it.name } + named).distinct()
+        }
+
+        for (lib in toCopy) {
             val srcFile = File(source, lib)
             val dstFile = File(destDir, lib)
             if (srcFile.exists() && srcFile.length() > 0) {
