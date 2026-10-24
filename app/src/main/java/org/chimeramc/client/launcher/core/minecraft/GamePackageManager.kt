@@ -19,6 +19,7 @@ import java.io.InputStream
 import java.util.zip.ZipFile
 
 import org.chimeramc.client.core.minecraft.ExtractionCachePolicy
+import org.chimeramc.client.core.minecraft.NativeLibraryVersionGate
 
 class GamePackageManager private constructor(
     private val context: Context,
@@ -668,28 +669,9 @@ class GamePackageManager private constructor(
     }
 
     private fun shouldLoadHttpClient(): Boolean {
-        val versionCode = version?.versionCode ?: return false
-        val targetVersion = if (versionCode.contains("beta")) "1.21.130.20" else "1.21.130"
-        return isVersionAtLeast(versionCode, targetVersion)
-    }
-
-    private fun isVersionAtLeast(currentVersion: String, targetVersion: String): Boolean {
-        return try {
-            val current = currentVersion.replace(Regex("[^0-9.]"), "").split(".")
-            val target = targetVersion.split(".")
-            val maxLength = maxOf(current.size, target.size)
-
-            for (i in 0 until maxLength) {
-                val currentPart = current.getOrNull(i)?.toIntOrNull() ?: 0
-                val targetPart = target.getOrNull(i)?.toIntOrNull() ?: 0
-
-                if (currentPart > targetPart) return true
-                if (currentPart < targetPart) return false
-            }
-            true
-        } catch (_: Exception) {
-            false
-        }
+        // The same rule the loader reads, so the cache can never consider a build complete without a
+        // library the loader then tries to open. See NativeLibraryVersionGate.
+        return NativeLibraryVersionGate.shouldLoadHttpClient(version?.versionCode)
     }
 
     private fun mirrorLogcat(level: Char, message: String) {

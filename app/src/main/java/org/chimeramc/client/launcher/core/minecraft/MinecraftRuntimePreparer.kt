@@ -11,6 +11,7 @@ import org.chimeramc.client.core.mods.ModManager
 import org.chimeramc.client.core.mods.ModNativeLoader
 import org.chimeramc.client.core.mods.ModSafeMode
 import org.chimeramc.client.core.minecraft.MinecraftLauncher
+import org.chimeramc.client.core.minecraft.NativeLibraryVersionGate
 import org.chimeramc.client.core.auth.InstanceAccountBinding
 import org.chimeramc.client.core.auth.MsftAccountStore
 import org.chimeramc.client.core.auth.storage.XalExporter
@@ -594,43 +595,18 @@ val modsDir = modManager.currentVersion?.modsDir?.absolutePath
     }
 
     private fun shouldLoadMaesdk(version: GameVersion): Boolean {
-        val versionCode = version.versionCode
-        val targetVersion = if (versionCode.contains("beta")) "1.21.110.22" else "1.21.110"
-        return isVersionAtLeast(versionCode, targetVersion)
+        return NativeLibraryVersionGate.shouldLoadMaesdk(version.versionCode)
     }
 
     private fun shouldLoadHttpClient(version: GameVersion): Boolean {
-        val versionCode = version.versionCode
-        val targetVersion = if (versionCode.contains("beta")) "1.21.130.20" else "1.21.130"
-        return isVersionAtLeast(versionCode, targetVersion)
+        return NativeLibraryVersionGate.shouldLoadHttpClient(version.versionCode)
     }
 
     private fun shouldLoadPlayFab(version: GameVersion): Boolean {
-        val versionCode = version.versionCode
-        val targetVersion = if (versionCode.contains("beta")) "1.21.130.20" else "1.21.130"
-        return isVersionAtLeast(versionCode, targetVersion)
+        return NativeLibraryVersionGate.shouldLoadPlayFab(version.versionCode)
     }
 
     private fun toLibraryFileName(name: String): String {
         return if (name.startsWith("lib") && name.endsWith(".so")) name else "lib${name.removePrefix("lib").removeSuffix(".so")}.so"
-    }
-
-    private fun isVersionAtLeast(currentVersion: String, targetVersion: String): Boolean {
-        return try {
-            val current = currentVersion.replace(Regex("[^0-9.]"), "").split(".")
-            val target = targetVersion.split(".")
-            val maxLength = maxOf(current.size, target.size)
-
-            for (i in 0 until maxLength) {
-                val currentPart = current.getOrNull(i)?.toIntOrNull() ?: 0
-                val targetPart = target.getOrNull(i)?.toIntOrNull() ?: 0
-
-                if (currentPart > targetPart) return true
-                if (currentPart < targetPart) return false
-            }
-            true
-        } catch (_: Exception) {
-            false
-        }
     }
 }
