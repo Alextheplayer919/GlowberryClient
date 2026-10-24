@@ -96,11 +96,15 @@ class GamePackageManager private constructor(
         // The entire native-library path (extraction + loading) must derive from the
         // version's own ABI, not the device's primary ABI, so 32-bit-only versions load
         // their 32-bit libraries consistently from the matching architecture folder.
-        launchAbi = getDeviceAbi(collectApkFiles())
+        // Hold it in a local: reading the mutable field back through `!!` would re-assert a
+        // non-null the assignment just guaranteed, and would silently break if the field were
+        // ever cleared between the two statements.
+        val resolvedAbi = getDeviceAbi(collectApkFiles())
+        launchAbi = resolvedAbi
         nativeLibDir = MinecraftLauncher.getRuntimeLibAbiDir(
             context,
             MinecraftLauncher.getStorageProfileId(version),
-            launchAbi!!
+            resolvedAbi
         ).absolutePath
         File(nativeLibDir).mkdirs()
         if (version != null && !version.isInstalled) {
@@ -1001,17 +1005,22 @@ class GamePackageManager private constructor(
         ): GamePackageManager {
             return synchronized(this) {
                 val newVersionKey = buildVersionKey(version)
-                if (instance == null || newVersionKey != lastVersionKey) {
-                    instance = GamePackageManager(context.applicationContext, version, launchTrace, progressListener)
+                val current = instance
+                if (current == null || newVersionKey != lastVersionKey) {
+                    val created = GamePackageManager(
+                        context.applicationContext, version, launchTrace, progressListener
+                    )
+                    instance = created
                     lastVersionKey = newVersionKey
+                    created
                 } else {
                     // Reused: re-point the sinks at this launch. The instance outlives a launch, so
                     // a stale LaunchTrace would silently drop this launch's extraction milestones
                     // and a stale listener would log into the previous loading screen.
-                    instance!!.launchTrace = launchTrace
-                    instance!!.progressListener = progressListener
+                    current.launchTrace = launchTrace
+                    current.progressListener = progressListener
+                    current
                 }
-                instance!!
             }
         }
 
