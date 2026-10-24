@@ -57,6 +57,19 @@ object AbiBitness {
     fun hasLoadableAbi(shippedAbis: Collection<String>, processIs64Bit: Boolean): Boolean =
         shippedAbis.any { is32BitAbi(it) == !processIs64Bit }
 
+    /**
+     * Whether a version's shipped ABIs make it unlaunchable in this process.
+     *
+     * <p>An unknown ABI is deliberately **not** incompatible. Nothing read means nothing proven, and
+     * refusing a launch on an unreadable package would replace the real error (a broken or Play
+     * Store install, which has its own message) with a wrong one about bitness. The load attempt is
+     * allowed to speak instead. Pure, so the rule is unit-testable.
+     */
+    fun isIncompatible(shippedAbis: Collection<String>?, processIs64Bit: Boolean): Boolean {
+        if (shippedAbis == null || shippedAbis.isEmpty()) return false
+        return !hasLoadableAbi(shippedAbis, processIs64Bit)
+    }
+
     /** ABIs worth looking for inside a game APK, in descending order of preference. */
     val ABI_CANDIDATES = listOf(ABI_ARM64, ABI_ARM32, "x86_64", "x86")
 

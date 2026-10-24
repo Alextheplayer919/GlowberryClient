@@ -124,8 +124,12 @@ public final class AndroidLaunchProbe implements LaunchProbe.Source {
             return false;
         }
         try {
-            return !GamePackageManager.getInstance(context, version, trace, null)
-                    .requireLauncherSupportsVersion(version);
+            // Ask the ABI question directly rather than through GamePackageManager.getInstance().
+            // That factory's init block runs the whole native-library extraction and builds an
+            // AssetManager, so using it here meant the preflight performed the expensive preparation
+            // just to answer a yes/no question, and the launch then discarded that instance and
+            // built another - a large part of the reported lag when Launch is pressed.
+            return GamePackageManager.versionAbiIsIncompatible(context, version);
         } catch (Throwable ignored) {
             // An unreadable package is reported as missing game files by gameFilesPresent(), not as
             // an ABI problem; leaving the flag false keeps the message honest.

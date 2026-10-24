@@ -1031,6 +1031,61 @@ class GamePackageManager private constructor(
             }
         }
 
+        /**
+         * Whether a version's APK ships an ABI this process can load, without constructing the
+         * package manager.
+         *
+         * <p>The launch preflight only needs the ABI answer, but the instance's ABI check used to go
+         * through [getInstance], whose `init` block runs the whole native-library extraction and
+         * builds an AssetManager. So merely asking "would this launch be refused?" performed the
+         * expensive preparation work, and the launch then threw that instance away and built another
+         * one - a large part of the reported lag when Launch is pressed. This reads the APK's ABI
+         * table directly, which is the same authority [abiCompatibility] uses, and leaves the
+         * extraction to the launch itself.
+         *
+         * <p>An unreadable ABI is not incompatible: [AbiBitness.isIncompatible] treats an unknown as
+         * "nothing proven" so the real error is the one the user sees.
+         */
+        @JvmStatic
+        fun versionAbiIsIncompatible(context: Context, version: GameVersion?): Boolean {
+            return try {
+                if (version == null) return false
+                val apks = collectVersionApkFiles(context, version)
+                val shipped = if (apks.isEmpty()) null else AbiBitness.abisInApks(apks)
+                val processIs64Bit = try {
+                    android.os.Process.is64Bit()
+                } catch (_: Throwable) {
+                    Build.SUPPORTED_64_BIT_ABIS.isNotEmpty()
+                }
+                AbiBitness.isIncompatible(shipped, processIs64Bit)
+            } catch (_: Throwable) {
+                false
+            }
+        }
+
+        /**
+         * The APK files a version's native libraries come from, without touching the extraction
+         * cache. Mirrors the paths the instance's own `collectApkFiles` uses.
+         */
+        private fun collectVersionApkFiles(context: Context, version: GameVersion): List<File> {
+            val paths = mutableListOf<String>()
+            if (version.isInstalled) {
+                val appInfo = context.packageManager
+                    .getPackageInfo(version.packageName ?: MinecraftLauncher.MC_PACKAGE_NAME, 0)
+                    .applicationInfo
+                appInfo?.sourceDir?.let { paths.add(it) }
+                appInfo?.splitPublicSourceDirs?.let { paths.addAll(it) }
+            } else if (version.versionDir != null) {
+                val base = File(version.versionDir, "base.apk.chimera")
+                if (base.isFile) paths.add(base.absolutePath)
+                val splits = File(version.versionDir, "splits").listFiles()
+                splits?.forEach {
+                    if (it.isFile && it.name.endsWith(".apk.chimera")) paths.add(it.absolutePath)
+                }
+            }
+            return paths.map { File(it) }.filter { it.exists() }
+        }
+
         /** Removes the extraction version marker so the next launch re-extracts native libs. */
         @JvmStatic
         fun invalidateExtractionCache(context: Context, version: GameVersion?) {
