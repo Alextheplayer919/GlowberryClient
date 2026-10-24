@@ -166,14 +166,12 @@ public final class PreloaderSignatureRulesManager {
             return null;
         }
         try {
-            java.io.FileInputStream in = new java.io.FileInputStream(file);
-            try {
-                byte[] bytes = in.readAllBytes();
-                return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
-            } finally {
-                in.close();
-            }
-        } catch (Exception e) {
+            // Files.readAllBytes is API 26; InputStream.readAllBytes is API 33 and throws
+            // NoSuchMethodError on Android 9-12, which is an Error, so the catch below would not
+            // have contained it. This runs on the launch path ("Loading game loader").
+            byte[] bytes = java.nio.file.Files.readAllBytes(file.toPath());
+            return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (Exception | LinkageError e) {
             return null;
         }
     }

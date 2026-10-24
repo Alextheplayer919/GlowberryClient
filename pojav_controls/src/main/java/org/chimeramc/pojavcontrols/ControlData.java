@@ -77,9 +77,9 @@ public class ControlData {
     }
 
     public void normalize() {
-        if (name == null || name.isBlank()) name = "Button";
-        if (dynamicX == null || dynamicX.isBlank()) dynamicX = "0.5 * ${screen_width}";
-        if (dynamicY == null || dynamicY.isBlank()) dynamicY = "0.5 * ${screen_height}";
+        if (name == null || name.trim().isEmpty()) name = "Button";
+        if (dynamicX == null || dynamicX.trim().isEmpty()) dynamicX = "0.5 * ${screen_width}";
+        if (dynamicY == null || dynamicY.trim().isEmpty()) dynamicY = "0.5 * ${screen_height}";
         keycodes = inflateKeycodes(keycodes);
         width = Math.max(16f, Math.min(width <= 0f ? 50f : width, 400f));
         height = Math.max(16f, Math.min(height <= 0f ? 50f : height, 400f));

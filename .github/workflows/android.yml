@@ -168,6 +168,11 @@ jobs:
       - name: Run unit tests
         run: ./gradlew :app:testDebugUnitTest
 
+      - name: Check for calls newer than minSdk 28
+        # J5: this class of bug shipped because CI only built an APK. The static half fails fast
+        # (seconds) on a banned call; the emulator job below proves it at runtime on API 28.
+        run: ./gradlew :app:testDebugUnitTest --tests '*Api28CompatTest*'
+
       - name: Compute APK checksums
         # B16: no public artifact ships without a digest. Write a coreutils-format
         # <file>.sha256 sidecar next to every built APK; the upload steps below carry both.
@@ -285,3 +290,101 @@ jobs:
             }]
           }" \
           "$DISCORD_WEBHOOK"
+
+  # J5: run the app on the minimum supported API and on the target API. The launch crash
+  # (InputStream.readAllBytes, API 33) was invisible to a build-only pipeline and to the JVM test
+  # suite, because a desktop JDK has that method. Only a real API 28 runtime can catch it.
+  instrumented-smoke:
+    # Manual only, and here is why it cannot be an automatic gate.
+    #
+    # The APK ships arm64-v8a only (app/build.gradle sets abiFilters 'arm64-v8a': an Android process
+    # locks in one bitness and the prebuilt libgxcore.so has no 32-bit or x86 build). That rules out
+    # the usual x86_64 emulator - the install is refused with "No compatible devices connected"
+    # before a single test runs, which is what this job used to do on every push.
+    #
+    # An arm64 system image needs an arm64 host, and GitHub's arm64 runners have no /dev/kvm
+    # ("Failed to open the device 'kvm': Invalid argument"), so the emulator cannot be accelerated
+    # there and would take longer to boot than a runner is allowed to live.
+    #
+    # So: the static scan in Api28CompatTest (build job, seconds) is the automatic gate, and this
+    # job is for a self-hosted arm64 runner with KVM or a real device attached. It is kept rather
+    # than deleted because the runtime check is the one that proves the fix, and the test source
+    # runs on any developer's device.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [28, 35]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: "recursive"
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Prepare google-services.json (CI placeholder)
+        run: |
+          set -euo pipefail
+          if [ -z "${GOOGLE_SERVICES_JSON_BASE64:-}" ]; then
+            mkdir -p app
+            cat > app/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "000000000000",
+              "project_id": "ci-placeholder",
+              "storage_bucket": "ci-placeholder.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+                  "android_client_info": { "package_name": "org.chimeramc.client" }
+                },
+                "oauth_client": [],
+                "api_key": [ { "current_key": "AIzaSyCIOnlyPlaceholderKey" } ],
+                "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          JSON
+            echo "Wrote a CI-only Firebase placeholder for the instrumented run."
+          fi
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+
+      - name: Run instrumented API smoke tests on API ${{ matrix.api-level }}
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          # Must match the APK's only ABI, or the install is refused before the tests start.
+          arch: arm64-v8a
+          # The app is landscape-only and native-heavy, and an arm64 emulator on an arm64 host
+          # without nested-virtualisation acceleration boots slowly. Give it room.
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-boot-timeout: 1200
+          disable-animations: true
+          script: ./gradlew :app:connectedDebugAndroidTest --stacktrace
+
+      - name: Upload instrumented test report
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: instrumented-report-api${{ matrix.api-level }}
+          path: |
+            app/build/reports/androidTests/connected/**
+            app/build/outputs/androidTest-results/connected/**

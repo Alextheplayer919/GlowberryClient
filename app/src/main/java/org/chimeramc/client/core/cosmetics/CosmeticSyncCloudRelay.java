@@ -6,7 +6,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -80,7 +79,7 @@ public final class CosmeticSyncCloudRelay {
         if (topic == null || topic.isEmpty() || payloadBase64 == null) return false;
         HttpURLConnection connection = null;
         try {
-            URL url = new URL(baseUrl + "/" + URLEncoder.encode(topic, "UTF-8"));
+            URL url = new URL(baseUrl + "/" + org.chimeramc.client.util.Api28Compat.urlEncode(topic));
             connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("POST");
             connection.setDoOutput(true);
@@ -124,7 +123,7 @@ public final class CosmeticSyncCloudRelay {
         if (topic == null || topic.isEmpty()) return out;
         HttpURLConnection connection = null;
         try {
-            String query = "/" + URLEncoder.encode(topic, "UTF-8")
+            String query = "/" + org.chimeramc.client.util.Api28Compat.urlEncode(topic)
                     + "/json?poll=1&since=" + Math.max(0, sinceEpochSeconds);
             URL url = new URL(baseUrl + query);
             connection = (HttpURLConnection) url.openConnection();

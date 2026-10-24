@@ -10,8 +10,9 @@ import java.io.File;
  * capture would erase the account skin, or the reverse. A PNG is also the natural format here
  * because the texture is already a PNG download and it can be inspected by eye on a device.
  *
- * <p>The cache is keyed by the account identifier in a sidecar name, so switching accounts does not
- * leave the previous account's skin on screen.
+ * <p>The cache is keyed by the account identifier in a sidecar name, and readers must check it with
+ * {@link #isValidFor} — the key alone does not stop a previous account's skin from being shown;
+ * comparing it is what does.
  */
 public final class AccountSkinCache {
 
@@ -32,6 +33,27 @@ public final class AccountSkinCache {
             this.png = png;
             this.accountKey = accountKey == null ? "" : accountKey;
         }
+    }
+
+    /** The cache key for a XUID: the account identifier the entry belongs to. */
+    public static String accountKeyFor(String xuid) {
+        if (xuid == null || xuid.isEmpty()) return "";
+        return "account:" + xuid;
+    }
+
+    /**
+     * Whether a cached entry actually belongs to [xuid].
+     *
+     * <p>The account key was written from the start but never compared, so a cache populated for one
+     * account was served to whichever account signed in next — the "my skin is the wrong account's"
+     * report. An entry with no key (written before the key was honoured) is treated as not belonging
+     * to any account, so it is refreshed rather than shown. Pure, so both halves are testable.
+     */
+    public static boolean isValidFor(Entry entry, String xuid) {
+        if (entry == null || entry.png == null || entry.png.length == 0) return false;
+        String expected = accountKeyFor(xuid);
+        if (expected.isEmpty()) return false;
+        return expected.equals(entry.accountKey);
     }
 
     public static File file(File filesRoot) {

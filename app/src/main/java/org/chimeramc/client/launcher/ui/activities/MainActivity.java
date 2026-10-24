@@ -42,6 +42,8 @@ import org.chimeramc.client.R;
 import org.chimeramc.client.core.minecraft.MinecraftImportIntents;
 import org.chimeramc.client.core.minecraft.GamePackageManager;
 import org.chimeramc.client.launcher.core.minecraft.LaunchFailurePresenter;
+import org.chimeramc.client.launcher.core.minecraft.AndroidLaunchProbe;
+import org.chimeramc.client.launcher.core.minecraft.LaunchProbe;
 import org.chimeramc.client.launcher.core.minecraft.LaunchReadiness;
 import org.chimeramc.client.preloader.PreloaderSignatureRulesManager;
 import org.chimeramc.client.core.minecraft.LaunchTrace;
@@ -158,6 +160,12 @@ import okhttp3.OkHttpClient;
     private LibsRepairDialog storageMigrationDialog;
     private StorageMigrationService.MigrationState lastMigrationState;
     private final ExecutorService storageMigrationExecutor = Executors.newSingleThreadExecutor();
+
+    /**
+     * Runs the launch preflight off the UI thread. Separate from the storage-migration executor so
+     * a long migration cannot hold up a launch, and so a launch probe cannot delay a migration.
+     */
+    private final ExecutorService launchProbeExecutor = Executors.newSingleThreadExecutor();
 
     private final Handler uiHandler = new Handler(Looper.getMainLooper());
     private Runnable pulseRunnable;
@@ -2078,42 +2086,32 @@ import okhttp3.OkHttpClient;
         LaunchTrace trace = LaunchTrace.create(null);
         trace.milestone("Launch requested");
 
-        GameVersion version = versionManager != null ? versionManager.getSelectedVersion() : null;
+        final GameVersion version = versionManager != null ? versionManager.getSelectedVersion() : null;
 
-        // One named state decides what the user is told (U14). The facts are gathered here; the
-        // precedence between them lives in LaunchReadiness so this method cannot drift from the
-        // diagnostics screen or the wizard, which read the same states.
-        LaunchReadiness.Facts facts = new LaunchReadiness.Facts()
-                .versionSelected(version != null)
-                .minecraftInstalled(PlayStoreValidator.isMinecraftInstalled(this))
-                .signInRequired(FeatureSettings.getInstance().isLauncherManagedMcLoginEnabled())
-                .signedIn(getActiveAccount() != null);
-        if (version != null) {
-            // The instance's package is the base.apk.chimera the import pipeline writes; its
-            // absence is what "game files missing" means, not a version that was never selected.
-            facts.gameFilesPresent(version.versionDir != null
-                    && new java.io.File(version.versionDir, "base.apk.chimera").exists());
-            try {
-                facts.abiIncompatible(!GamePackageManager
-                        .getInstance(this, version, trace, null)
-                        .requireLauncherSupportsVersion(version));
-            } catch (Throwable ignored) {
-                // An unreadable package is reported as missing game files by the check above,
-                // not as an ABI problem; leaving the flag false keeps the message honest.
-            }
-            try {
-                facts.extractionStale(!GamePackageManager.isExtractionCacheCurrent(this, version));
-            } catch (Throwable ignored) {
-            }
-            try {
-                facts.signatureRulesCoverBuild(version.versionCode == null
-                        || version.versionCode.isEmpty()
-                        || PreloaderSignatureRulesManager
-                                .describeCoverageFailure(this, version.versionCode) == null);
-            } catch (Throwable ignored) {
-            }
-        }
+        // The preflight is I/O: stat the package, read the APK's ABI table, hash the extraction
+        // marker, parse the signature rules. Running it on the UI thread was the reported "huge lag
+        // when Launch is pressed" - the button dimmed and then the frame sat there while the disk
+        // was read. Gather on a background thread and hand the decision back to the UI thread; the
+        // precedence still lives in LaunchReadiness, so the diagnostics screen and the wizard keep
+        // reading the same states.
+        final LaunchProbe.Source source = new AndroidLaunchProbe(this, version, trace);
+        launchProbeExecutor.execute(() -> {
+            final LaunchReadiness.Facts facts = LaunchProbe.gather(source);
+            uiHandler.post(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                continueLaunchAfterProbe(version, trace, facts);
+            });
+        });
+    }
 
+    /**
+     * The part of the launch that must run on the UI thread, once the probe has finished.
+     *
+     * <p>Split out of {@link #performActualLaunch()} so the background gather and the UI decision
+     * are visibly separate: everything before this point is I/O, everything after it is state.
+     */
+    private void continueLaunchAfterProbe(GameVersion version, LaunchTrace trace,
+                                          LaunchReadiness.Facts facts) {
         LaunchReadiness.State readiness = LaunchReadiness.evaluate(facts);
         if (LaunchReadiness.blocksLaunch(readiness)) {
             trace.warning("Launch cancelled", LaunchReadiness.key(readiness));
@@ -2663,6 +2661,7 @@ import okhttp3.OkHttpClient;
         unbindStorageMigrationService();
         dismissStorageMigrationDialog(null);
         storageMigrationExecutor.shutdownNow();
+        launchProbeExecutor.shutdownNow();
         super.onDestroy();
     }
 

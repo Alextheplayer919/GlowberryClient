@@ -211,7 +211,9 @@ public final class PlayerSkinProvider {
         // 1. The cached PNG from a previous fetch, which the game's own capture never writes.
         try {
             AccountSkinCache.Entry entry = AccountSkinCache.read(context.getFilesDir());
-            if (entry != null && entry.png != null && entry.png.length > 0) {
+            // The entry must belong to the account that is signed in now. Serving a cache written for
+            // a different account is the "my skin is the wrong account's" bug.
+            if (AccountSkinCache.isValidFor(entry, xuid)) {
                 Bitmap decoded = BitmapFactory.decodeByteArray(entry.png, 0, entry.png.length);
                 if (decoded != null) return normalise(decoded);
             }

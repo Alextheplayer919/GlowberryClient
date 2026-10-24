@@ -16,6 +16,10 @@ import org.chimeramc.client.BuildConfig;
 import org.chimeramc.client.R;
 import org.chimeramc.client.core.minecraft.GamePackageManager;
 import org.chimeramc.client.util.PlayStoreValidator;
+import org.chimeramc.client.launcher.core.auth.AccountDiagnostics;
+import org.chimeramc.client.core.auth.MsftAccountStore;
+import org.chimeramc.client.core.cosmetics.AccountSkinCache;
+import org.chimeramc.client.core.cosmetics.AccountSkinService;
 import org.chimeramc.client.launcher.core.minecraft.LaunchReadiness;
 import org.chimeramc.client.core.versions.GameVersion;
 import org.chimeramc.client.core.versions.VersionManager;
@@ -90,6 +94,7 @@ public class DiagnosticsActivity extends BaseActivity {
         renderLibRows();
         renderRulesRows();
         renderNativeRows();
+        renderAccountRows();
         renderModRows();
     }
 
@@ -238,6 +243,78 @@ public class DiagnosticsActivity extends BaseActivity {
                             : getString(R.string.diagnostics_hook_inactive));
     }
 
+    /**
+     * The account and skin-sync section.
+     *
+     * <p>Reported as "auth is broken" and "my skin is not syncing", both of which had no observable
+     * state before this row set: the screen could not say whether there was an account, whether its
+     * token blob survived, or whether a skin was cached. The labels come from
+     * {@link AccountDiagnostics}, which is pure, so the wording and thresholds are tested.
+     */
+    private void renderAccountRows() {
+        LinearLayout rows = findViewById(R.id.diagnostics_account_rows);
+        if (rows == null) return;
+        rows.removeAllViews();
+
+        AccountDiagnostics.Snapshot snapshot = readAccountSnapshot();
+        if (!snapshot.signedIn) {
+            addRow(rows, R.string.diagnostics_field_account_signed_in,
+                    getString(R.string.diagnostics_no));
+            addRow(rows, getString(R.string.diagnostics_field_skin_source),
+                    AccountDiagnostics.describeSkinSource(false, snapshot.skinLookupEnabled,
+                            snapshot.skinCached));
+            return;
+        }
+        addRow(rows, R.string.diagnostics_field_account_signed_in,
+                getString(R.string.diagnostics_yes));
+        addRow(rows, R.string.diagnostics_field_account_xuid,
+                snapshot.hasXuid ? getString(R.string.diagnostics_yes)
+                        : getString(R.string.diagnostics_no));
+        addRow(rows, R.string.diagnostics_field_account_token,
+                AccountDiagnostics.describeToken(snapshot.hasTokenBlob, snapshot.tokenAgeMs));
+        addRow(rows, R.string.diagnostics_field_skin_lookup,
+                AccountDiagnostics.describeSkinLookup(true, snapshot.skinLookupEnabled,
+                        snapshot.skinLookupAvailable));
+        addRow(rows, R.string.diagnostics_field_skin_source,
+                AccountDiagnostics.describeSkinSource(true, snapshot.skinLookupEnabled,
+                        snapshot.skinCached));
+    }
+
+    /** Reads the real account and skin state. Never throws: a missing read is "not signed in". */
+    private AccountDiagnostics.Snapshot readAccountSnapshot() {
+        AccountDiagnostics.Snapshot snapshot = new AccountDiagnostics.Snapshot();
+        try {
+            MsftAccountStore.MsftAccount active = null;
+            for (MsftAccountStore.MsftAccount account : MsftAccountStore.list(this)) {
+                if (account != null && account.active) {
+                    active = account;
+                    break;
+                }
+            }
+            if (active != null) {
+                snapshot.signedIn(true);
+                snapshot.hasXuid(active.xuid != null && !active.xuid.isEmpty());
+                snapshot.hasTokenBlob(active.serializedAuthManager != null
+                        && !active.serializedAuthManager.isEmpty());
+                snapshot.tokenAgeMs(active.lastUpdated > 0
+                        ? System.currentTimeMillis() - active.lastUpdated
+                        : -1L);
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            snapshot.skinLookupEnabled(AccountSkinService.isEnabled(this));
+            snapshot.skinLookupAvailable(AccountSkinService.canLookup(this));
+            // Cached means cached for the account signed in now: an entry for a previous account is
+            // refreshed rather than shown, so reporting it as cached would misdiagnose the report.
+            AccountSkinCache.Entry entry = AccountSkinCache.read(getFilesDir());
+            snapshot.skinCached(AccountSkinCache.isValidFor(entry,
+                    AccountSkinService.activeXuid(this)));
+        } catch (Throwable ignored) {
+        }
+        return snapshot;
+    }
+
     private void renderModRows() {
         LinearLayout rows = findViewById(R.id.diagnostics_mods_rows);
         if (rows == null) return;
@@ -364,6 +441,24 @@ public class DiagnosticsActivity extends BaseActivity {
             sb.append("Signature rule coverage: ")
                     .append(PreloaderSignatureRulesManager.describeCoverageFailure(this, version.versionCode) == null
                             ? "covered" : "NOT COVERED (byte-pattern hooks disabled)").append("\n");
+        }
+
+        AccountDiagnostics.Snapshot account = readAccountSnapshot();
+        sb.append("\nAccount:\n");
+        sb.append("  Signed in: ").append(account.signedIn ? "yes" : "no").append("\n");
+        if (account.signedIn) {
+            sb.append("  XUID present: ").append(account.hasXuid ? "yes" : "no").append("\n");
+            sb.append("  Token cache: ")
+                    .append(AccountDiagnostics.describeToken(account.hasTokenBlob, account.tokenAgeMs))
+                    .append("\n");
+            sb.append("  Skin lookup: ")
+                    .append(AccountDiagnostics.describeSkinLookup(true, account.skinLookupEnabled,
+                            account.skinLookupAvailable))
+                    .append("\n");
+            sb.append("  Skin source: ")
+                    .append(AccountDiagnostics.describeSkinSource(true, account.skinLookupEnabled,
+                            account.skinCached))
+                    .append("\n");
         }
 
         boolean nativeLoaded = isNativeLoaded();

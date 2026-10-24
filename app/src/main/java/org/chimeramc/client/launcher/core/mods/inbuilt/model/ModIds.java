@@ -1,5 +1,7 @@
 package org.chimeramc.client.core.mods.inbuilt.model;
 
+import org.chimeramc.client.util.Api28Compat;
+
 public final class ModIds {
     /** Group id for combat/PvP modules; the Mod Menu exposes it as the PvP tab. */
     public static final String GROUP_PVP = "pvp";
@@ -86,7 +88,7 @@ public final class ModIds {
      * derived from the group string at the call site so the filter and the provider cannot
      * drift apart.
      */
-    private static final java.util.Set<String> PVP_MODULES = java.util.Set.of(
+    private static final java.util.Set<String> PVP_MODULES = Api28Compat.setOf(
             AIM_SETTINGS, CPS_DISPLAY, SNAPLOOK, ARMOR_HUD, CRYSTAL_OPTIMIZER,
             HIT_REGISTRATION, HIT_TIMING, HITBOX);
 
@@ -98,7 +100,7 @@ public final class ModIds {
      * outside it may be advertised as a working PvP feature.
      */
     public static java.util.List<String> pvpModuleIds() {
-        return java.util.List.of(AIM_SETTINGS, CPS_DISPLAY, SNAPLOOK, ARMOR_HUD,
+        return Api28Compat.listOf(AIM_SETTINGS, CPS_DISPLAY, SNAPLOOK, ARMOR_HUD,
                 CRYSTAL_OPTIMIZER, HIT_REGISTRATION, HIT_TIMING, HITBOX);
     }
 
@@ -115,7 +117,7 @@ public final class ModIds {
      * Social modules the Mod Menu files under its Voice section. Same reasoning as
      * {@link #isPvpModule}: the section predicate and the provider's grouping must agree.
      */
-    private static final java.util.Set<String> VOICE_MODULES = java.util.Set.of(VOICE_CHAT);
+    private static final java.util.Set<String> VOICE_MODULES = Api28Compat.setOf(VOICE_CHAT);
 
     public static boolean isVoiceModule(String modId) {
         return modId != null && VOICE_MODULES.contains(modId);
@@ -177,7 +179,7 @@ public final class ModIds {
      * Keeping the distinction in one place is what stops the config dialog from offering a switch
      * that can never draw anything.
      */
-    private static final java.util.Set<String> HITBOX_NATIVE_OUTPUTS = java.util.Set.of(
+    private static final java.util.Set<String> HITBOX_NATIVE_OUTPUTS = Api28Compat.setOf(
             "hitbox_show_mobs", "hitbox_show_items", "hitbox_show_projectiles",
             "hitbox_show_thrown_items", "hitbox_show_crit_line", "hitbox_show_combo_box");
 

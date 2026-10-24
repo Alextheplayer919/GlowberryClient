@@ -802,7 +802,9 @@ public final class CosmeticsPanel {
             return;
         }
         AccountSkinCache.Entry cached = AccountSkinCache.read(activity.getFilesDir());
-        if (cached != null && cached.png != null && cached.png.length > 0) {
+        // "Ready" must mean "ready for THIS account": an entry written for a different account is
+        // about to be refreshed, not shown, so reporting it as ready would be a lie.
+        if (AccountSkinCache.isValidFor(cached, xuid)) {
             accountSkinStatus.setText(R.string.cosmetics_account_skin_status_ready);
         } else {
             accountSkinStatus.setText(R.string.cosmetics_account_skin_status_fetching);

@@ -1,5 +1,6 @@
 package org.chimeramc.client.core.minecraft;
 
+import org.chimeramc.client.util.Api28Compat;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -58,7 +59,7 @@ public class MinecraftLauncher {
      */
     public static String resolveLaunchAbi(GameVersion version) {
         String abiList = version != null ? version.abiList : null;
-        if (abiList != null && !abiList.isBlank()) {
+        if (abiList != null && Api28Compat.isNotBlank(abiList)) {
             String abi = abiList.trim();
             if ("arm64-v8a".equals(abi) || "armeabi-v7a".equals(abi) || "x86_64".equals(abi) || "x86".equals(abi)) {
                 return abi;
@@ -76,7 +77,7 @@ public class MinecraftLauncher {
         File apkFile = new File(version.versionDir, "base.apk.chimera");
         fakeInfo.sourceDir = apkFile.getAbsolutePath();
         fakeInfo.publicSourceDir = fakeInfo.sourceDir;
-        String rawAbi = (launchAbi != null && !launchAbi.isBlank()) ? launchAbi : resolveLaunchAbi(version);
+        String rawAbi = (launchAbi != null && Api28Compat.isNotBlank(launchAbi)) ? launchAbi : resolveLaunchAbi(version);
         File dstLibDir = getRuntimeLibAbiDir(context, getStorageProfileId(version), rawAbi);
         fakeInfo.nativeLibraryDir = dstLibDir.getAbsolutePath();
         fakeInfo.packageName = packageName;
