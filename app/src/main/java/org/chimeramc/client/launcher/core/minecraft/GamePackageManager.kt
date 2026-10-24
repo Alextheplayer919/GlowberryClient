@@ -285,7 +285,10 @@ class GamePackageManager private constructor(
         val allPresent = ExtractionCachePolicy.isCacheUsable(
             markerMatches,
             versionMatches,
-            ExtractionCachePolicy.allLibrariesPresent(cacheRequiredLibs.toList()) { lib ->
+            // `asList` (the Kotlin stdlib view over an Array), not `toList`: the latter is textually
+            // the same call as the API-34 Stream.toList the Api28Compat guard forbids, so the guard
+            // cannot tell the two apart and flags a perfectly safe Kotlin call.
+            ExtractionCachePolicy.allLibrariesPresent(cacheRequiredLibs.asList()) { lib ->
                 File(outputDir, lib).let { it.exists() && it.length() > 0L }
             }
         )
@@ -311,10 +314,16 @@ class GamePackageManager private constructor(
             // re-open all of them for each one.
             val abi = getDeviceAbi(apkFiles)
             apkFiles.forEach { extractFromApk(it.absolutePath, outputDir, abi) }
-            val missingLibs = cacheRequiredLibs.filter { lib -> !File(outputDir, lib).exists() }
+            // A zero-length file is what an interrupted extraction leaves behind, and it is not
+            // loadable, so it must fail here with the named reason rather than passing the
+            // preflight and dying at dlopen with an error the user cannot act on.
+            val missingLibs = cacheRequiredLibs.filter { lib ->
+                !File(outputDir, lib).let { it.exists() && it.length() > 0L }
+            }
             if (missingLibs.isNotEmpty()) {
                 throw IllegalStateException(
-                    "Required native libraries for ABI $abi are missing from this version's APK/splits."
+                    "Required native libraries for ABI $abi are missing from this version's APK/splits: "
+                        + missingLibs.joinToString()
                 )
             }
         } else {
