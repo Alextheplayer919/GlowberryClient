@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Resolves the refresh rate Bedrock Optifine Mode should request.
+ * Resolves the refresh rate Game Performance Mode should request.
  *
  * <p>Mirrors the preloader's {@code SelectTargetRefreshRate}: the highest supported rate strictly
  * above the one in use, or 0 when there is nothing to unlock (a 60Hz-only panel, an unknown mode

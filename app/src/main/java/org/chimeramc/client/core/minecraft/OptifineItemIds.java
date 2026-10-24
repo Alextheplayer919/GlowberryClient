@@ -5,7 +5,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * The stable ids and display metadata for Bedrock Optifine Mode items.
+ * The stable ids and display metadata for Game Performance Mode items.
  *
  * <p>The id strings are the wire contract with the preloader's {@code OptifineConfig.cpp}; never
  * renumber or rename one without changing both sides and the golden blob test. The order here is

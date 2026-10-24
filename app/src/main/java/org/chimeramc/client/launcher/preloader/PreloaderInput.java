@@ -64,7 +64,7 @@ public class PreloaderInput {
 
     public static native void nativeConfigureSignatureRules(String rulesPath, String minecraftVersion);
 
-    // --- Bedrock Optifine Mode -------------------------------------------------------------
+    // --- Game Performance Mode -------------------------------------------------------------
 
     /**
      * Applies a flat {@code key=value} optifine configuration blob. The blob is built by

@@ -91,7 +91,7 @@ public class SettingsActivity extends BaseActivity {
     private ImageView bgImagePreview;
     private TextView migrationCleanupStatus;
 
-    /** Drives the Bedrock Optifine Mode section; rebuilt on each bind. */
+    /** Drives the Game Performance Mode section; rebuilt on each bind. */
     private org.chimeramc.client.core.minecraft.OptifineSettingsController optifineController;
     private Button migrationCleanupButton;
     private SwitchMaterial switchSharedStorageLayout;
@@ -465,7 +465,7 @@ public class SettingsActivity extends BaseActivity {
     }
 
     /**
-     * Wires the Bedrock Optifine Mode card.
+     * Wires the Game Performance Mode card.
      *
      * <p>The master switch gates the whole section; the per-item rows are built by
      * {@code OptifineSettingsController} so the item list comes from one source. Applying pushes

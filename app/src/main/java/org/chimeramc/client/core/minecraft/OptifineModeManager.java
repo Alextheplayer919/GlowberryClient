@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Coordinates Bedrock Optifine Mode between the Settings screen, the persisted feature settings
+ * Coordinates Game Performance Mode between the Settings screen, the persisted feature settings
  * and the preloader.
  *
  * <p>Responsibilities:

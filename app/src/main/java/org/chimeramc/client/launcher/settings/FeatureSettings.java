@@ -15,7 +15,7 @@ public class FeatureSettings {
     private boolean reduceNetworkLatencyEnabled = false;
     private boolean fpsOptimizerEnabled = false;
 
-    // --- Bedrock Optifine Mode -------------------------------------------------------------
+    // --- Game Performance Mode -------------------------------------------------------------
     // The master switch plus one toggle per optimization, so a user can isolate an item that
     // misbehaves on their device. Tier-1 (host) items default on; Tier-2 (game hook) items
     // default off, because a hook that resolves wrong can change how the game renders.
@@ -112,7 +112,7 @@ public class FeatureSettings {
     public boolean isFpsOptimizerEnabled() { return fpsOptimizerEnabled; }
     public void setFpsOptimizerEnabled(boolean enabled) { this.fpsOptimizerEnabled = enabled; autoSave(); }
 
-    // --- Bedrock Optifine Mode accessors ---------------------------------------------------
+    // --- Game Performance Mode accessors ---------------------------------------------------
 
     public boolean isOptifineModeEnabled() { return optifineModeEnabled; }
     public void setOptifineModeEnabled(boolean enabled) {
