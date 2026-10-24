@@ -72,6 +72,7 @@ import org.chimeramc.client.util.LanguageManager;
 import org.chimeramc.client.util.InstanceShortcutManager;
 import org.chimeramc.client.util.LauncherStorage;
 import org.chimeramc.client.util.PermissionsHandler;
+import org.chimeramc.client.launcher.util.IconSizeApplier;
 import org.chimeramc.client.util.PersonalizationManager;
 import org.chimeramc.client.util.PlayStoreValidator;
 import org.chimeramc.client.util.ResourcepackHandler;
@@ -1396,8 +1397,10 @@ import okhttp3.OkHttpClient;
     }
     
     private void applyIconSize(int sizePercent) {
-        // Icon size implementation would go here
-        // For now, this is a placeholder for future icon scaling
+        // The preference is a real scale on every fixed-size icon in the tree (see IconSizeApplier
+        // for why the base size is cached rather than read from the live dimension).
+        if (binding == null || binding.getRoot() == null) return;
+        IconSizeApplier.apply(binding.getRoot(), sizePercent);
     }
     
     private void applyBlurIntensity(int intensity) {
