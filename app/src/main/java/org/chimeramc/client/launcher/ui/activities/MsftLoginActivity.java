@@ -49,6 +49,7 @@ import org.chimeramc.client.core.cosmetics.AccountSkinService;
 import org.chimeramc.client.ui.animation.DynamicAnim;
 import org.chimeramc.client.util.CryptoUtils;
 import org.chimeramc.client.util.PersonalizationManager;
+import org.chimeramc.client.launcher.core.minecraft.UserFacingError;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -311,7 +312,7 @@ public class MsftLoginActivity extends BaseActivity {
             @Override
             public void onError(com.microsoft.identity.client.exception.MsalException exception) {
                 runOnUiThread(() -> {
-                    msalStatusText.setText(exception.getMessage());
+                    msalStatusText.setText(UserFacingError.describe(MsftLoginActivity.this, exception));
                     msalSignInButton.setEnabled(true);
                 });
             }

@@ -35,6 +35,7 @@ import org.chimeramc.client.core.versions.VersionManager;
 import org.chimeramc.client.settings.FeatureSettings;
 import org.chimeramc.client.util.LauncherStorage;
 import org.chimeramc.client.ui.animation.DynamicAnim;
+import org.chimeramc.client.launcher.core.minecraft.UserFacingError;
 
 
 
@@ -375,7 +376,8 @@ public class ContentDetailsActivity extends BaseActivity {
                 runOnUiThread(() -> {
                     progressBar.setVisibility(View.GONE);
                     btnInstall.setEnabled(true);
-                    Toast.makeText(this, getString(R.string.curseforge_download_failed) + ": " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, getString(R.string.curseforge_download_failed) + "\n\n"
+                            + UserFacingError.reason(this, e), Toast.LENGTH_LONG).show();
                 });
             }
         });

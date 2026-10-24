@@ -1,5 +1,7 @@
 package org.chimeramc.client.launcher.core.minecraft;
 
+import android.content.Context;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InterruptedIOException;
@@ -250,5 +252,28 @@ public final class UserFacingError {
         String raw = error.getMessage();
         if (raw == null || raw.trim().isEmpty() || raw.equals(reason)) return reason;
         return reason + "\n\n" + label(classify(error)) + ": " + raw.trim();
+    }
+
+    /**
+     * Just the actionable sentence for a failure, resolved from resources.
+     *
+     * <p>For a compact surface — a toast, a status line — where a second line of raw text would be
+     * clipped. The sentence already names the cause and the next step, so nothing actionable is
+     * lost; the raw text belongs on a surface that can show it ({@link #describe(Context,
+     * Throwable)}).
+     */
+    public static String reason(Context context, Throwable error) {
+        if (context == null) return "";
+        return context.getString(messageRes(classify(error)));
+    }
+
+    /**
+     * The sentence followed by the raw text, for a surface with room for both.
+     *
+     * <p>A dialog or a detail pane is where the raw string pays for itself: the user gets the
+     * instruction, and the bug report gets the original message and the cause key.
+     */
+    public static String describe(Context context, Throwable error) {
+        return describe(error, reason(context, error));
     }
 }

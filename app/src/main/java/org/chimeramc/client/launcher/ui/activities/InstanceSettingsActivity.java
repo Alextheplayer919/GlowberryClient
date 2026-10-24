@@ -32,6 +32,7 @@ import org.chimeramc.client.ui.dialogs.CustomAlertDialog;
 import org.chimeramc.client.ui.dialogs.InstallProgressDialog;
 import org.chimeramc.client.util.InstanceBackupManager;
 import org.chimeramc.client.util.InstanceShortcutManager;
+import org.chimeramc.client.launcher.core.minecraft.UserFacingError;
 
 public class InstanceSettingsActivity extends BaseActivity {
     private static final int REQUEST_BACKUP_STORAGE = 4201;
@@ -429,7 +430,8 @@ public class InstanceSettingsActivity extends BaseActivity {
                         @Override
                         public void onDeleteFailed(Exception e) {
                             runOnUiThread(() -> Toast.makeText(InstanceSettingsActivity.this,
-                                    getString(R.string.toast_delete_failed, e.getMessage()), Toast.LENGTH_SHORT).show());
+                                    getString(R.string.toast_delete_failed, UserFacingError.reason(InstanceSettingsActivity.this, e)),
+                                    Toast.LENGTH_SHORT).show());
                         }
                     });
                 })

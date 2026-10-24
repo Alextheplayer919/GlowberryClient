@@ -19,6 +19,7 @@ import org.chimeramc.client.core.content.FlatWorldGenerator;
 import org.chimeramc.client.core.content.FlatWorldGenerator.BlockLayer;
 import org.chimeramc.client.databinding.ActivityCustomFlatWorldBinding;
 import org.chimeramc.client.ui.animation.DynamicAnim;
+import org.chimeramc.client.launcher.core.minecraft.UserFacingError;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -191,8 +192,8 @@ public class CustomFlatWorldActivity extends BaseActivity {
                 runOnUiThread(() -> {
                     binding.loadingProgress.setVisibility(View.GONE);
                     binding.createWorldButton.setEnabled(true);
-                    Toast.makeText(this, getString(R.string.failed_to_create_world) + ": " + e.getMessage(),
-                            Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, getString(R.string.failed_to_create_world) + "\n\n"
+                            + UserFacingError.reason(this, e), Toast.LENGTH_LONG).show();
                 });
             }
         });
