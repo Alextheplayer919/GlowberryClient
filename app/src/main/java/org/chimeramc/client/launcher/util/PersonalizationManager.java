@@ -699,8 +699,10 @@ public class PersonalizationManager {
             } else if (bg instanceof StateListDrawable) {
                 StateListDrawable sld = (StateListDrawable) bg;
                 boolean modified = false;
-                for (int si = 0; si < sld.getStateCount(); si++) {
-                    Drawable stateDrawable = sld.getStateDrawable(si);
+                // API 29 accessors; see stateDrawables().
+                java.util.List<Drawable> states = stateDrawables(sld);
+                for (int si = 0; si < states.size(); si++) {
+                    Drawable stateDrawable = states.get(si);
                     if (stateDrawable instanceof GradientDrawable) {
                         GradientDrawable sgd = (GradientDrawable) stateDrawable;
                         try {
@@ -732,6 +734,34 @@ public class PersonalizationManager {
 
     private boolean isNearWhite(int color) {
         return Color.red(color) > 235 && Color.green(color) > 235 && Color.blue(color) > 235 && Color.alpha(color) > 200;
+    }
+
+    /**
+     * The state drawables of a {@link StateListDrawable}, on every API level.
+     *
+     * <p>{@code StateListDrawable.getStateCount()} and {@code getStateDrawable(int)} are API 29, and
+     * this app runs on API 28 with core-library desugaring off, so calling them throws
+     * {@code NoSuchMethodError} — an {@link Error}, which a surrounding {@code catch (Exception)}
+     * does not contain, so it would unwind the accent pass. {@code DrawableContainerState} exposes
+     * the same children and has existed since API 1.
+     */
+    private static java.util.List<Drawable> stateDrawables(StateListDrawable stateList) {
+        java.util.List<Drawable> out = new java.util.ArrayList<>();
+        if (stateList == null) {
+            return out;
+        }
+        try {
+            android.graphics.drawable.Drawable.ConstantState constantState = stateList.getConstantState();
+            if (constantState instanceof android.graphics.drawable.DrawableContainer.DrawableContainerState) {
+                android.graphics.drawable.DrawableContainer.DrawableContainerState container =
+                        (android.graphics.drawable.DrawableContainer.DrawableContainerState) constantState;
+                for (int i = 0; i < container.getChildCount(); i++) {
+                    out.add(container.getChild(i));
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return out;
     }
 
     public void applyAccentColorRecursive(View view, int accentColor, Activity activity) {
@@ -930,8 +960,10 @@ public class PersonalizationManager {
             } catch (Exception ignored) {}
         } else if (bg instanceof StateListDrawable) {
             StateListDrawable sld = (StateListDrawable) bg;
-            for (int si = 0; si < sld.getStateCount(); si++) {
-                Drawable stateDrawable = sld.getStateDrawable(si);
+            // API 29 accessors; see stateDrawables().
+            java.util.List<Drawable> states = stateDrawables(sld);
+            for (int si = 0; si < states.size(); si++) {
+                Drawable stateDrawable = states.get(si);
                 if (stateDrawable instanceof GradientDrawable) {
                     GradientDrawable sgd = (GradientDrawable) stateDrawable;
                     try {

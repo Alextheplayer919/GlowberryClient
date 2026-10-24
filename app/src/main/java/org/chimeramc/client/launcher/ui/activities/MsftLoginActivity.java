@@ -207,7 +207,7 @@ public class MsftLoginActivity extends BaseActivity {
     private void initializeMsalAndSignIn() {
         // Use a placeholder client ID - users must replace this with their own Azure AD app registration
         String clientId = "YOUR_CLIENT_ID_HERE";
-        String redirectUri = "msauth://" + getPackageName() + "/" + java.net.URLEncoder.encode("com.microsoft.identity.client.SignActivity", java.nio.charset.StandardCharsets.UTF_8);
+        String redirectUri = "msauth://" + getPackageName() + "/" + org.chimeramc.client.util.Api28Compat.urlEncode("com.microsoft.identity.client.SignActivity");
         
         oauthManager = new MicrosoftOAuthManager(this);
         oauthManager.initialize(clientId, redirectUri);
@@ -235,7 +235,7 @@ public class MsftLoginActivity extends BaseActivity {
         // Initialize MSAL if not already done
         if (oauthManager == null) {
             String clientId = "YOUR_CLIENT_ID_HERE";
-            String redirectUri = "msauth://" + getPackageName() + "/" + java.net.URLEncoder.encode("com.microsoft.identity.client.SignActivity", java.nio.charset.StandardCharsets.UTF_8);
+            String redirectUri = "msauth://" + getPackageName() + "/" + org.chimeramc.client.util.Api28Compat.urlEncode("com.microsoft.identity.client.SignActivity");
             oauthManager = new MicrosoftOAuthManager(this);
             oauthManager.initialize(clientId, redirectUri);
         }

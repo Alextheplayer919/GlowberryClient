@@ -31,6 +31,28 @@ import java.util.Set;
 public final class Api28Compat {
 
     /**
+     * {@code URLEncoder.encode(String, Charset)} (API 33), which the platform only offers as
+     * {@code encode(String, String)} before then.
+     *
+     * <p>This was a live crash: the launcher's own OAuth flow built its redirect URI with the
+     * one-argument {@code encode(String, Charset)} overload, so the sign-in path threw
+     * {@code NoSuchMethodError} on Android 9-12 the moment it ran — the "account login not working"
+     * report. {@code UnsupportedEncodingException} cannot happen for UTF-8, but the checked
+     * exception still has to be handled on the pre-33 signature.
+     */
+    public static String urlEncode(String value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return java.net.URLEncoder.encode(value, "UTF-8");
+        } catch (java.io.UnsupportedEncodingException e) {
+            // UTF-8 is guaranteed by the platform; the pre-33 signature just declares the exception.
+            return value;
+        }
+    }
+
+    /**
      * {@link String#isBlank()} (API 33): true when the string is empty or contains only whitespace
      * as defined by {@link Character#isWhitespace}.
      */

@@ -291,10 +291,6 @@ public final class AccountSkinService {
     }
 
     private static String urlEncode(String value) {
-        try {
-            return java.net.URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8.name());
-        } catch (Exception e) {
-            return value;
-        }
+        return org.chimeramc.client.util.Api28Compat.urlEncode(value);
     }
 }

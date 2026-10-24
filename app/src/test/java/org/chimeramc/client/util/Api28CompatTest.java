@@ -3,6 +3,7 @@ package org.chimeramc.client.util;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNull;
 
 import org.junit.Test;
 
@@ -102,6 +103,23 @@ public class Api28CompatTest {
         }
     }
 
+    @Test
+    public void urlEncodeMatchesThePlatformEncoding() throws Exception {
+        // The helper must produce exactly what the API 33 one-argument overload would, or a redirect
+        // URI built with it would not match what the auth server expects.
+        assertEquals(java.net.URLEncoder.encode("a b/c?d=e&f", "UTF-8"),
+                Api28Compat.urlEncode("a b/c?d=e&f"));
+        // A redirect-URI component is the real call site: dots and letters pass through.
+        assertEquals("com.microsoft.identity.client.SignActivity",
+                Api28Compat.urlEncode("com.microsoft.identity.client.SignActivity"));
+    }
+
+    @Test
+    public void urlEncodeIsNullSafe() {
+        // A null topic is a programming error, not a reason to throw inside a sync timer.
+        assertNull(Api28Compat.urlEncode(null));
+    }
+
     // --- The classifier ----------------------------------------------------------------------
 
     private static final class Rule {
@@ -150,7 +168,15 @@ public class Api28CompatTest {
             new Rule("Stream.toList (API 34)",
                     "(?<!Collectors)\\.toList\\s*\\(\\s*\\)"),
             new Rule("SequencedCollection (API 35)",
-                    "\\.(?:getFirst|getLast)\\s*\\(\\s*\\)|\\bSequencedCollection\\b"));
+                    "\\.(?:getFirst|getLast)\\s*\\(\\s*\\)|\\bSequencedCollection\\b"),
+            // URLEncoder.encode(String, Charset) is API 33; the pre-33 signature takes a String
+            // encoding name. Api28Compat.urlEncode wraps it. This one was a live sign-in crash.
+            new Rule("URLEncoder.encode(String, Charset) (API 33)",
+                    "\\bURLEncoder\\.encode\\s*\\([^)]*StandardCharsets"),
+            // StateListDrawable.getStateCount()/getStateDrawable() are API 29. They throw on API 28,
+            // and because they throw an Error a catch (Exception) does not contain them.
+            new Rule("StateListDrawable.getStateCount/getStateDrawable (API 29)",
+                    "\\.(?:getStateCount|getStateDrawable)\\s*\\("));
 
     /** Every banned call found in [text], as {@code "line N: label"}. Comments are not code. */
     private static List<String> scan(String text) {
@@ -202,6 +228,17 @@ public class Api28CompatTest {
         assertTrue(scan("list.stream().collect(Collectors.toList());").isEmpty());
         // String.join is API 26.
         assertTrue(scan("String.join(\", \", parts);").isEmpty());
+        // URLEncoder: the one-arg Charset overload is API 33, the String-encoding one is API 1.
+        assertTrue(scan("URLEncoder.encode(v, StandardCharsets.UTF_8);").stream()
+                .anyMatch(m -> m.contains("URLEncoder")));
+        assertTrue(scan("URLEncoder.encode(v, \"UTF-8\");").isEmpty());
+        assertTrue(scan("Api28Compat.urlEncode(v);").isEmpty());
+        // StateListDrawable: the accessors are API 29, the constant state is API 1.
+        assertTrue(scan("sld.getStateCount();").stream()
+                .anyMatch(m -> m.contains("StateListDrawable")));
+        assertTrue(scan("sld.getStateDrawable(0);").stream()
+                .anyMatch(m -> m.contains("StateListDrawable")));
+        assertTrue(scan("container.getChildCount();").isEmpty());
     }
 
     @Test
