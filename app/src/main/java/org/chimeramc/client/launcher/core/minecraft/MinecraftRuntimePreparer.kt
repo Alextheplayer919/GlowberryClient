@@ -179,19 +179,41 @@ val modsDir = modManager.currentVersion?.modsDir?.absolutePath
             val profileId = MinecraftLauncher.getStorageProfileId(version)
             val internalGameData = LauncherStorage.getStorageGameDataDir(context, profileId, version.versionIsolation, false)
             val externalGameData = LauncherStorage.getStorageGameDataDir(context, profileId, version.versionIsolation, true)
-            val bundledPackCount = BundledResourcePackInstaller.sync(
+            val packResult = BundledResourcePackInstaller.sync(
                 modManager.mods,
                 nativeModResult.loadedModIds,
                 internalGameData,
                 externalGameData
             )
-            if (bundledPackCount > 0) {
-                fileListener.onLog("Prepared $bundledPackCount bundled native-mod pack(s)")
+            if (packResult.packCount > 0) {
+                fileListener.onLog("Prepared ${packResult.packCount} bundled native-mod pack(s)")
             }
-            trace.mark("Bundled native-mod packs synchronized", bundledPackCount.toString())
-        } catch (error: Exception) {
-            trace.error("Bundled native-mod pack synchronization failed", error.message ?: error.javaClass.simpleName)
-            throw RuntimeException("Failed to prepare bundled native-mod packs", error)
+            if (!packResult.isComplete) {
+                // A cosmetic side effect, not a launch gate: the game reads exactly one game-data
+                // root, so a failure writing a candidate it will not read must not stop the session.
+                // Report it by cause so the Diagnostics screen and logcat agree, then continue.
+                val detail = packResult.firstError?.message ?: packResult.firstError?.javaClass?.simpleName
+                fileListener.onLog(
+                    "Bundled native-mod packs could not be written to " +
+                        "${packResult.failedRoots.size} of " +
+                        "${packResult.failedRoots.size + packResult.succeededRoots.size} game-data " +
+                        "root(s); the launch continues. ${detail ?: ""}".trim()
+                )
+                trace.warning(
+                    "Bundled native-mod pack synchronization incomplete",
+                    packResult.firstError?.javaClass?.simpleName
+                )
+            } else {
+                trace.mark("Bundled native-mod packs synchronized", packResult.packCount.toString())
+            }
+        } catch (error: Throwable) {
+            // Even an unexpected failure outside the per-root handling must not block a launch: the
+            // packs are a cosmetic convenience, and a session that cannot start is far worse than a
+            // mod's bundled resource pack not being applied.
+            trace.warning(
+                "Bundled native-mod pack synchronization failed",
+                error.message ?: error.javaClass.simpleName
+            )
         }
 
         // F2: an instance can be bound to a specific Microsoft account. Export that account's XAL
