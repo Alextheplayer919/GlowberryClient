@@ -2405,4 +2405,21 @@ GlowberryClient must complete the migration before continuing.</string>
     <string name="launch_error_message_unknown">The launch failed for a reason the launcher could not identify. The exact error is below — it is what a bug report needs.</string>
     <string name="launch_error_cause_label">Cause:</string>
 
+    <!-- Cause-specific reasons for downloads, imports and file operations (UserFacingError).
+         Each names what happened and what to do; a reason without an action is the same dead end
+         as "Unknown error" with more words. -->
+    <string name="error_reason_no_connection">Your device has no working connection to the internet right now. Check Wi-Fi or mobile data, then try again.</string>
+    <string name="error_reason_connection_refused">The download server refused the connection. It may be down or blocking this network. Try again in a few minutes, or use a different network.</string>
+    <string name="error_reason_host_not_found">The download server\'s address could not be found. This usually means there is no internet connection. Check Wi-Fi or mobile data, then try again.</string>
+    <string name="error_reason_timeout">The download server took too long to answer. This is usually a slow or unstable connection. Move closer to your router or switch networks, then try again.</string>
+    <string name="error_reason_secure_connection">A secure connection to the download server could not be established. This happens on a captive-portal Wi-Fi (the kind that opens a sign-in page), if the device clock is wrong, or behind a proxy. Sign in to the network or correct the date and time, then try again.</string>
+    <string name="error_reason_server_refused">The download source refused the request. It sometimes asks for a browser check before it will serve a file; complete the check in the browser panel, then try again.</string>
+    <string name="error_reason_server_error">The download server reported an internal error. This is a problem on the server, not on your device. Try again in a few minutes.</string>
+    <string name="error_reason_bad_response">The download source answered, but the launcher could not read a usable download link from it. The source may have changed its page layout. Try Refresh, and report it if it keeps happening.</string>
+    <string name="error_reason_out_of_space">There is not enough free storage to finish this. Free some space — the launcher needs room for the downloaded package and for the files it extracts from it — then try again.</string>
+    <string name="error_reason_permission_denied">The launcher is not allowed to read or write that location. Grant storage access to GlowberryClient in Android Settings, then try again.</string>
+    <string name="error_reason_corrupt_package">The downloaded file is damaged or is not a valid Minecraft package. Delete it and download it again; if it fails the same way, the source is serving a broken file.</string>
+    <string name="error_reason_interrupted">The download was interrupted before it finished. Keep the launcher open and the screen on while a package downloads, then try again.</string>
+    <string name="error_reason_unknown">The operation failed for a reason the launcher could not identify. The exact error is below — it is what a bug report needs.</string>
+
 </resources>

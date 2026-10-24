@@ -37,6 +37,7 @@ import org.chimeramc.client.preloader.PreloaderSignatureRulesManager;
 import org.chimeramc.client.settings.FeatureSettings;
 import org.chimeramc.client.settings.LowLatencyNetworkManager;
 import org.chimeramc.client.settings.PerformancePresetManager;
+import org.chimeramc.client.launcher.core.minecraft.UserFacingError;
 import org.chimeramc.client.launcher.ui.activities.DiagnosticsActivity;
 import org.chimeramc.client.ui.animation.DynamicAnim;
 import org.chimeramc.client.ui.dialogs.LogcatOverlayManager;
@@ -1102,9 +1103,13 @@ public class SettingsActivity extends BaseActivity {
             if (result.success) {
                 Toast.makeText(this, R.string.preloader_sigs_update_success, Toast.LENGTH_SHORT).show();
             } else {
-                String detail = result.message.isEmpty()
-                        ? getString(R.string.unknown_error)
-                        : result.message;
+                // The manager's message is the raw exception text ("Unable to resolve host ...").
+                // Naming the cause turns it into something the user can act on; the raw text stays
+                // for the report.
+                String detail = result.message == null || result.message.trim().isEmpty()
+                        ? getString(R.string.error_reason_unknown)
+                        : getString(UserFacingError.messageRes(
+                                UserFacingError.classifyText(result.message)));
                 Toast.makeText(this, getString(R.string.preloader_sigs_update_failed, detail), Toast.LENGTH_LONG).show();
             }
         });

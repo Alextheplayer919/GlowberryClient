@@ -29,6 +29,7 @@ import org.chimeramc.client.core.installer.PackageSourceClient;
 import org.chimeramc.client.core.installer.SourceRegistry;
 import org.chimeramc.client.core.versions.GameVersion;
 import org.chimeramc.client.core.versions.VersionManager;
+import org.chimeramc.client.launcher.core.minecraft.UserFacingError;
 import org.chimeramc.client.ui.adapter.InstallationAdapter;
 import org.chimeramc.client.ui.dialogs.CustomAlertDialog;
 import org.chimeramc.client.util.ApkImportManager;
@@ -589,12 +590,17 @@ public class InstallationsFragment extends Fragment {
         return BedrockSource.versionNameFrom(code);
     }
 
+    /**
+     * The cause-specific reason a listing, download or import failed.
+     *
+     * <p>Before this the row and the empty state showed the raw exception message — "Unable to
+     * resolve host \"mcpedl.org\"" — which names neither the problem nor the fix. The classifier
+     * turns it into one actionable sentence and keeps the raw text beneath it for a bug report.
+     */
     private String describe(Throwable error) {
-        if (error == null) return getString(R.string.installations_unknown_error);
-        String message = error.getMessage();
-        return message == null || message.isEmpty()
-                ? getString(R.string.installations_unknown_error)
-                : message;
+        if (error == null) return getString(R.string.error_reason_unknown);
+        return UserFacingError.describe(error, getString(UserFacingError.messageRes(
+                UserFacingError.classify(error))));
     }
 
     private static String formatSize(long bytes) {

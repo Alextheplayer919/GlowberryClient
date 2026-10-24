@@ -15,6 +15,7 @@ import androidx.core.content.FileProvider;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.chimeramc.client.R;
+import org.chimeramc.client.launcher.core.minecraft.UserFacingError;
 import org.chimeramc.client.settings.LowLatencyNetworkManager;
 import org.chimeramc.client.ui.dialogs.CustomAlertDialog;
 
@@ -193,6 +194,18 @@ public class GithubReleaseUpdater {
         });
     }
 
+    /**
+     * The cause-specific reason an update download or install failed.
+     *
+     * <p>Before this the toast carried the raw exception text, which for a failed update is usually
+     * "Unable to resolve host api.github.com" — accurate, but it does not say that the device has
+     * no connection, which is the only thing the user can fix.
+     */
+    private static String reasonFor(android.content.Context context, Throwable error) {
+        if (error == null) return context.getString(R.string.error_reason_unknown);
+        return context.getString(UserFacingError.messageRes(UserFacingError.classify(error)));
+    }
+
     private void ignoreThisVersion(String version) {
         SharedPreferences prefs = activity.getSharedPreferences("no_update_version", Context.MODE_PRIVATE);
         prefs.edit().putString(PREF_IGNORED_VERSION, version).apply();
@@ -205,8 +218,9 @@ public class GithubReleaseUpdater {
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
-                activity.runOnUiThread(() ->
-                        Toast.makeText(activity, activity.getString(R.string.update_failed, e.getMessage()), Toast.LENGTH_LONG).show());
+                activity.runOnUiThread(() -> Toast.makeText(activity,
+                        activity.getString(R.string.update_failed, reasonFor(activity, e)),
+                        Toast.LENGTH_LONG).show());
             }
 
             @Override
@@ -238,8 +252,9 @@ public class GithubReleaseUpdater {
                     fos.flush();
                     installApk(apkFile);
                 } catch (Exception e) {
-                    activity.runOnUiThread(() ->
-                            Toast.makeText(activity, activity.getString(R.string.update_failed, e.getMessage()), Toast.LENGTH_LONG).show());
+                    activity.runOnUiThread(() -> Toast.makeText(activity,
+                            activity.getString(R.string.update_failed, reasonFor(activity, e)),
+                            Toast.LENGTH_LONG).show());
                 } finally {
                     try {
                         if (is != null) is.close();
@@ -279,7 +294,7 @@ public class GithubReleaseUpdater {
                                 intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
                                 activity.startActivity(intent);
                             } catch (Exception e) {
-                                Toast.makeText(activity, activity.getString(R.string.install_failed, e.getMessage()), Toast.LENGTH_LONG).show();
+                                Toast.makeText(activity, activity.getString(R.string.install_failed, reasonFor(activity, e)), Toast.LENGTH_LONG).show();
                             }
                         });
                     }
