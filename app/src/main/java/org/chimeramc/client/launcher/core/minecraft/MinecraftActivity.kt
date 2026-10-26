@@ -25,6 +25,7 @@ import com.mojang.minecraftpe.MainActivity
 import org.chimeramc.client.core.crash.CrashReporter
 import org.chimeramc.client.core.mods.ModManager
 import org.chimeramc.client.core.mods.ModSafeMode
+import org.chimeramc.client.core.minecraft.OptifineModeManager
 import org.levimc.launcher.core.mods.inbuilt.nativemod.PojavControlsMod
 import org.chimeramc.client.core.mods.inbuilt.overlay.InbuiltOverlayManager
 import org.chimeramc.client.launcher.controller.ControllerInputProcessor
@@ -396,6 +397,10 @@ class MinecraftActivity : MainActivity(), PojavControlsHost {
         }
         monitor.setListener(controllerMonitorListener)
         monitor.start()
+        // Re-tune dynamic render-distance bounds for this device tier each time the session
+        // comes to the front, so a phone that thermally throttled mid-gameplay gets its chunk
+        // load stepped down without waiting for the next launch.
+        OptifineModeManager.retuneRenderDistance(this)
     }
 
     private fun detachControllerMonitor() {

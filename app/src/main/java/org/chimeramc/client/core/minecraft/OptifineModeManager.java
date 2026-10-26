@@ -98,10 +98,13 @@ public final class OptifineModeManager {
             // Item 11: the same target is the interval the frame-pacing reading compares against, so
             // a "vsync-locked" verdict is measured against the rate the game was actually asked for.
             PreloaderInput.setDisplayRefreshHz(targetHz);
+            // Device-tier-aware render distance bounds: low-end phones never get asked to load
+            // 12 chunks, which would choke CPU and memory bandwidth and tank in-game FPS.
+            int tier = RenderDistanceDefaults.deviceTier(context);
             PreloaderInput.configureRenderDistance(
-                    RenderDistanceDefaults.MIN_CHUNKS,
-                    RenderDistanceDefaults.MAX_CHUNKS,
-                    RenderDistanceDefaults.FPS_THRESHOLD);
+                    RenderDistanceDefaults.minChunksForTier(tier),
+                    RenderDistanceDefaults.maxChunksForTier(tier),
+                    RenderDistanceDefaults.fpsThresholdForTier(tier));
         } else {
             Log.i(TAG, "Preloader unavailable; optifine configuration not pushed");
         }
@@ -203,8 +206,25 @@ public final class OptifineModeManager {
         prefs.edit().remove(KEY_PENDING).apply();
     }
 
+    /**
+     * Re-tunes render-distance bounds at runtime for the current device tier.
+     *
+     * <p>Called when the session's conditions change (for example thermal throttling kicking in
+     * mid-gameplay) so the governor can step render distance into a safer range without waiting
+     * for the next launch. Fail-closed on a missing preloader.
+     */
+    public static void retuneRenderDistance(Context context) {
+        if (context == null) return;
+        boolean preloaderLoaded = org.chimeramc.client.core.mods.ModManager.ensurePreloaderLoaded();
+        if (!preloaderLoaded) return;
+        int tier = RenderDistanceDefaults.deviceTier(context);
+        PreloaderInput.configureRenderDistance(
+                RenderDistanceDefaults.minChunksForTier(tier),
+                RenderDistanceDefaults.maxChunksForTier(tier),
+                RenderDistanceDefaults.fpsThresholdForTier(tier));
+    }
+
     /** The preloader's per-item report, or an empty list when the native library is absent. */
-    public static List<ItemState> readState() {
         String[] flat = PreloaderInput.readOptifineState();
         List<ItemState> result = new ArrayList<>();
         if (flat == null) {

@@ -25,7 +25,7 @@ public class FeatureSettings {
     private boolean optifineRefreshRateEnabled = true;
     private boolean optifineEntityCullingEnabled = false;
     private boolean optifineParticleCullingEnabled = false;
-    private boolean optifineRenderDistanceEnabled = false;
+    private boolean optifineRenderDistanceEnabled = true;
     private boolean optifineCallbackTrimmingEnabled = false;
     private boolean optifineOreUiStrippingEnabled = false;
     /**
