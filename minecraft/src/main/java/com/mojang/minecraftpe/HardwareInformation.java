@@ -52,7 +52,11 @@ public class HardwareInformation {
     }
 
     public static int getPerformanceCoreCount() {
-        return 1;
+        // The native engine uses this to size render/job thread pools. Reporting a hardcoded 1
+        // core on a multi-core phone forces single-threaded rendering and tanks FPS. Return the
+        // real processor count parsed from /proc/cpuinfo so the engine can parallelise across
+        // all available cores.
+        return cpuInfo.getNumberCPUCores();
     }
 
     public static @NotNull String getLocale() {
@@ -82,7 +86,7 @@ public class HardwareInformation {
     }
 
     public static int getNumCores() {
-        return 2;
+        return cpuInfo.getNumberCPUCores();
     }
 
     public static int getNumClusters() {

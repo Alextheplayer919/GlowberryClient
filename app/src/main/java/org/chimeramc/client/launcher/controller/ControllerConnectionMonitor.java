@@ -152,6 +152,10 @@ public final class ControllerConnectionMonitor {
         if (isDebounced(deviceId)) return;
         // Forget it, so unplugging and plugging the same pad announces the reconnect.
         announcedIds.remove(deviceId);
+        // Release the live in-memory controller state so a disconnected pad stops being the
+        // active controller for the rest of the session. Without this a falsely (or genuinely)
+        // detected pad stays active in memory until the process dies.
+        ControllerInputProcessor.setActiveProfile(null, null);
         // The device is already gone, so its name cannot be read now; the last known id is all
         // we have. A generic label is used when nothing was cached for it.
         String name = lastKnownNames.remove(deviceId);
@@ -197,6 +201,11 @@ public final class ControllerConnectionMonitor {
 
     /** Classifies a pad, loads its profile and delivers the connected callback. */
     private void announce(InputDevice device) {
+        // Only announce pads we can classify by vendor/product. An unknown gamepad-source
+        // device (e.g. a phantom mobile input device with no real pad attached) must not be
+        // announced as a controller, otherwise a phone with no controller reports
+        // "connected and detected" and loads a profile it never asked for.
+        if (ControllerType.from(device) == null) return;
         announcedIds.add(device.getId());
         ControllerType type = ControllerType.from(device);
         ControllerType effective = type != null ? type : ControllerType.XBOX;
